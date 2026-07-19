@@ -8,7 +8,8 @@ from typing import Callable, Protocol
 from urllib.parse import urlparse
 
 from .matrix_config import Cell
-from .matrix_lifecycle import ManagedProcess, port_is_free, run_stop_command, spawn_pinned
+from .matrix_lifecycle import LifecycleError, ManagedProcess, port_is_free, run_stop_command, spawn_pinned
+from .transport import TransportError
 
 
 class ServerError(RuntimeError):
@@ -29,6 +30,7 @@ class ServerHandle(Protocol):
 
 Spawner = Callable[[tuple[str, ...], Path], ManagedProcess]
 PortFree = Callable[[int], bool]
+StopRunner = Callable[[tuple[str, ...]], None]
 
 
 class SubprocessServerHandle:
@@ -40,24 +42,29 @@ class SubprocessServerHandle:
         *,
         spawner: Spawner | None = None,
         port_free: PortFree | None = None,
+        stop_runner: StopRunner | None = None,
     ) -> None:
         self._cell = cell
         self._transport = transport
         self._log_path = log_dir / f"{cell.cell_id}.log"
         self._spawner = spawner or spawn_pinned
         self._port_free = port_free or port_is_free
+        self._stop_runner = stop_runner or (lambda cmd: run_stop_command(cmd))
         self._process: ManagedProcess | None = None
         self._started = False
 
     def start(self) -> None:
         if self._started:
             return
-        if self._cell.server == "osaurus":
-            port = _port_from_base_url(self._cell.base_url)
-            if self._port_free(port):
+        try:
+            if self._cell.server == "osaurus":
+                port = _port_from_base_url(self._cell.base_url)
+                if self._port_free(port):
+                    self._process = self._spawner(self._cell.start_command, self._log_path)
+            else:
                 self._process = self._spawner(self._cell.start_command, self._log_path)
-        else:
-            self._process = self._spawner(self._cell.start_command, self._log_path)
+        except (LifecycleError, OSError, ValueError) as error:
+            raise ServerError(str(error)) from error
         self._started = True
 
     def wait_ready(self, model_id: str, timeout_seconds: float) -> None:
@@ -65,7 +72,7 @@ class SubprocessServerHandle:
         while time.monotonic() < deadline:
             try:
                 models = self._transport.list_models(self._cell.base_url, None)
-            except Exception:
+            except (TransportError, OSError, TimeoutError, ValueError, KeyError, TypeError):
                 models = ()
             if model_id in models:
                 return
@@ -74,7 +81,7 @@ class SubprocessServerHandle:
 
     def stop(self) -> None:
         if self._cell.stop_command:
-            run_stop_command(self._cell.stop_command)
+            self._stop_runner(self._cell.stop_command)
         elif self._process is not None:
             self._process.stop()
         self._process = None
@@ -95,7 +102,9 @@ def build_server(
     *,
     spawner: Spawner | None = None,
     port_free: PortFree | None = None,
+    stop_runner: StopRunner | None = None,
 ) -> ServerHandle:
     return SubprocessServerHandle(
-        cell, transport, log_dir, spawner=spawner, port_free=port_free,
+        cell, transport, log_dir,
+        spawner=spawner, port_free=port_free, stop_runner=stop_runner,
     )
