@@ -47,14 +47,17 @@ class ManagedProcess:
             return
         try:
             self._child.wait(timeout=timeout_seconds)
-            return
         except subprocess.TimeoutExpired:
             pass
+        # Always escalate: leader exit after SIGTERM can leave descendants alive.
         try:
             os.killpg(self.process_group_id, signal.SIGKILL)
         except ProcessLookupError:
             return
-        self._child.wait(timeout=5)
+        try:
+            self._child.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            raise LifecycleError("process group did not exit after SIGKILL") from None
 
 
 def spawn_pinned(command: tuple[str, ...], log_path: Path) -> ManagedProcess:

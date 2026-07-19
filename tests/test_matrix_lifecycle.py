@@ -24,15 +24,21 @@ class MatrixLifecycleTests(unittest.TestCase):
             log = Path(tmp) / "server.log"
             code = (
                 "import http.server, socketserver\n"
-                f"httpd = socketserver.TCPServer(('127.0.0.1', {port}), http.server.BaseHTTPRequestHandler)\n"
-                "httpd.handle_request()\n"
+                "class H(http.server.BaseHTTPRequestHandler):\n"
+                "    def log_message(self, *args): pass\n"
+                "    def do_GET(self):\n"
+                "        self.send_response(200)\n"
+                "        self.end_headers()\n"
+                "socketserver.TCPServer.allow_reuse_address = True\n"
+                f"httpd = socketserver.TCPServer(('127.0.0.1', {port}), H)\n"
+                "httpd.serve_forever()\n"
             )
             proc = spawn_pinned(("python3", "-c", code), log)
-            deadline = time.time() + 5
+            deadline = time.time() + 10
             while time.time() < deadline and port_is_free(port):
                 time.sleep(0.05)
             self.assertFalse(port_is_free(port))
-            proc.stop()
+            proc.stop(timeout_seconds=2)
             wait_port_free(port, timeout_seconds=5)
             self.assertTrue(port_is_free(port))
 
