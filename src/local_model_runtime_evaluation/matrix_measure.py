@@ -8,6 +8,7 @@ import threading
 from dataclasses import asdict, dataclass
 from typing import Literal
 
+from .credentials import Credential
 from .matrix_config import Cell, MatrixSuite, Workload
 from .measurement import validate_response_contract
 from .resources import HostResourceProbe
@@ -120,12 +121,14 @@ def _run_one(
     repetition: int,
     measured: bool,
     cancel: threading.Event,
+    credential: Credential | None,
 ) -> Observation:
     if cancel.is_set():
         raise MatrixMeasureError("cancelled before request")
     try:
         result = transport.chat(
-            cell.base_url, cell.model_id, workload.prompt, workload.max_tokens, None, cancel,
+            cell.base_url, cell.model_id, workload.prompt, workload.max_tokens,
+            credential, cancel,
         )
     except TransportError as error:
         return Observation(
@@ -163,6 +166,7 @@ def measure_cell(
     transport: LoopbackTransport,
     probe: HostResourceProbe | None,
     cancel: threading.Event,
+    credential: Credential | None = None,
 ) -> CellResult:
     if mode not in MODES:
         raise MatrixMeasureError(f"unknown mode {mode!r}")
@@ -170,7 +174,7 @@ def measure_cell(
     memory_before = _memory_percent(probe)
 
     try:
-        models = transport.list_models(cell.base_url, None)
+        models = transport.list_models(cell.base_url, credential)
     except TransportError as error:
         memory_after = _memory_percent(probe)
         return CellResult(
@@ -201,7 +205,7 @@ def measure_cell(
             if cancel.is_set():
                 break
             observations.append(
-                _run_one(transport, cell, workload, repetition, False, cancel)
+                _run_one(transport, cell, workload, repetition, False, cancel, credential)
             )
         if cancel.is_set():
             break
@@ -209,7 +213,7 @@ def measure_cell(
             if cancel.is_set():
                 break
             observations.append(
-                _run_one(transport, cell, workload, repetition, True, cancel)
+                _run_one(transport, cell, workload, repetition, True, cancel, credential)
             )
         if cancel.is_set():
             break

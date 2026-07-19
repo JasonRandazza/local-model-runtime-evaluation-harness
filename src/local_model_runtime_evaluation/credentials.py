@@ -7,6 +7,7 @@ from typing import Protocol
 
 
 KEYCHAIN_SERVICE = "local.jrazz.lmre.omlx"
+OSAURUS_KEYCHAIN_SERVICE = "local.jrazz.lmre.osaurus"
 KEYCHAIN_ACCOUNT = "benchmark-harness"
 
 
@@ -59,6 +60,14 @@ class FakeCredentialProvider:
 class KeychainCredentialProvider:
     """Reads one fixed Keychain item without logging command output or secret data."""
 
+    def __init__(
+        self,
+        service: str = KEYCHAIN_SERVICE,
+        account: str = KEYCHAIN_ACCOUNT,
+    ) -> None:
+        self.service = service
+        self.account = account
+
     def status(self) -> CredentialState:
         try:
             self.get()
@@ -68,8 +77,8 @@ class KeychainCredentialProvider:
 
     def get(self) -> Credential:
         result = subprocess.run(
-            ["/usr/bin/security", "find-generic-password", "-s", KEYCHAIN_SERVICE,
-             "-a", KEYCHAIN_ACCOUNT, "-w"],
+            ["/usr/bin/security", "find-generic-password", "-s", self.service,
+             "-a", self.account, "-w"],
             capture_output=True, text=True, check=False, timeout=5,
         )
         value = result.stdout.rstrip("\n")

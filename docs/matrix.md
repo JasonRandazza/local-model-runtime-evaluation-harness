@@ -7,6 +7,20 @@ Direct native comparison of three control artifacts across Osaurus (`1337`), oML
 - Artifact paths in `config/matrix/cells/` must exist on disk (JANG under `MLXModels/OsaurusAI/`, oQ4 and OptiQ-4bit under Hugging Face cache).
 - Restore `optiq` on `PATH` before OptiQ cells (`which optiq`).
 - Unload other heavy models; keep RAM above the campaign floor (`20%` free).
+- **Osaurus Keychain item** (required for Osaurus cells). Create a dedicated harness key in the Osaurus app, then store it privately in Terminal (do **not** paste the key into chat):
+
+```bash
+/usr/bin/security add-generic-password \
+  -a benchmark-harness \
+  -s local.jrazz.lmre.osaurus \
+  -l "LMRE Osaurus Matrix" \
+  -j "Dedicated local matrix credential; do not export" \
+  -U -w
+```
+
+  `-w` last: paste the key only into the hidden password prompt.
+- oMLX: campaign stops a busy managed `omlX` on `:8100` before spawning a cell-owned serve (no API key on that temporary serve).
+- OptiQ cells start with `--no-auth`.
 
 ## Non-live check
 
