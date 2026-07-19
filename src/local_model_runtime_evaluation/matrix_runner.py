@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 from urllib.parse import urlparse
 
-from .matrix_config import Cell, Campaign, MatrixSuite
+from .matrix_config import REPOSITORY_ROOT, Cell, Campaign, MatrixSuite
 from .matrix_lifecycle import port_is_free
 from .matrix_measure import MODES, CellResult, measure_cell as default_measure_cell
 from .matrix_servers import ServerError, ServerHandle, build_server as default_build_server
@@ -231,3 +232,98 @@ def run_campaign(
     )
     (run_dir / "report.md").write_text(render_report(raw), encoding="utf-8")
     return run_dir
+
+
+DEFAULT_CAMPAIGN = REPOSITORY_ROOT / "config" / "matrix" / "gemma-4-12b-qat-campaign.json"
+
+
+def _resolve_repo_path(path: Path) -> Path:
+    if path.is_absolute():
+        return path
+    return (REPOSITORY_ROOT / path).resolve()
+
+
+def _parse_cell_filter(raw: str | None) -> tuple[str, ...] | None:
+    if raw is None:
+        return None
+    parts = tuple(part.strip() for part in raw.split(",") if part.strip())
+    return parts or None
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="lmre-matrix",
+        description="Gemma 4 12B QAT 3×3 matrix campaign across Osaurus, oMLX, and OptiQ.",
+    )
+    parser.add_argument(
+        "--campaign",
+        type=Path,
+        default=DEFAULT_CAMPAIGN,
+        help="Campaign JSON under config/matrix/",
+    )
+    parser.add_argument("--mode", choices=sorted(MODES), default="screen")
+    parser.add_argument(
+        "--cells",
+        help="Comma-separated cell ids to run (default: all nine)",
+    )
+    parser.add_argument(
+        "--results-dir",
+        type=Path,
+        default=None,
+        help="Output root (default: campaign results_root)",
+    )
+    parser.add_argument(
+        "--dry-config",
+        action="store_true",
+        help="Load and validate campaign, suite, and cells only; no network contact.",
+    )
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    try:
+        campaign = Campaign.load(_resolve_repo_path(args.campaign))
+        suite = MatrixSuite.load(campaign.suite_path)
+        cell_filter = _parse_cell_filter(args.cells)
+        cells = tuple(Cell.load(path) for path in campaign.cell_paths)
+        if cell_filter is not None:
+            allowed = set(cell_filter)
+            cells = tuple(cell for cell in cells if cell.cell_id in allowed)
+
+        if args.dry_config:
+            print(json.dumps({
+                "ok": True,
+                "campaign_id": campaign.campaign_id,
+                "mode": args.mode,
+                "suite_id": suite.suite_id,
+                "suite_revision": suite.revision,
+                "cell_count": len(cells),
+                "cells": [cell.cell_id for cell in cells],
+            }, sort_keys=True))
+            return 0
+
+        results_dir = campaign.results_root if args.results_dir is None else _resolve_repo_path(
+            args.results_dir
+        )
+        run_dir = run_campaign(
+            campaign,
+            args.mode,
+            results_dir,
+            cell_filter=cell_filter,
+        )
+        print(json.dumps({"ok": True, "run_dir": str(run_dir)}, sort_keys=True))
+        return 0
+    except Exception as error:
+        print(json.dumps({
+            "ok": False,
+            "error": {
+                "kind": getattr(error, "code", error.__class__.__name__),
+                "message": str(error),
+            },
+        }, sort_keys=True))
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
