@@ -1,0 +1,233 @@
+"""Campaign orchestration and 3×3 report for the Gemma matrix."""
+
+from __future__ import annotations
+
+import json
+import threading
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Callable
+from urllib.parse import urlparse
+
+from .matrix_config import Cell, Campaign, MatrixSuite
+from .matrix_lifecycle import port_is_free
+from .matrix_measure import MODES, CellResult, measure_cell as default_measure_cell
+from .matrix_servers import ServerError, ServerHandle, build_server as default_build_server
+from .resources import HostResourceProbe
+from .transport import LoopbackTransport
+
+QUANT_ORDER = ("jang_4m", "oq4_fp16", "optiq_4bit")
+SERVER_ORDER = ("osaurus", "omlx", "optiq")
+PORT_VERIFY_TIMEOUT_SECONDS = 5.0
+
+BuildServer = Callable[[Cell, LoopbackTransport, Path], ServerHandle]
+MeasureCell = Callable[
+    [Cell, MatrixSuite, str, LoopbackTransport, HostResourceProbe | None, threading.Event],
+    CellResult,
+]
+PortFree = Callable[[int], bool]
+
+
+class MatrixRunnerError(RuntimeError):
+    pass
+
+
+def _stamp() -> str:
+    return time.strftime("%Y%m%d-%H%M%S")
+
+
+def _port_from_base_url(base_url: str) -> int:
+    parsed = urlparse(base_url)
+    if parsed.port is None:
+        raise MatrixRunnerError(f"base_url has no port: {base_url}")
+    return parsed.port
+
+
+def _short_reason(reason: str | None) -> str:
+    if not reason:
+        return "unavailable"
+    return reason.split("\n", maxsplit=1)[0].strip()
+
+
+def _format_table_cell(entry: dict[str, Any] | None) -> str:
+    if entry is None:
+        return "-"
+    status = entry["status"]
+    if status == "N/A":
+        return f"N/A {_short_reason(entry.get("na_reason"))}"
+    if status == "PASS":
+        median = (entry.get("summary") or {}).get("median_total_seconds")
+        if isinstance(median, (int, float)):
+            return f"PASS {median:.1f}s"
+        return "PASS"
+    if status == "FAIL":
+        return "FAIL"
+    return "-"
+
+
+def _cell_json(cell: Cell, result: CellResult) -> dict[str, Any]:
+    return {
+        "cell_id": cell.cell_id,
+        "quant": cell.quant,
+        "server": cell.server,
+        "status": result.status,
+        "na_reason": result.na_reason,
+        "summary": result.summary,
+        "memory_free_percent_before": result.memory_free_percent_before,
+        "memory_free_percent_after": result.memory_free_percent_after,
+        "observations": [item.as_json() for item in result.observations],
+    }
+
+
+def _na_result(reason: str, memory_before: int | None) -> CellResult:
+    return CellResult(
+        status="N/A",
+        na_reason=reason,
+        observations=(),
+        summary={
+            "measured_count": 0,
+            "success_count": 0,
+            "contract_pass_count": 0,
+            "median_total_seconds": None,
+            "by_workload": {},
+        },
+        memory_free_percent_before=memory_before,
+        memory_free_percent_after=memory_before,
+    )
+
+
+def render_report(raw: dict[str, Any]) -> str:
+    by_key = {(item["quant"], item["server"]): item for item in raw["cells"]}
+    lines = [
+        f"# Matrix campaign {raw['campaign_id']}",
+        "",
+        f"Mode: `{raw['mode']}`",
+        f"Suite: `{raw['suite_id']}` revision `{raw['suite_revision']}`",
+        "",
+        "## 3×3 results",
+        "",
+        "| quant \\\\ server | osaurus | omlx | optiq |",
+        "|---|---|---|---|",
+    ]
+    for quant in QUANT_ORDER:
+        cells = [_format_table_cell(by_key.get((quant, server))) for server in SERVER_ORDER]
+        lines.append(f"| {quant} | {' | '.join(cells)} |")
+    if raw.get("stopped_early"):
+        lines.extend(["", f"Campaign stopped early: `{raw.get('stop_reason')}`"])
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _verify_port_free(port: int, port_free: PortFree) -> None:
+    if port_free(port):
+        return
+    deadline = time.monotonic() + PORT_VERIFY_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        if port_free(port):
+            return
+        time.sleep(0.1)
+    raise MatrixRunnerError(f"port {port} did not free in time")
+
+
+def run_campaign(
+    campaign: Campaign,
+    mode: str,
+    results_dir: Path,
+    *,
+    cell_filter: tuple[str, ...] | None = None,
+    cells: tuple[Cell, ...] | None = None,
+    build_server: BuildServer | None = None,
+    measure_cell: MeasureCell | None = None,
+    probe: HostResourceProbe | None = None,
+    port_free: PortFree | None = None,
+) -> Path:
+    if mode not in MODES:
+        raise MatrixRunnerError(f"unknown mode {mode!r}")
+
+    suite = MatrixSuite.load(campaign.suite_path)
+    loaded_cells = cells if cells is not None else tuple(Cell.load(path) for path in campaign.cell_paths)
+    if cell_filter is not None:
+        allowed = set(cell_filter)
+        loaded_cells = tuple(cell for cell in loaded_cells if cell.cell_id in allowed)
+
+    resource_probe = probe if probe is not None else HostResourceProbe()
+    check_port = port_free or port_is_free
+    build = build_server or (
+        lambda cell, transport, log_dir: default_build_server(cell, transport, log_dir)
+    )
+    measure = measure_cell or default_measure_cell
+
+    run_dir = results_dir / "matrix" / f"{campaign.campaign_id}-{mode}-{_stamp()}"
+    run_dir.mkdir(parents=True, exist_ok=False)
+    log_dir = run_dir / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    base_urls = {cell.base_url for cell in loaded_cells}
+    transport = LoopbackTransport(base_urls)
+    cancel = threading.Event()
+
+    started_at = datetime.now(timezone.utc).isoformat()
+    records: list[dict[str, Any]] = []
+    stopped_early = False
+    stop_reason: str | None = None
+    previous: ServerHandle | None = None
+
+    for cell in loaded_cells:
+        memory_before = resource_probe.free_memory_percent()
+        if memory_before < campaign.memory_floor_percent:
+            stopped_early = True
+            stop_reason = "memory_floor"
+            break
+
+        if previous is not None:
+            previous.stop()
+
+        handle = build(cell, transport, log_dir)
+        try:
+            handle.start()
+            handle.wait_ready(cell.model_id, campaign.ready_timeout_seconds)
+        except ServerError as error:
+            records.append(_cell_json(cell, _na_result(str(error), memory_before)))
+            handle.stop()
+            previous = handle
+            if campaign.on_cell_failure != "continue":
+                stopped_early = True
+                stop_reason = "cell_failure"
+                break
+            continue
+
+        result = measure(cell, suite, mode, transport, resource_probe, cancel)
+        records.append(_cell_json(cell, result))
+        handle.stop()
+        _verify_port_free(_port_from_base_url(cell.base_url), check_port)
+        previous = handle
+
+        if result.status == "FAIL" and campaign.on_cell_failure != "continue":
+            stopped_early = True
+            stop_reason = "cell_failure"
+            break
+
+    finished_at = datetime.now(timezone.utc).isoformat()
+    raw = {
+        "schema_version": "matrix-campaign-1.0.0",
+        "campaign_id": campaign.campaign_id,
+        "mode": mode,
+        "suite_id": suite.suite_id,
+        "suite_revision": suite.revision,
+        "memory_floor_percent": campaign.memory_floor_percent,
+        "ready_timeout_seconds": campaign.ready_timeout_seconds,
+        "request_timeout_seconds": campaign.request_timeout_seconds,
+        "on_cell_failure": campaign.on_cell_failure,
+        "started_at": started_at,
+        "finished_at": finished_at,
+        "stopped_early": stopped_early,
+        "stop_reason": stop_reason,
+        "cells": records,
+    }
+    (run_dir / "raw.json").write_text(
+        json.dumps(raw, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    (run_dir / "report.md").write_text(render_report(raw), encoding="utf-8")
+    return run_dir
