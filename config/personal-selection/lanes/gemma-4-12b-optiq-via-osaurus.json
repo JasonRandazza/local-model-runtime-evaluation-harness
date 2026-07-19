@@ -1,0 +1,10 @@
+{
+  "lane_id": "gemma-4-12b-optiq-via-osaurus",
+  "family": "gemma-4-12b-it-qat",
+  "comparison_class": "native-best-stack",
+  "path_type": "provider_optiq",
+  "base_url": "http://127.0.0.1:1337/v1",
+  "model_id": "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+  "artifact_hint": "~/.cache/huggingface/hub/models--mlx-community--gemma-4-12B-it-qat-OptiQ-4bit",
+  "notes": "Start OptiQ with this artifact, reconnect the existing Optiq provider, confirm the exact Osaurus model id, then run. If /v1/models shows a different exact id, edit this lane file before measuring."
+}

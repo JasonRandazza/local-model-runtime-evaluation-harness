@@ -1,0 +1,9 @@
+#!/bin/zsh
+set -euo pipefail
+
+if (( $# != 0 )); then
+  print -u2 "lmre-stage2-operator-serve accepts no arguments"
+  exit 64
+fi
+
+exec /Users/jrazz/Dev/tools/mlx-optiq/.venv/bin/optiq serve --model /Users/jrazz/.cache/huggingface/hub/models--mlx-community--VibeThinker-3B-OptiQ-4bit/snapshots/94bce93443d4f62946ae89261f62e0ecdbb1ef1e --host 127.0.0.1 --port 8080 --no-anthropic --no-responses --no-auth --single-model --max-concurrent 1 --idle-timeout 0 --max-context 8192 --context-scale 1.0 --no-stream-experts --decode-concurrency 1 --prompt-concurrency 1

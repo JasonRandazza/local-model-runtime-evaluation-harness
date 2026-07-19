@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0.0",
+  "profile_id": "vibethinker-3b-mlx-oq4",
+  "revision": "3",
+  "approved": true,
+  "runtime_owner": "omlx",
+  "coordinator_model_id": "gemma-4-12b-it-qat-jang_4m",
+  "comparison_classes": ["route-overhead"],
+  "direct": {"base_url": "http://127.0.0.1:8100/v1", "model_id": "VibeThinker-3B-MLX-oQ4"},
+  "routed": {"base_url": "http://127.0.0.1:1337/v1", "model_id": "omlx/VibeThinker-3B-MLX-oQ4"},
+  "tokenizer": {"kind": "api-usage-verified", "identity": "VibeThinker-3B-MLX-oQ4"},
+  "suite_id": "route-overhead-v1",
+  "credential_ref": "local.jrazz.lmre.omlx",
+  "limits": {"request_timeout_seconds": 120, "memory_stop_level": "critical"}
+}

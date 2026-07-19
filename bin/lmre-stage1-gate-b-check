@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent.parent
+source = str(ROOT / "src")
+existing = os.environ.get("PYTHONPATH")
+os.environ["PYTHONPATH"] = source if not existing else f"{source}{os.pathsep}{existing}"
+sys.path.insert(0, source)
+
+from local_model_runtime_evaluation.gate_b_check import main
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

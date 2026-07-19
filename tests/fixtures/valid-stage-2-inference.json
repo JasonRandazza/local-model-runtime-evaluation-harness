@@ -1,0 +1,28 @@
+{
+  "schema_version": "3.2.0",
+  "run_id": "stage2-20260715-901",
+  "stage": 2,
+  "mode": "operator_inference_probe",
+  "operations": ["inventory", "preflight", "run-scenario", "status", "cancel", "cleanup"],
+  "output_root": "/Users/jrazz/.osaurus/container/output/benchmark-runs",
+  "approved_by": "unit-test",
+  "approved_at": "2026-07-15T00:00:00Z",
+  "expires_at": "2026-07-16T00:00:00Z",
+  "comparison_class": "optiq-operator-route-smoke",
+  "runtime_profile_id": "vibethinker-3b-optiq-4bit",
+  "runtime_profile_revision": "3",
+  "suite_id": "optiq-route-smoke-v1",
+  "suite_revision": "1",
+  "repetitions": 1,
+  "route_order": "counterbalanced",
+  "routes": {
+    "direct": "http://127.0.0.1:8080/v1",
+    "routed": "http://127.0.0.1:1337/v1"
+  },
+  "limits": {
+    "request_timeout_seconds": 120,
+    "memory_stop_level": "warning",
+    "maximum_in_flight_requests": 1,
+    "total_request_limit": 8
+  }
+}

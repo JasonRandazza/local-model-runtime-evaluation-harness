@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Versioned Benchmark Suite",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "suite_id", "revision", "temperature", "streaming", "workloads"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "suite_id": {"type": "string"},
+    "revision": {"type": "string"},
+    "temperature": {"type": "number"},
+    "streaming": {"type": "boolean"},
+    "workloads": {"type": "array"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"suite_id": {"const": "optiq-route-smoke-v1"}},
+        "required": ["suite_id"]
+      },
+      "then": {
+        "properties": {
+          "schema_version": {"const": "1.0.0"},
+          "revision": {"const": "1"},
+          "temperature": {"const": 0},
+          "streaming": {"const": true},
+          "workloads": {
+            "const": [
+              {"workload_id": "short-chat", "prompt": "In two sentences, explain why reproducible measurements matter.", "max_tokens": 128, "response_contract": "text"},
+              {"workload_id": "structured-tool-json", "prompt": "Return exactly this JSON object with no markdown or extra text: {\"name\":\"status\",\"arguments\":{\"run_id\":\"stage2b-test\",\"include_details\":false}}", "max_tokens": 512, "response_contract": "stage2b-status-tool-json"}
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "stage0-20260713-002",
+  "stage": 0,
+  "mode": "live",
+  "operations": ["inventory"],
+  "output_root": "/Users/jrazz/.osaurus/container/output/benchmark-runs",
+  "approved_by": "Jason Randazza",
+  "approved_at": "2026-07-13T00:00:00-04:00",
+  "expires_at": "2099-01-01T00:00:00-05:00",
+  "simulation": {"pause_after": "running"}
+}

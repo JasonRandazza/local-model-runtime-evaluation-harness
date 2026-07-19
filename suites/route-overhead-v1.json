@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0.0",
+  "suite_id": "route-overhead-v1",
+  "revision": "2",
+  "temperature": 0,
+  "streaming": true,
+  "workloads": [
+    {"workload_id": "short-chat", "prompt": "In two sentences, explain why reproducible measurements matter.", "max_tokens": 128, "response_contract": "text"},
+    {"workload_id": "medium-reasoning", "prompt": "A service handles 120 requests per minute and routing adds 40 milliseconds per request. Explain which measurements are needed before deciding whether the routing cost is operationally important.", "max_tokens": 512, "response_contract": "text"},
+    {"workload_id": "long-context", "prompt": "Read this policy: repository files define executable truth; durable notes explain intent and history; generated evidence requires review before becoming policy. Summarize the precedence and explain how to resolve disagreement without changing any files.", "max_tokens": 256, "response_contract": "text"},
+    {"workload_id": "repeated-prefix-first", "prompt": "Shared prefix: evaluate local model serving with fixed prompts, serial requests, measured medians, explicit failures, and immutable evidence. First pass: list the required controls.", "max_tokens": 256, "response_contract": "text"},
+    {"workload_id": "repeated-prefix-reuse", "prompt": "Shared prefix: evaluate local model serving with fixed prompts, serial requests, measured medians, explicit failures, and immutable evidence. Reuse pass: explain why each control matters.", "max_tokens": 256, "response_contract": "text"},
+    {"workload_id": "structured-tool-json", "prompt": "Return exactly this JSON object with no markdown or extra text: {\"name\":\"status\",\"arguments\":{\"run_id\":\"stage1-test\",\"include_details\":false}}", "max_tokens": 512, "response_contract": "status-tool-json"}
+  ]
+}

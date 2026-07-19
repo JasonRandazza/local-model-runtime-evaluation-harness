@@ -1,0 +1,10 @@
+{
+  "lane_id": "gemma-4-12b-native-osaurus",
+  "family": "gemma-4-12b-it-qat",
+  "comparison_class": "native-best-stack",
+  "path_type": "native",
+  "base_url": "http://127.0.0.1:1337/v1",
+  "model_id": "gemma-4-12b-it-qat-jang_4m",
+  "artifact_hint": "~/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
+  "notes": "Load only this native Gemma in Osaurus before the run. One target model at a time."
+}

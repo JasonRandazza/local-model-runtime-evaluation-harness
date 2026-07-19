@@ -1,0 +1,20 @@
+{
+  "schema_version": "2.0.0",
+  "run_id": "stage1-YYYYMMDD-NNN",
+  "stage": 1,
+  "mode": "live_route_comparison",
+  "operations": ["inventory", "preflight", "run-scenario", "status", "cancel", "cleanup"],
+  "output_root": "/Users/jrazz/.osaurus/container/output/benchmark-runs",
+  "approved_by": "PENDING",
+  "approved_at": "PENDING",
+  "expires_at": "PENDING",
+  "comparison_class": "route-overhead",
+  "model_profile_id": "vibethinker-3b-mlx-oq4",
+  "model_profile_revision": "3",
+  "suite_id": "route-overhead-v1",
+  "suite_revision": "2",
+  "repetitions": 5,
+  "route_order": "counterbalanced",
+  "routes": {"direct": "http://127.0.0.1:8100/v1", "routed": "http://127.0.0.1:1337/v1"},
+  "limits": {"request_timeout_seconds": 120, "memory_stop_level": "critical"}
+}

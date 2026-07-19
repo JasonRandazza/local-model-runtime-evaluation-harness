@@ -1,0 +1,10 @@
+[project]
+name = "local-model-runtime-evaluation-harness"
+version = "0.3.0"
+description = "Fail-closed local model runtime evaluation orchestration"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+lmre-stage0 = "local_model_runtime_evaluation.cli:main"
+lmre-personal-select = "local_model_runtime_evaluation.personal_selection:main"

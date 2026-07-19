@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/lmre/benchmark-manifest.schema.json",
+  "title": "Local Model Runtime Evaluation Manifest",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "run_id", "stage", "mode", "operations", "output_root", "approved_by", "approved_at", "expires_at", "simulation"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "run_id": {"type": "string", "pattern": "^stage0-[0-9]{8}-[0-9]{3}$"},
+        "stage": {"const": 0}, "mode": {"const": "dry_run"}, "operations": {"$ref": "#/$defs/operations"},
+        "output_root": {"$ref": "#/$defs/output_root"}, "approved_by": {"type": "string", "minLength": 1},
+        "approved_at": {"type": "string", "format": "date-time"}, "expires_at": {"type": "string", "format": "date-time"},
+        "simulation": {"const": {"pause_after": "running"}}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "run_id", "stage", "mode", "operations", "output_root", "approved_by", "approved_at", "expires_at", "comparison_class", "model_profile_id", "model_profile_revision", "suite_id", "suite_revision", "repetitions", "route_order", "routes", "limits"],
+      "properties": {
+        "schema_version": {"const": "2.0.0"}, "run_id": {"type": "string", "pattern": "^stage1-[0-9]{8}-[0-9]{3}$"},
+        "stage": {"const": 1}, "mode": {"const": "live_route_comparison"}, "operations": {"$ref": "#/$defs/operations"},
+        "output_root": {"$ref": "#/$defs/output_root"}, "approved_by": {"type": "string", "minLength": 1},
+        "approved_at": {"type": "string", "format": "date-time"}, "expires_at": {"type": "string", "format": "date-time"},
+        "comparison_class": {"const": "route-overhead"}, "model_profile_id": {"type": "string", "minLength": 1},
+        "model_profile_revision": {"type": "string", "minLength": 1}, "suite_id": {"const": "route-overhead-v1"},
+        "suite_revision": {"const": "2"}, "repetitions": {"const": 5}, "route_order": {"const": "counterbalanced"},
+        "routes": {"const": {"direct": "http://127.0.0.1:8100/v1", "routed": "http://127.0.0.1:1337/v1"}},
+        "limits": {"type": "object", "additionalProperties": false, "required": ["request_timeout_seconds", "memory_stop_level"], "properties": {"request_timeout_seconds": {"type": "integer", "minimum": 1}, "memory_stop_level": {"const": "critical"}}}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "run_id", "stage", "mode", "operations", "output_root", "approved_by", "approved_at", "expires_at", "comparison_class", "runtime_profile_id", "runtime_profile_revision", "routes", "limits"],
+      "properties": {
+        "schema_version": {"const": "3.0.0"}, "run_id": {"type": "string", "pattern": "^stage2-[0-9]{8}-[0-9]{3}$"},
+        "stage": {"const": 2}, "mode": {"const": "lifecycle_probe"}, "operations": {"$ref": "#/$defs/operations"},
+        "output_root": {"$ref": "#/$defs/output_root"}, "approved_by": {"type": "string", "minLength": 1},
+        "approved_at": {"type": "string", "format": "date-time"}, "expires_at": {"type": "string", "format": "date-time"},
+        "comparison_class": {"const": "optiq-lifecycle-route-discovery"},
+        "runtime_profile_id": {"const": "vibethinker-3b-optiq-4bit"}, "runtime_profile_revision": {"enum": ["1", "2"]},
+        "routes": {"const": {"direct": "http://127.0.0.1:8080/v1", "routed": "http://127.0.0.1:1337/v1"}},
+        "limits": {"const": {"startup_timeout_seconds": 120, "shutdown_timeout_seconds": 30, "request_timeout_seconds": 10, "memory_stop_level": "critical"}}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "run_id", "stage", "mode", "operations", "output_root", "approved_by", "approved_at", "expires_at", "comparison_class", "runtime_profile_id", "runtime_profile_revision", "routes", "limits"],
+      "properties": {
+        "schema_version": {"const": "3.1.0"}, "run_id": {"type": "string", "pattern": "^stage2-[0-9]{8}-[0-9]{3}$"},
+        "stage": {"const": 2}, "mode": {"const": "operator_route_probe"}, "operations": {"$ref": "#/$defs/operations"},
+        "output_root": {"$ref": "#/$defs/output_root"}, "approved_by": {"type": "string", "minLength": 1},
+        "approved_at": {"type": "string", "format": "date-time"}, "expires_at": {"type": "string", "format": "date-time"},
+        "comparison_class": {"const": "optiq-operator-route-discovery"},
+        "runtime_profile_id": {"const": "vibethinker-3b-optiq-4bit"}, "runtime_profile_revision": {"const": "3"},
+        "routes": {"const": {"direct": "http://127.0.0.1:8080/v1", "routed": "http://127.0.0.1:1337/v1"}},
+        "limits": {"const": {"request_timeout_seconds": 10, "memory_stop_level": "critical"}}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "run_id", "stage", "mode", "operations", "output_root", "approved_by", "approved_at", "expires_at", "comparison_class", "runtime_profile_id", "runtime_profile_revision", "suite_id", "suite_revision", "repetitions", "route_order", "routes", "limits"],
+      "properties": {
+        "schema_version": {"const": "3.2.0"}, "run_id": {"type": "string", "pattern": "^stage2-[0-9]{8}-[0-9]{3}$"},
+        "stage": {"const": 2}, "mode": {"const": "operator_inference_probe"}, "operations": {"$ref": "#/$defs/operations"},
+        "output_root": {"$ref": "#/$defs/output_root"}, "approved_by": {"type": "string", "minLength": 1},
+        "approved_at": {"type": "string", "format": "date-time"}, "expires_at": {"type": "string", "format": "date-time"},
+        "comparison_class": {"const": "optiq-operator-route-smoke"},
+        "runtime_profile_id": {"const": "vibethinker-3b-optiq-4bit"}, "runtime_profile_revision": {"const": "3"},
+        "suite_id": {"const": "optiq-route-smoke-v1"}, "suite_revision": {"const": "1"},
+        "repetitions": {"const": 1}, "route_order": {"const": "counterbalanced"},
+        "routes": {"const": {"direct": "http://127.0.0.1:8080/v1", "routed": "http://127.0.0.1:1337/v1"}},
+        "limits": {"const": {"request_timeout_seconds": 120, "memory_stop_level": "warning", "maximum_in_flight_requests": 1, "total_request_limit": 8}}
+      }
+    }
+  ],
+  "$defs": {
+    "operations": {"type": "array", "uniqueItems": true, "minItems": 6, "maxItems": 6, "items": {"enum": ["inventory", "preflight", "run-scenario", "status", "cancel", "cleanup"]}},
+    "output_root": {"const": "/Users/jrazz/.osaurus/container/output/benchmark-runs"}
+  }
+}

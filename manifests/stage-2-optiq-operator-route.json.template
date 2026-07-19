@@ -1,0 +1,29 @@
+{
+  "schema_version": "3.1.0",
+  "run_id": "stage2-YYYYMMDD-NNN",
+  "stage": 2,
+  "mode": "operator_route_probe",
+  "operations": [
+    "inventory",
+    "preflight",
+    "run-scenario",
+    "status",
+    "cancel",
+    "cleanup"
+  ],
+  "output_root": "/Users/jrazz/.osaurus/container/output/benchmark-runs",
+  "approved_by": "REQUIRES_CURRENT_SESSION_APPROVAL",
+  "approved_at": "REPLACE_AFTER_APPROVAL",
+  "expires_at": "REPLACE_AFTER_APPROVAL",
+  "comparison_class": "optiq-operator-route-discovery",
+  "runtime_profile_id": "vibethinker-3b-optiq-4bit",
+  "runtime_profile_revision": "3",
+  "routes": {
+    "direct": "http://127.0.0.1:8080/v1",
+    "routed": "http://127.0.0.1:1337/v1"
+  },
+  "limits": {
+    "request_timeout_seconds": 10,
+    "memory_stop_level": "critical"
+  }
+}

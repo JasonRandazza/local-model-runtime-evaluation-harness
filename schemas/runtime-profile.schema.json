@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/lmre/runtime-profile.schema.json",
+  "title": "Approved Stage 2A OptiQ Runtime Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "profile_id", "revision", "approved", "runtime_executable",
+    "runtime_version", "coordinator_model_id", "package_versions", "model_repository", "model_revision",
+    "model_snapshot", "artifact_hashes", "serve_arguments", "direct_base_url",
+    "routed_base_url", "direct_model_identities", "osaurus_provider_id",
+    "routed_model_id", "rejected_local_model_ids"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "vibethinker-3b-optiq-4bit"},
+    "revision": {"enum": ["2", "3"]},
+    "approved": {"const": true},
+    "runtime_executable": {"const": "/Users/jrazz/Dev/tools/mlx-optiq/.venv/bin/optiq"},
+    "runtime_version": {"const": "0.3.3"},
+    "coordinator_model_id": {"const": "gemma-4-12b-it-qat-jang_4m"},
+    "package_versions": {"type": "object"},
+    "model_repository": {"const": "mlx-community/VibeThinker-3B-OptiQ-4bit"},
+    "model_revision": {"const": "94bce93443d4f62946ae89261f62e0ecdbb1ef1e"},
+    "model_snapshot": {"type": "string"},
+    "artifact_hashes": {"type": "object"},
+    "serve_arguments": {"type": "array", "items": {"type": "string"}},
+    "direct_base_url": {"const": "http://127.0.0.1:8080/v1"},
+    "routed_base_url": {"const": "http://127.0.0.1:1337/v1"},
+    "direct_model_identities": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "string"}},
+    "osaurus_provider_id": {"const": "Optiq"},
+    "routed_model_id": {"type": "string"},
+    "rejected_local_model_ids": {"type": "array", "items": {"type": "string"}},
+    "service_ownership": {"type": "string"},
+    "provider_activation": {"type": "string"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"revision": {"const": "2"}}},
+      "then": {
+        "properties": {
+          "routed_model_id": {"const": "mlx-community/VibeThinker-3B-OptiQ-4bit"},
+          "rejected_local_model_ids": {"const": ["vibethinker-3b-optiq-4bit"]}
+        },
+        "not": {"anyOf": [
+          {"required": ["service_ownership"]},
+          {"required": ["provider_activation"]}
+        ]}
+      }
+    },
+    {
+      "if": {"properties": {"revision": {"const": "3"}}},
+      "then": {
+        "required": ["service_ownership", "provider_activation"],
+        "properties": {
+          "routed_model_id": {"const": "optiq/mlx-community/VibeThinker-3B-OptiQ-4bit"},
+          "rejected_local_model_ids": {"const": [
+            "vibethinker-3b-optiq-4bit",
+            "mlx-community/VibeThinker-3B-OptiQ-4bit"
+          ]},
+          "service_ownership": {"const": "operator"},
+          "provider_activation": {"const": "operator_reconnect_required"}
+        }
+      }
+    }
+  ]
+}

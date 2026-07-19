@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0.0",
+  "profile_id": "vibethinker-3b-optiq-4bit",
+  "revision": "2",
+  "approved": true,
+  "runtime_executable": "/Users/jrazz/Dev/tools/mlx-optiq/.venv/bin/optiq",
+  "runtime_version": "0.3.3",
+  "coordinator_model_id": "gemma-4-12b-it-qat-jang_4m",
+  "package_versions": {
+    "mlx-optiq": "0.3.3",
+    "mlx": "0.32.0",
+    "mlx-lm": "0.31.3",
+    "transformers": "5.12.1"
+  },
+  "model_repository": "mlx-community/VibeThinker-3B-OptiQ-4bit",
+  "model_revision": "94bce93443d4f62946ae89261f62e0ecdbb1ef1e",
+  "model_snapshot": "/Users/jrazz/.cache/huggingface/hub/models--mlx-community--VibeThinker-3B-OptiQ-4bit/snapshots/94bce93443d4f62946ae89261f62e0ecdbb1ef1e",
+  "artifact_hashes": {
+    "model.safetensors": "22d7239f48ecdc5190b1c6bf39c997381ea08a33fc7da4bb8612034e7733c27b",
+    "config.json": "d474f82a1b9f4b4653a6018774d6e2a8ca28de974ab29c5fd167ca95d3b5a22e",
+    "optiq_metadata.json": "79c7c593fc23be80d516754735fc1e7a213866d29a6811943b49b18fc3500e4a",
+    "model.safetensors.index.json": "84bfe43075e74ee90a2dc62862ae2f726686dd04a609db0198e3fb664960f751"
+  },
+  "serve_arguments": [
+    "serve", "--model", "/Users/jrazz/.cache/huggingface/hub/models--mlx-community--VibeThinker-3B-OptiQ-4bit/snapshots/94bce93443d4f62946ae89261f62e0ecdbb1ef1e",
+    "--host", "127.0.0.1", "--port", "8080", "--no-anthropic", "--no-responses",
+    "--no-auth", "--single-model", "--max-concurrent", "1", "--idle-timeout", "0",
+    "--max-context", "8192", "--context-scale", "1.0", "--no-stream-experts",
+    "--decode-concurrency", "1", "--prompt-concurrency", "1"
+  ],
+  "direct_base_url": "http://127.0.0.1:8080/v1",
+  "routed_base_url": "http://127.0.0.1:1337/v1",
+  "direct_model_identities": [
+    "mlx-community/VibeThinker-3B-OptiQ-4bit",
+    "/Users/jrazz/.cache/huggingface/hub/models--mlx-community--VibeThinker-3B-OptiQ-4bit/snapshots/94bce93443d4f62946ae89261f62e0ecdbb1ef1e"
+  ],
+  "osaurus_provider_id": "Optiq",
+  "routed_model_id": "mlx-community/VibeThinker-3B-OptiQ-4bit",
+  "rejected_local_model_ids": [
+    "vibethinker-3b-optiq-4bit"
+  ]
+}
