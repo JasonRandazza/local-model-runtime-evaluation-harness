@@ -5,8 +5,17 @@
   "base_url": "http://127.0.0.1:1337/v1",
   "model_id": "gemma-4-12b-it-qat-jang_4m",
   "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
-  "start_command": ["osaurus", "serve", "--port", "1337", "--yes"],
-  "stop_command": ["osaurus", "stop"],
+  "start_command": [
+    "osaurus",
+    "serve",
+    "--port",
+    "1337",
+    "--yes"
+  ],
+  "stop_command": [
+    "osaurus",
+    "stop"
+  ],
   "health_path": "/health",
   "notes": "Native Osaurus JANG path. First chat may load the model."
 }

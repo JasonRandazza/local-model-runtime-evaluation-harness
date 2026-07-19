@@ -3,9 +3,18 @@
   "quant": "optiq_4bit",
   "server": "omlx",
   "base_url": "http://127.0.0.1:8100/v1",
-  "model_id": "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
-  "artifact_path": "/Users/jrazz/.cache/huggingface/hub/models--mlx-community--gemma-4-12B-it-qat-OptiQ-4bit",
-  "start_command": ["omlX", "serve", "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit", "--host", "127.0.0.1", "--port", "8100"],
+  "model_id": "mlx-community__gemma-4-12B-it-qat-OptiQ-4bit",
+  "artifact_path": "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+  "start_command": [
+    "omlX",
+    "serve",
+    "--model-dir",
+    "/Users/jrazz/Dev/active/local-model-runtime-evaluation-harness/config/matrix/omlx-roots/optiq_4bit",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8100"
+  ],
   "stop_command": [],
   "health_path": "/health",
   "notes": "oMLX start style with OptiQ-4bit artifact. Expect N/A if unloadable."

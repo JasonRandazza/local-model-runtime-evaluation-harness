@@ -18,16 +18,20 @@ EXPECTED_CAMPAIGN_PORTS = dict(SERVER_PORTS)
 
 QUANT_CONTROL_ARTIFACTS = {
     "jang_4m": {
-        "model_id": "gemma-4-12b-it-qat-jang_4m",
+        "model_ids": ("gemma-4-12b-it-qat-jang_4m",),
         "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
     },
     "oq4_fp16": {
-        "model_id": "gemma-4-12B-it-qat-oQ4-fp16",
-        "artifact_path": "/Users/jrazz/.cache/huggingface/hub/models--avneetsb--gemma-4-12B-it-qat-oQ4-fp16",
+        "model_ids": ("gemma-4-12B-it-qat-oQ4-fp16",),
+        "artifact_path": "/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
     },
     "optiq_4bit": {
-        "model_id": "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
-        "artifact_path": "/Users/jrazz/.cache/huggingface/hub/models--mlx-community--gemma-4-12B-it-qat-OptiQ-4bit",
+        # slash form for OptiQ/Osaurus; underscore form for oMLX --model-dir subdir names
+        "model_ids": (
+            "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+            "mlx-community__gemma-4-12B-it-qat-OptiQ-4bit",
+        ),
+        "artifact_path": "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
     },
 }
 
@@ -64,7 +68,7 @@ def _validate_server_base_url(server: str, base_url: str) -> None:
 
 def _validate_quant_artifact(quant: str, model_id: str, artifact_path: str) -> None:
     control = QUANT_CONTROL_ARTIFACTS[quant]
-    if model_id != control["model_id"] or artifact_path != control["artifact_path"]:
+    if model_id not in control["model_ids"] or artifact_path != control["artifact_path"]:
         raise MatrixError("model_id and artifact_path must match quant control artifact")
 
 

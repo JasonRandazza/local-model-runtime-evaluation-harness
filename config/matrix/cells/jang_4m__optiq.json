@@ -9,7 +9,7 @@
     "optiq",
     "serve",
     "--model",
-    "OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
+    "/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
     "--host",
     "127.0.0.1",
     "--port",

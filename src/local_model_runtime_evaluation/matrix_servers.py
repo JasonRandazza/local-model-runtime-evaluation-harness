@@ -82,15 +82,25 @@ class SubprocessServerHandle:
 
     def wait_ready(self, model_id: str, timeout_seconds: float) -> None:
         deadline = time.monotonic() + timeout_seconds
+        last_error: str | None = None
         while time.monotonic() < deadline:
             try:
                 models = self._transport.list_models(self._cell.base_url, self._credential)
-            except (TransportError, OSError, TimeoutError, ValueError, KeyError, TypeError):
+            except TransportError as error:
+                message = str(error)
+                last_error = message
+                # Auth failures will not recover by waiting.
+                if "HTTP 401" in message or "HTTP 403" in message:
+                    raise ServerError(message) from error
+                models = ()
+            except (OSError, TimeoutError, ValueError, KeyError, TypeError) as error:
+                last_error = str(error)
                 models = ()
             if model_id in models:
                 return
             time.sleep(0.1)
-        raise ServerError(f"model {model_id!r} not ready within {timeout_seconds}s")
+        detail = f" ({last_error})" if last_error else ""
+        raise ServerError(f"model {model_id!r} not ready within {timeout_seconds}s{detail}")
 
     def stop(self) -> None:
         # ponytail: never stop a pre-existing Osaurus/oMLX we did not spawn

@@ -48,7 +48,7 @@ def _omlx(**overrides: object) -> Cell:
         server="omlx",
         base_url="http://127.0.0.1:8100/v1",
         model_id="gemma-4-12B-it-qat-oQ4-fp16",
-        artifact_path="/Users/jrazz/.cache/huggingface/hub/models--avneetsb--gemma-4-12B-it-qat-oQ4-fp16",
+        artifact_path="/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
         start_command=("true",),
         stop_command=(),
         health_path="/health",
