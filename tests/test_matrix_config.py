@@ -82,6 +82,27 @@ class MatrixConfigTests(unittest.TestCase):
                 start_command=("osaurus", "serve"), stop_command=(), health_path="/health", notes="",
             )
 
+    def test_rejects_coerced_campaign_port_types(self) -> None:
+        bad = {
+            "campaign_id": "gemma-4-12b-qat-3x3",
+            "suite_path": "suites/gemma-matrix-v1.json",
+            "results_root": "results/matrix",
+            "memory_floor_percent": 20,
+            "ready_timeout_seconds": 180,
+            "request_timeout_seconds": 120,
+            "on_cell_failure": "continue",
+            "ports": {"osaurus": "1337", "omlx": 8100, "optiq": 8080},
+            "cells": ["config/matrix/cells/jang_4m__osaurus.json"] * 9,
+        }
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(bad, handle)
+            path = Path(handle.name)
+        try:
+            with self.assertRaises(MatrixError):
+                Campaign.load(path)
+        finally:
+            path.unlink(missing_ok=True)
+
     def test_matrix_suite_loads_gemma_matrix_v1(self) -> None:
         suite = MatrixSuite.load(ROOT / "suites" / "gemma-matrix-v1.json")
         self.assertEqual(suite.suite_id, "gemma-matrix-v1")

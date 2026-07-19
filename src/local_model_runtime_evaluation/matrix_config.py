@@ -199,7 +199,9 @@ class Campaign:
         ports = data["ports"]
         if not isinstance(ports, dict) or set(ports) != ALLOWED_SERVERS:
             raise MatrixError("ports are invalid")
-        normalized_ports = {str(key): int(ports[key]) for key in sorted(ports)}
+        if any(not isinstance(ports[key], int) for key in ports):
+            raise MatrixError("ports values are invalid")
+        normalized_ports = {str(key): ports[key] for key in sorted(ports)}
         if normalized_ports != EXPECTED_CAMPAIGN_PORTS:
             raise MatrixError("ports values are invalid")
         cells = data["cells"]
