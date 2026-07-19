@@ -106,7 +106,7 @@ class MatrixServerTests(unittest.TestCase):
             spawner.assert_not_called()
             handle.wait_ready("gemma-4-12b-it-qat-jang_4m", timeout_seconds=1)
             handle.stop()
-            stop_runner.assert_called_once_with(("osaurus", "stop"))
+            stop_runner.assert_not_called()
 
     def test_process_stop_when_no_stop_command(self) -> None:
         transport = MagicMock()

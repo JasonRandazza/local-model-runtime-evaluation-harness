@@ -98,6 +98,7 @@ class MatrixRunnerTest(unittest.TestCase):
                 measure_cell=MagicMock(return_value=_pass_result(cells[1])),
                 probe=FakeProbe([80, 80]),
                 port_free=lambda port: True,
+                credential_for=lambda server: None,
             )
             raw = json.loads((out / "raw.json").read_text())
             self.assertEqual(raw["cells"][0]["status"], "N/A")
@@ -121,6 +122,7 @@ class MatrixRunnerTest(unittest.TestCase):
                 measure_cell=MagicMock(),
                 probe=FakeProbe([15]),
                 port_free=lambda port: True,
+                credential_for=lambda server: None,
             )
             raw = json.loads((out / "raw.json").read_text())
             self.assertTrue(raw["stopped_early"])
@@ -143,6 +145,7 @@ class MatrixRunnerTest(unittest.TestCase):
                 measure_cell=MagicMock(side_effect=[_pass_result(cells[0]), _pass_result(cells[1])]),
                 probe=FakeProbe([80, 80, 80, 80]),
                 port_free=lambda port: True,
+                credential_for=lambda server: None,
             )
             first.stop.assert_has_calls([call(), call()])
             second.stop.assert_called_once()
@@ -162,6 +165,7 @@ class MatrixRunnerTest(unittest.TestCase):
                 measure_cell=MagicMock(return_value=_pass_result(cells[1])),
                 probe=FakeProbe([80, 80]),
                 port_free=lambda port: True,
+                credential_for=lambda server: None,
             )
             raw = json.loads((out / "raw.json").read_text())
             self.assertEqual(len(raw["cells"]), 1)

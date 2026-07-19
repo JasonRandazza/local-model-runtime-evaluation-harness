@@ -11,6 +11,12 @@ from pathlib import Path
 from typing import Any, Callable, Sequence
 from urllib.parse import urlparse
 
+from .credentials import (
+    OSAURUS_KEYCHAIN_SERVICE,
+    Credential,
+    CredentialError,
+    KeychainCredentialProvider,
+)
 from .matrix_config import REPOSITORY_ROOT, Cell, Campaign, MatrixSuite
 from .matrix_lifecycle import port_is_free
 from .matrix_measure import MODES, CellResult, measure_cell as default_measure_cell
@@ -22,12 +28,16 @@ QUANT_ORDER = ("jang_4m", "oq4_fp16", "optiq_4bit")
 SERVER_ORDER = ("osaurus", "omlx", "optiq")
 PORT_VERIFY_TIMEOUT_SECONDS = 5.0
 
-BuildServer = Callable[[Cell, LoopbackTransport, Path], ServerHandle]
+BuildServer = Callable[[Cell, LoopbackTransport, Path, Credential | None], ServerHandle]
 MeasureCell = Callable[
-    [Cell, MatrixSuite, str, LoopbackTransport, HostResourceProbe | None, threading.Event],
+    [
+        Cell, MatrixSuite, str, LoopbackTransport, HostResourceProbe | None,
+        threading.Event, Credential | None,
+    ],
     CellResult,
 ]
 PortFree = Callable[[int], bool]
+CredentialFor = Callable[[str], Credential | None]
 
 
 class MatrixRunnerError(RuntimeError):
@@ -120,6 +130,25 @@ def render_report(raw: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _credential_for(server: str) -> Credential | None:
+    if server == "optiq":
+        return None
+    if server == "omlx":
+        # Spawned oMLX serves are unauthenticated; Keychain is unused for inventory
+        # against our own process. Kept for future reuse of a managed server.
+        return None
+    if server == "osaurus":
+        try:
+            return KeychainCredentialProvider(OSAURUS_KEYCHAIN_SERVICE).get()
+        except CredentialError as error:
+            raise MatrixRunnerError(
+                "Osaurus harness Keychain item missing: "
+                "create local.jrazz.lmre.osaurus / benchmark-harness "
+                "(see docs/matrix.md). Do not paste the key into chat."
+            ) from error
+    raise MatrixRunnerError(f"unknown server {server!r}")
+
+
 def _verify_port_free(port: int, port_free: PortFree) -> None:
     if port_free(port):
         return
@@ -142,6 +171,7 @@ def run_campaign(
     measure_cell: MeasureCell | None = None,
     probe: HostResourceProbe | None = None,
     port_free: PortFree | None = None,
+    credential_for: CredentialFor | None = None,
 ) -> Path:
     if mode not in MODES:
         raise MatrixRunnerError(f"unknown mode {mode!r}")
@@ -154,8 +184,11 @@ def run_campaign(
 
     resource_probe = probe if probe is not None else HostResourceProbe()
     check_port = port_free or port_is_free
+    resolve_credential = credential_for or _credential_for
     build = build_server or (
-        lambda cell, transport, log_dir: default_build_server(cell, transport, log_dir)
+        lambda cell, transport, log_dir, credential: default_build_server(
+            cell, transport, log_dir, credential=credential,
+        )
     )
     measure = measure_cell or default_measure_cell
 
@@ -208,14 +241,16 @@ def run_campaign(
             if previous is not None:
                 previous.stop()
 
-            handle = build(cell, transport, log_dir)
+            credential = resolve_credential(cell.server)
+            handle = build(cell, transport, log_dir, credential)
             try:
                 handle.start()
                 handle.wait_ready(cell.model_id, campaign.ready_timeout_seconds)
             except ServerError as error:
                 records.append(_cell_json(cell, _na_result(str(error), memory_before)))
                 handle.stop()
-                _verify_port_free(_port_from_base_url(cell.base_url), check_port)
+                if cell.server != "osaurus":
+                    _verify_port_free(_port_from_base_url(cell.base_url), check_port)
                 previous = handle
                 _persist(datetime.now(timezone.utc).isoformat())
                 if campaign.on_cell_failure != "continue":
@@ -224,10 +259,11 @@ def run_campaign(
                     break
                 continue
 
-            result = measure(cell, suite, mode, transport, resource_probe, cancel)
+            result = measure(cell, suite, mode, transport, resource_probe, cancel, credential)
             records.append(_cell_json(cell, result))
             handle.stop()
-            _verify_port_free(_port_from_base_url(cell.base_url), check_port)
+            if cell.server != "osaurus":
+                _verify_port_free(_port_from_base_url(cell.base_url), check_port)
             previous = handle
             _persist(datetime.now(timezone.utc).isoformat())
 
