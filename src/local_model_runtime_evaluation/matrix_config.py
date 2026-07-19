@@ -13,6 +13,24 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 ALLOWED_SERVERS = frozenset({"osaurus", "omlx", "optiq"})
 ALLOWED_QUANTS = frozenset({"jang_4m", "oq4_fp16", "optiq_4bit"})
 
+SERVER_PORTS = {"osaurus": 1337, "omlx": 8100, "optiq": 8080}
+EXPECTED_CAMPAIGN_PORTS = dict(SERVER_PORTS)
+
+QUANT_CONTROL_ARTIFACTS = {
+    "jang_4m": {
+        "model_id": "gemma-4-12b-it-qat-jang_4m",
+        "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
+    },
+    "oq4_fp16": {
+        "model_id": "gemma-4-12B-it-qat-oQ4-fp16",
+        "artifact_path": "/Users/jrazz/.cache/huggingface/hub/models--avneetsb--gemma-4-12B-it-qat-oQ4-fp16",
+    },
+    "optiq_4bit": {
+        "model_id": "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+        "artifact_path": "/Users/jrazz/.cache/huggingface/hub/models--mlx-community--gemma-4-12B-it-qat-OptiQ-4bit",
+    },
+}
+
 CELL_FIELDS = frozenset({
     "cell_id", "quant", "server", "base_url", "model_id", "artifact_path",
     "start_command", "stop_command", "health_path", "notes",
@@ -36,6 +54,18 @@ class MatrixError(RuntimeError):
 def _validate_loopback_base_url(base_url: str) -> None:
     if not base_url.startswith("http://127.0.0.1:") or not base_url.endswith("/v1"):
         raise MatrixError("base_url must be a loopback /v1 endpoint")
+
+
+def _validate_server_base_url(server: str, base_url: str) -> None:
+    expected = f"http://127.0.0.1:{SERVER_PORTS[server]}/v1"
+    if base_url != expected:
+        raise MatrixError("base_url must match server port mapping")
+
+
+def _validate_quant_artifact(quant: str, model_id: str, artifact_path: str) -> None:
+    control = QUANT_CONTROL_ARTIFACTS[quant]
+    if model_id != control["model_id"] or artifact_path != control["artifact_path"]:
+        raise MatrixError("model_id and artifact_path must match quant control artifact")
 
 
 def _require_exact_fields(data: dict[str, Any], expected: frozenset[str], label: str) -> None:
@@ -75,6 +105,8 @@ class Cell:
             raise MatrixError("quant is invalid")
         if self.server not in ALLOWED_SERVERS:
             raise MatrixError("server is invalid")
+        _validate_server_base_url(self.server, self.base_url)
+        _validate_quant_artifact(self.quant, self.model_id, self.artifact_path)
         if not self.start_command:
             raise MatrixError("start_command must not be empty")
 
@@ -168,6 +200,8 @@ class Campaign:
         if not isinstance(ports, dict) or set(ports) != ALLOWED_SERVERS:
             raise MatrixError("ports are invalid")
         normalized_ports = {str(key): int(ports[key]) for key in sorted(ports)}
+        if normalized_ports != EXPECTED_CAMPAIGN_PORTS:
+            raise MatrixError("ports values are invalid")
         cells = data["cells"]
         if not isinstance(cells, list) or len(cells) != 9:
             raise MatrixError("campaign must list exactly nine cells")
