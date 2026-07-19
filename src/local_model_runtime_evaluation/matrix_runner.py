@@ -56,7 +56,7 @@ def _format_table_cell(entry: dict[str, Any] | None) -> str:
         return "-"
     status = entry["status"]
     if status == "N/A":
-        return f"N/A {_short_reason(entry.get("na_reason"))}"
+        return f"N/A {_short_reason(entry.get('na_reason'))}"
     if status == "PASS":
         median = (entry.get("summary") or {}).get("median_total_seconds")
         if isinstance(median, (int, float)):
@@ -159,7 +159,7 @@ def run_campaign(
     )
     measure = measure_cell or default_measure_cell
 
-    run_dir = results_dir / "matrix" / f"{campaign.campaign_id}-{mode}-{_stamp()}"
+    run_dir = results_dir / f"{campaign.campaign_id}-{mode}-{_stamp()}"
     run_dir.mkdir(parents=True, exist_ok=False)
     log_dir = run_dir / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -174,63 +174,70 @@ def run_campaign(
     stop_reason: str | None = None
     previous: ServerHandle | None = None
 
-    for cell in loaded_cells:
-        memory_before = resource_probe.free_memory_percent()
-        if memory_before < campaign.memory_floor_percent:
-            stopped_early = True
-            stop_reason = "memory_floor"
-            break
+    def _persist(finished: str) -> None:
+        raw = {
+            "schema_version": "matrix-campaign-1.0.0",
+            "campaign_id": campaign.campaign_id,
+            "mode": mode,
+            "suite_id": suite.suite_id,
+            "suite_revision": suite.revision,
+            "memory_floor_percent": campaign.memory_floor_percent,
+            "ready_timeout_seconds": campaign.ready_timeout_seconds,
+            "request_timeout_seconds": campaign.request_timeout_seconds,
+            "on_cell_failure": campaign.on_cell_failure,
+            "started_at": started_at,
+            "finished_at": finished,
+            "stopped_early": stopped_early,
+            "stop_reason": stop_reason,
+            "cells": records,
+        }
+        (run_dir / "raw.json").write_text(
+            json.dumps(raw, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        (run_dir / "report.md").write_text(render_report(raw), encoding="utf-8")
 
-        if previous is not None:
-            previous.stop()
+    try:
+        for cell in loaded_cells:
+            memory_before = resource_probe.free_memory_percent()
+            if memory_before < campaign.memory_floor_percent:
+                stopped_early = True
+                stop_reason = "memory_floor"
+                break
 
-        handle = build(cell, transport, log_dir)
-        try:
-            handle.start()
-            handle.wait_ready(cell.model_id, campaign.ready_timeout_seconds)
-        except ServerError as error:
-            records.append(_cell_json(cell, _na_result(str(error), memory_before)))
+            if previous is not None:
+                previous.stop()
+
+            handle = build(cell, transport, log_dir)
+            try:
+                handle.start()
+                handle.wait_ready(cell.model_id, campaign.ready_timeout_seconds)
+            except ServerError as error:
+                records.append(_cell_json(cell, _na_result(str(error), memory_before)))
+                handle.stop()
+                _verify_port_free(_port_from_base_url(cell.base_url), check_port)
+                previous = handle
+                _persist(datetime.now(timezone.utc).isoformat())
+                if campaign.on_cell_failure != "continue":
+                    stopped_early = True
+                    stop_reason = "cell_failure"
+                    break
+                continue
+
+            result = measure(cell, suite, mode, transport, resource_probe, cancel)
+            records.append(_cell_json(cell, result))
             handle.stop()
+            _verify_port_free(_port_from_base_url(cell.base_url), check_port)
             previous = handle
-            if campaign.on_cell_failure != "continue":
+            _persist(datetime.now(timezone.utc).isoformat())
+
+            if result.status == "FAIL" and campaign.on_cell_failure != "continue":
                 stopped_early = True
                 stop_reason = "cell_failure"
                 break
-            continue
+    finally:
+        _persist(datetime.now(timezone.utc).isoformat())
 
-        result = measure(cell, suite, mode, transport, resource_probe, cancel)
-        records.append(_cell_json(cell, result))
-        handle.stop()
-        _verify_port_free(_port_from_base_url(cell.base_url), check_port)
-        previous = handle
-
-        if result.status == "FAIL" and campaign.on_cell_failure != "continue":
-            stopped_early = True
-            stop_reason = "cell_failure"
-            break
-
-    finished_at = datetime.now(timezone.utc).isoformat()
-    raw = {
-        "schema_version": "matrix-campaign-1.0.0",
-        "campaign_id": campaign.campaign_id,
-        "mode": mode,
-        "suite_id": suite.suite_id,
-        "suite_revision": suite.revision,
-        "memory_floor_percent": campaign.memory_floor_percent,
-        "ready_timeout_seconds": campaign.ready_timeout_seconds,
-        "request_timeout_seconds": campaign.request_timeout_seconds,
-        "on_cell_failure": campaign.on_cell_failure,
-        "started_at": started_at,
-        "finished_at": finished_at,
-        "stopped_early": stopped_early,
-        "stop_reason": stop_reason,
-        "cells": records,
-    }
-    (run_dir / "raw.json").write_text(
-        json.dumps(raw, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    (run_dir / "report.md").write_text(render_report(raw), encoding="utf-8")
     return run_dir
 
 

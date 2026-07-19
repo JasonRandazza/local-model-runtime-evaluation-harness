@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import statistics
 import threading
 from dataclasses import asdict, dataclass
@@ -64,14 +65,26 @@ def _median(values: list[float]) -> float | None:
     return None if not values else float(statistics.median(values))
 
 
-def summarize(observations: tuple[Observation, ...]) -> dict[str, object]:
+def _p95(values: list[float]) -> float | None:
+    if len(values) < 2:
+        return None
+    ordered = sorted(values)
+    index = max(0, min(len(ordered) - 1, int(math.ceil(0.95 * len(ordered)) - 1)))
+    return float(ordered[index])
+
+
+def summarize(
+    observations: tuple[Observation, ...],
+    *,
+    include_p95: bool = False,
+) -> dict[str, object]:
     measured = [item for item in observations if item.measured]
     by_workload: dict[str, object] = {}
     for workload_id in sorted({item.workload_id for item in measured}):
         rows = [item for item in measured if item.workload_id == workload_id]
         times = [item.total_seconds for item in rows if item.success and item.total_seconds is not None]
         contracts = sum(1 for item in rows if item.response_contract_valid)
-        by_workload[workload_id] = {
+        stats: dict[str, object] = {
             "measured_count": len(rows),
             "success_count": sum(1 for item in rows if item.success),
             "contract_pass_count": contracts,
@@ -79,17 +92,25 @@ def summarize(observations: tuple[Observation, ...]) -> dict[str, object]:
             "min_total_seconds": min(times) if times else None,
             "max_total_seconds": max(times) if times else None,
         }
+        if include_p95:
+            stats["p95_total_seconds"] = _p95(times)
+        by_workload[workload_id] = stats
     overall_times = [
         item.total_seconds for item in measured
         if item.success and item.total_seconds is not None
     ]
-    return {
+    summary: dict[str, object] = {
         "measured_count": len(measured),
         "success_count": sum(1 for item in measured if item.success),
         "contract_pass_count": sum(1 for item in measured if item.response_contract_valid),
         "median_total_seconds": _median(overall_times),
+        "min_total_seconds": min(overall_times) if overall_times else None,
+        "max_total_seconds": max(overall_times) if overall_times else None,
         "by_workload": by_workload,
     }
+    if include_p95:
+        summary["p95_total_seconds"] = _p95(overall_times)
+    return summary
 
 
 def _run_one(
@@ -199,7 +220,7 @@ def measure_cell(
         status=_cell_status(obs_tuple),
         na_reason=None,
         observations=obs_tuple,
-        summary=summarize(obs_tuple),
+        summary=summarize(obs_tuple, include_p95=(mode == "finalist")),
         memory_free_percent_before=memory_before,
         memory_free_percent_after=memory_after,
     )
