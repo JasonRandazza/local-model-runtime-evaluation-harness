@@ -1,0 +1,12 @@
+{
+  "cell_id": "oq4_fp16__optiq",
+  "quant": "oq4_fp16",
+  "server": "optiq",
+  "base_url": "http://127.0.0.1:8080/v1",
+  "model_id": "gemma-4-12B-it-qat-oQ4-fp16",
+  "artifact_path": "/Users/jrazz/.cache/huggingface/hub/models--avneetsb--gemma-4-12B-it-qat-oQ4-fp16",
+  "start_command": ["optiq", "serve", "--model", "avneetsb/gemma-4-12B-it-qat-oQ4-fp16", "--host", "127.0.0.1", "--port", "8080", "--no-anthropic", "--no-responses"],
+  "stop_command": [],
+  "health_path": "/health",
+  "notes": "OptiQ start style with oQ4-fp16 artifact. Expect N/A if unloadable."
+}

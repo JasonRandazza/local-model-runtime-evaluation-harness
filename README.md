@@ -22,6 +22,20 @@ The native `cleanup` operation validates the host-owned artifact bundle and retu
 
 Historical checksummed bundles are immutable. New aggregation behavior may be applied read-only for supplemental analysis, but it does not rewrite accepted artifacts.
 
+## Gemma 4 12B QAT 3×3 matrix
+
+Nine-cell direct screen (then finalist) across JANG_4M, oQ4-fp16, and OptiQ-4bit on Osaurus, oMLX, and OptiQ. Separate from Stage 2B; no Gate B or plugin involvement.
+
+```bash
+./bin/lmre-matrix --dry-config \
+  --campaign config/matrix/gemma-4-12b-qat-campaign.json
+
+./bin/lmre-matrix --mode screen \
+  --campaign config/matrix/gemma-4-12b-qat-campaign.json
+```
+
+See `docs/matrix.md` for artifact paths, finalist flow, and safety rules.
+
 ## Personal Model Selection (Phase A) — paused 2026-07-16
 
 A lean Osaurus-front-door screen compared Gemma 4 12B native JANG versus OptiQ-behind-Osaurus. Active work is paused; see `docs/personal-selection-temporary-closeout-2026-07-16.md` and the Deep Wiki temporary closeout record.

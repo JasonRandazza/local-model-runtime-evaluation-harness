@@ -1,0 +1,12 @@
+{
+  "cell_id": "oq4_fp16__omlx",
+  "quant": "oq4_fp16",
+  "server": "omlx",
+  "base_url": "http://127.0.0.1:8100/v1",
+  "model_id": "gemma-4-12B-it-qat-oQ4-fp16",
+  "artifact_path": "/Users/jrazz/.cache/huggingface/hub/models--avneetsb--gemma-4-12B-it-qat-oQ4-fp16",
+  "start_command": ["omlX", "serve", "avneetsb/gemma-4-12B-it-qat-oQ4-fp16", "--host", "127.0.0.1", "--port", "8100"],
+  "stop_command": [],
+  "health_path": "/health",
+  "notes": "Direct oMLX. Empty stop_command means lifecycle helper kills the spawned process group."
+}
