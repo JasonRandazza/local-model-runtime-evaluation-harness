@@ -1,8 +1,52 @@
-# Osaurus Routing Overhead
+# Multi-Family Osaurus Routing Overhead
 
-Measure the **Osaurus router tax** for the two non-Osaurus screen winners: oQ4-fp16 and OptiQ-4bit. For each pair, compare **direct native** (`:8100` or `:8080`) vs **the same model via Osaurus** (`http://127.0.0.1:1337/v1`). Separate from `lmre-matrix` 3×3 science and `lmre-preference`; Stage 0–2B machinery stays frozen.
+Family-first measurement of the **Osaurus router tax** for screen-winning oQ4 and OptiQ-4bit pairs. For each pair, compare **direct native** (`:8100` or `:8080`) vs **the same model via Osaurus** (`http://127.0.0.1:1337/v1`). Separate from `lmre-matrix` 3×3 science and `lmre-preference`; Stage 0–2B machinery stays frozen.
 
 **Related:** matrix campaign — see [matrix.md](matrix.md); preference POC — see [preference.md](preference.md); RAG oracle — see [rag.md](rag.md).
+
+## Family selection
+
+Overhead resolves a matrix **family** first, then that family’s pair recipe:
+
+1. `--family <family_id>` if set
+2. Else `config/overhead/defaults.json` → `family_id` (checked-in default: **`gemma-4-12b-qat`**)
+3. Else fail closed — family is required
+
+Pair ids come from `--pairs` or the selected family’s recipe in `config/overhead/family-pairs.json`. Every pair must load for the selected matrix family; cross-family pair lists are rejected.
+
+### Default family (Gemma)
+
+`config/overhead/defaults.json` names the repo default explicitly:
+
+```json
+{
+  "family_id": "gemma-4-12b-qat",
+  "pairs": ["oq4_fp16", "optiq_4bit"]
+}
+```
+
+Pair definitions live in `config/overhead/pairs/` (`oq4_fp16.json`, `optiq_4bit.json`).
+
+### Ornith override
+
+```bash
+./bin/lmre-overhead run --dry-config --family ornith-35b
+```
+
+Ornith recipe (two pairs): `ornith_oq4`, `ornith_optiq_4bit`. Pair files:
+
+- `config/overhead/pairs/ornith_oq4.json` — direct/backend `ornith_oq4__omlx`
+- `config/overhead/pairs/ornith_optiq_4bit.json` — direct/backend `ornith_optiq_4bit__optiq`
+
+A third Ornith pair (`ornith_optiq_4bit__omlx`) is out of scope for this phase.
+
+### Pin routed model ids before live
+
+Checked-in `routed_model_id` strings in `config/overhead/pairs/*.json` are structural placeholders on each family’s allowlist. Before any live run, confirm Osaurus inventory and **pin the exact live id** in the pair JSON (often `omlx/...` for oMLX; OptiQ provider ids as configured). Mismatch fails the routed leg early.
+
+### Qwen
+
+No Qwen overhead recipe yet — add after that matrix family and screen PASS pairs exist.
 
 ## Hybrid lifecycle
 
@@ -23,7 +67,7 @@ Before `./bin/lmre-overhead run`:
 
 - [ ] Osaurus listening on `:1337` (`GET /health` or inventory probe succeeds).
 - [ ] Provider for oQ4 and/or OptiQ backend is connected and exposes the target model.
-- [ ] Routed model ids in `config/overhead/pairs/oq4_fp16.json` and `optiq_4bit.json` match live inventory **exactly** (often `omlx/...` for oMLX; OptiQ provider id as configured).
+- [ ] Routed model ids in the selected family’s pair JSON match live inventory **exactly** (re-pin from inventory before authorize).
 - [ ] Artifact paths in `config/matrix/cells/` exist; `optiq` on `PATH` for OptiQ pair.
 - [ ] Osaurus Keychain credential stored (see [matrix.md](matrix.md)).
 - [ ] Other heavy models unloaded; RAM above the campaign floor (`20%` free).
@@ -32,7 +76,7 @@ Before `./bin/lmre-overhead run`:
 ## Non-live check
 
 ```bash
-PYTHONPATH=src python3 -m unittest \
+PYTHONPATH=src /opt/homebrew/bin/python3 -m unittest \
   tests.test_overhead_config \
   tests.test_overhead_runner \
   tests.test_overhead_report \
@@ -41,25 +85,41 @@ PYTHONPATH=src python3 -m unittest \
 
 Unit tests use fakes only — no live Osaurus, oMLX, or OptiQ contact.
 
-## Validate config
+## Validate config (dry-config)
+
+Gemma default (two pairs):
 
 ```bash
-./bin/lmre-overhead --dry-config
 ./bin/lmre-overhead run --dry-config
 ```
 
-Prints JSON with `ok: true`, default pair ids (`oq4_fp16`, `optiq_4bit`), per-pair `direct_cell_id` / `routed_model_id` / `routed_base_url`, `suite_id: gemma-matrix-v1`, and `mode: screen`. No network or server start.
+Prints JSON with `ok: true`, `"family_id": "gemma-4-12b-qat"`, default pair ids (`oq4_fp16`, `optiq_4bit`), per-pair `direct_cell_id` / `routed_model_id` / `routed_base_url`, `suite_id: gemma-matrix-v1`, and `mode: screen`. No network or server start.
+
+Ornith two-pair recipe:
+
+```bash
+./bin/lmre-overhead run --dry-config --family ornith-35b
+```
+
+Prints JSON with `ok: true`, `"family_id": "ornith-35b"`, pair ids `ornith_oq4` and `ornith_optiq_4bit`.
 
 ## Workflow
 
 ```bash
+./bin/lmre-overhead run
 ./bin/lmre-overhead run --pairs oq4_fp16,optiq_4bit
 ./bin/lmre-overhead report --run results/overhead/overhead-<timestamp>
 ```
 
+Ornith live run (only after separate operator authorize and routed id pin):
+
+```bash
+./bin/lmre-overhead run --family ornith-35b
+```
+
 `run` writes `raw.json` and `report.md` under `results/overhead/overhead-<timestamp>/`. Use `report` to regenerate `report.md` from an existing run.
 
-Optional filters: `--pairs id,id`, `--pairs-root PATH`, `--cells-root PATH`, `--suite PATH`, `--results-dir PATH`. Depth is fixed to matrix `screen`.
+Optional filters: `--family`, `--pairs id,id`, `--pairs-root PATH`, `--cells-root PATH`, `--suite PATH`, `--results-dir PATH`. Depth is fixed to matrix `screen`.
 
 ## Metrics
 
@@ -73,7 +133,7 @@ A full equal-weight metric pack (including estimated decode tok/s) is a **later 
 
 Under `results/overhead/overhead-<timestamp>/`:
 
-- `raw.json` — pairs, legs, timestamps, cell refs, routed model ids, summaries
+- `raw.json` — `family_id`, pairs, legs, timestamps, cell refs, routed model ids, summaries
 - `report.md` — paired delta table
 - `logs/` — backend server stdout/stderr for legs this run started
 
@@ -94,9 +154,14 @@ Keep Approach 1 until overhead is proven useful; revisit Approach 2 only if main
 
 Later expansion: report Δ median total, Δ median TTFT, and Δ estimated decode tok/s with equal weight (still labeled when estimated / incomparable).
 
+### Qwen overhead
+
+Add after Qwen matrix screen PASS pairs exist.
+
 ## Safety
 
+- **Live run requires Jason's in-session authorization.** Do not run without explicit operator approval.
+- **Stage 2B remains frozen.** These docs do not authorize Gate B, Stage 2B run IDs, or plugin changes.
 - Pinned backend start argv only; harness lifecycle touches backend cells only.
 - One pair at a time (direct then routed); verify port free and RAM floor between legs.
 - Osaurus not listening on `:1337` before the routed leg → fail that leg early.
-- Do not run live overhead without explicit operator authorization.

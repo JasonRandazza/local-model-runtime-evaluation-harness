@@ -7,9 +7,15 @@ import json
 from pathlib import Path
 from typing import Sequence
 
-from .matrix_config import REPOSITORY_ROOT, Cell, load_family
+from .matrix_config import Cell, MatrixError, REPOSITORY_ROOT, load_family
 from .rag_collect import run_collect
-from .rag_config import DEFAULT_RAG_CELLS, RagCorpus, RagError, RagSuite
+from .rag_config import (
+    RagCorpus,
+    RagError,
+    RagSelection,
+    RagSuite,
+    resolve_rag_selection,
+)
 from .rag_score import score_run
 
 DEFAULT_SUITE = REPOSITORY_ROOT / "suites" / "gemma-rag-oracle-v1.json"
@@ -17,7 +23,6 @@ DEFAULT_CORPUS = REPOSITORY_ROOT / "corpora" / "rag-oracle-v1"
 DEFAULT_RESULTS = REPOSITORY_ROOT / "results" / "rag"
 DEFAULT_CELLS_ROOT = REPOSITORY_ROOT / "config" / "matrix" / "cells"
 DEFAULT_TOP_K = 2
-DEFAULT_CELL_FAMILY = load_family("gemma-4-12b-qat")
 
 
 def _resolve_repo_path(path: Path) -> Path:
@@ -26,20 +31,41 @@ def _resolve_repo_path(path: Path) -> Path:
     return (REPOSITORY_ROOT / path).resolve()
 
 
-def _parse_cell_ids(raw: str | None) -> tuple[str, ...]:
+def _parse_cell_ids(raw: str | None) -> tuple[str, ...] | None:
     if raw is None:
-        return DEFAULT_RAG_CELLS
+        return None
     parts = tuple(part.strip() for part in raw.split(",") if part.strip())
     if not parts:
         raise RagError("cells filter is empty")
     return parts
 
 
+def _selection_from_args(args: argparse.Namespace) -> RagSelection:
+    cells = _parse_cell_ids(args.cells)
+    return resolve_rag_selection(
+        family_id=getattr(args, "family", None),
+        cells=cells,
+    )
+
+
+def _load_cells(
+    cell_ids: tuple[str, ...],
+    cells_root: Path,
+    family_id: str,
+) -> None:
+    family = load_family(family_id)
+    for cell_id in cell_ids:
+        try:
+            Cell.load(cells_root / f"{cell_id}.json", family=family)
+        except MatrixError as error:
+            raise RagError(str(error)) from error
+
+
 def _cmd_collect(args: argparse.Namespace) -> int:
     suite_path = _resolve_repo_path(args.suite)
     corpus_root = _resolve_repo_path(args.corpus_root)
     cells_root = _resolve_repo_path(args.cells_root)
-    cell_ids = _parse_cell_ids(args.cells)
+    selection = _selection_from_args(args)
 
     suite = RagSuite.load(suite_path)
     corpus = RagCorpus.load(corpus_root)
@@ -48,13 +74,13 @@ def _cmd_collect(args: argparse.Namespace) -> int:
             f"corpus id mismatch: suite expects {suite.corpus_id!r}, "
             f"corpus has {corpus.corpus_id!r}"
         )
-    for cell_id in cell_ids:
-        Cell.load(cells_root / f"{cell_id}.json", family=DEFAULT_CELL_FAMILY)
+    _load_cells(selection.cells, cells_root, selection.family_id)
 
     if args.dry_config:
         print(json.dumps({
             "ok": True,
-            "cells": list(cell_ids),
+            "family_id": selection.family_id,
+            "cells": list(selection.cells),
             "questions": len(suite.questions),
             "corpus_id": corpus.corpus_id,
             "mode": args.mode,
@@ -64,11 +90,12 @@ def _cmd_collect(args: argparse.Namespace) -> int:
 
     results_root = _resolve_repo_path(args.results_dir)
     run_dir = run_collect(
-        cell_ids,
+        selection.cells,
         suite_path,
         corpus_root,
         cells_root,
         results_root,
+        family_id=selection.family_id,
         mode=args.mode,
         top_k=args.top_k,
     )
@@ -95,8 +122,18 @@ def _parser() -> argparse.ArgumentParser:
 
     collect = subparsers.add_parser("collect", help="Collect answers from matrix cells")
     collect.add_argument(
+        "--family",
+        help=(
+            "Matrix family id (default: family_id in config/rag/defaults.json, "
+            "currently gemma-4-12b-qat; e.g. ornith-35b)"
+        ),
+    )
+    collect.add_argument(
         "--cells",
-        help="Comma-separated cell ids (default: three screen PASS cells)",
+        help=(
+            "Comma-separated cell ids (default: selected family's four-cell recipe "
+            "from config/rag/family-cells.json)"
+        ),
     )
     collect.add_argument(
         "--suite",

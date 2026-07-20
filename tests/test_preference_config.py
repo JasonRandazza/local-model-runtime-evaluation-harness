@@ -6,9 +6,13 @@ import unittest
 from pathlib import Path
 
 from local_model_runtime_evaluation.preference_config import (
-    DEFAULT_PREFERENCE_CELLS,
+    PreferenceDefaults,
     PreferenceError,
     PreferenceSuite,
+    default_preference_cells,
+    load_family_cell_recipes,
+    load_preference_defaults,
+    resolve_preference_selection,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,10 +25,31 @@ class PreferenceConfigTests(unittest.TestCase):
         self.assertEqual(suite.revision, "1")
         self.assertEqual(len(suite.prompts), 6)
         self.assertEqual(len({p.prompt_id for p in suite.prompts}), 6)
-        self.assertEqual(
-            DEFAULT_PREFERENCE_CELLS,
-            ("jang_4m__osaurus", "oq4_fp16__omlx", "optiq_4bit__optiq"),
-        )
+        cells = default_preference_cells()
+        self.assertEqual(len(cells), 4)
+        self.assertIn("optiq_4bit__omlx", cells)
+
+    def test_defaults_load_gemma_family(self) -> None:
+        defaults = load_preference_defaults()
+        self.assertEqual(defaults.family_id, "gemma-4-12b-qat")
+        self.assertEqual(len(defaults.cells), 4)
+        self.assertIn("optiq_4bit__omlx", defaults.cells)
+
+    def test_resolve_family_override_ornith(self) -> None:
+        selection = resolve_preference_selection(family_id="ornith-35b", cells=None)
+        self.assertEqual(selection.family_id, "ornith-35b")
+        self.assertEqual(len(selection.cells), 4)
+        self.assertTrue(all(c.startswith("ornith_") for c in selection.cells))
+
+    def test_resolve_missing_family_fails(self) -> None:
+        empty = PreferenceDefaults(family_id="", cells=())
+        with self.assertRaises(PreferenceError):
+            resolve_preference_selection(family_id=None, cells=None, defaults=empty)
+
+    def test_gemma_defaults_match_recipe(self) -> None:
+        defaults = load_preference_defaults()
+        recipes = load_family_cell_recipes()
+        self.assertEqual(defaults.cells, recipes["gemma-4-12b-qat"])
 
     def test_rejects_wrong_prompt_count(self) -> None:
         bad = {

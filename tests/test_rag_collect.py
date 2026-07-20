@@ -364,6 +364,7 @@ class RunCollectTests(unittest.TestCase):
                 ROOT / "corpora/rag-oracle-v1",
                 cells_root,
                 Path(tmp) / "results" / "rag",
+                family_id="gemma-4-12b-qat",
                 build_server=build_server,
                 transport_factory=FakeTransport,
                 probe=FakeProbe([80, 80, 80]),
@@ -439,6 +440,7 @@ class RunCollectTests(unittest.TestCase):
                 ROOT / "corpora/rag-oracle-v1",
                 cells_root,
                 Path(tmp) / "results" / "rag",
+                family_id="gemma-4-12b-qat",
                 build_server=lambda cell, transport, log_dir, credential: FakeHandle(),
                 transport_factory=FakeTransport,
                 probe=FakeProbe([80]),
@@ -468,6 +470,7 @@ class RunCollectTests(unittest.TestCase):
                     ROOT / "corpora/rag-oracle-v1",
                     ROOT / "cells",
                     Path(tmp) / "results" / "rag",
+                    family_id="gemma-4-12b-qat",
                     mode="bm25",
                 )
 

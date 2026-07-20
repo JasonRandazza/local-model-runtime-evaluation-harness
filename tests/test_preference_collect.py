@@ -255,6 +255,7 @@ class RunCollectTests(unittest.TestCase):
                 ROOT / "suites/gemma-preference-v1.json",
                 cells_root,
                 Path(tmp) / "results" / "preference",
+                family_id="gemma-4-12b-qat",
                 build_server=build_server,
                 transport_factory=FakeTransport,
                 probe=FakeProbe([80, 80, 80]),
@@ -269,6 +270,7 @@ class RunCollectTests(unittest.TestCase):
             raw = json.loads((run_dir / "raw.json").read_text(encoding="utf-8"))
             self.assertEqual(raw["suite_id"], "gemma-preference-v1")
             self.assertEqual(raw["cell_ids"], ["jang_4m__osaurus", "oq4_fp16__omlx"])
+            self.assertEqual(raw["family_id"], "gemma-4-12b-qat")
             self.assertIn("started_at", raw)
 
             failed = json.loads((run_dir / "answers" / "jang_4m__osaurus.json").read_text())

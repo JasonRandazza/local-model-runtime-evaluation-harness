@@ -1,0 +1,14 @@
+{
+  "gemma-4-12b-qat": [
+    "jang_4m__osaurus",
+    "oq4_fp16__omlx",
+    "optiq_4bit__omlx",
+    "optiq_4bit__optiq"
+  ],
+  "ornith-35b": [
+    "ornith_jang_4m__omlx",
+    "ornith_oq4__omlx",
+    "ornith_optiq_4bit__omlx",
+    "ornith_optiq_4bit__optiq"
+  ]
+}

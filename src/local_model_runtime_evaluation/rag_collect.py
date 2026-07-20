@@ -25,8 +25,6 @@ from .rag_prompt import build_keyword_prompt, build_oracle_prompt
 from .resources import HostResourceProbe
 from .transport import LoopbackTransport, TransportError
 
-DEFAULT_CELL_FAMILY = load_family("gemma-4-12b-qat")
-
 BuildServer = Callable[[Cell, LoopbackTransport, Path, Credential | None], ServerHandle]
 TransportFactory = Callable[[set[str], int], LoopbackTransport]
 CredentialFor = Callable[[str], Credential | None]
@@ -136,6 +134,7 @@ def run_collect(
     cells_root: Path,
     results_root: Path,
     *,
+    family_id: str,
     build_server: BuildServer | None = None,
     transport_factory: TransportFactory | None = None,
     probe: HostResourceProbe | None = None,
@@ -154,8 +153,9 @@ def run_collect(
             f"corpus id mismatch: suite expects {suite.corpus_id!r}, "
             f"corpus has {corpus.corpus_id!r}"
         )
+    family = load_family(family_id)
     loaded_cells = tuple(
-        Cell.load(cells_root / f"{cell_id}.json", family=DEFAULT_CELL_FAMILY)
+        Cell.load(cells_root / f"{cell_id}.json", family=family)
         for cell_id in cell_ids
     )
     resource_probe = probe if probe is not None else HostResourceProbe()
@@ -189,6 +189,7 @@ def run_collect(
             "suite_id": suite.suite_id,
             "suite_revision": suite.revision,
             "corpus_id": suite.corpus_id,
+            "family_id": family_id,
             "cell_ids": list(cell_ids),
             "mode": mode,
             "started_at": started_at,

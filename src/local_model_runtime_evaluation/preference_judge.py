@@ -12,7 +12,7 @@ from .credentials import Credential
 from .matrix_config import Cell, load_family
 from .matrix_servers import ServerError, ServerHandle, build_server as default_build_server
 from .preference_collect import resolve_credential
-from .preference_config import PreferenceError, PreferenceSuite
+from .preference_config import PreferenceError, PreferenceSuite, load_family_cell_recipes
 from .preference_review import get_answer_content, load_answers
 from .transport import LoopbackTransport, TransportError
 
@@ -22,13 +22,43 @@ JUDGE_MAX_TOKENS: int = 256
 
 DEFAULT_READY_TIMEOUT_SECONDS = 180.0
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 120.0
-DEFAULT_CELL_FAMILY = load_family("gemma-4-12b-qat")
 
 BuildServer = Callable[[Cell, LoopbackTransport, Path, Credential | None], ServerHandle]
 TransportFactory = Callable[[set[str], int], LoopbackTransport]
 CredentialFor = Callable[[str], Credential | None]
 
 _VALID_WINNERS = frozenset({"A", "B", "tie"})
+
+
+def resolve_judge_family(
+    judge_cell_id: str,
+    *,
+    family_id: str | None = None,
+    recipes: dict[str, tuple[str, ...]] | None = None,
+) -> str:
+    resolved_recipes = load_family_cell_recipes() if recipes is None else recipes
+    matches = [
+        recipe_family_id
+        for recipe_family_id, cells in resolved_recipes.items()
+        if judge_cell_id in cells
+    ]
+    if family_id:
+        if family_id not in resolved_recipes:
+            raise PreferenceError("preference family recipe is missing")
+        if judge_cell_id not in resolved_recipes[family_id]:
+            raise PreferenceError(
+                f"judge cell {judge_cell_id!r} is not in family {family_id!r}",
+            )
+        return family_id
+    if len(matches) == 1:
+        return matches[0]
+    if not matches:
+        raise PreferenceError(
+            f"judge cell {judge_cell_id!r} is not in any preference family recipe",
+        )
+    raise PreferenceError(
+        f"judge cell {judge_cell_id!r} appears in multiple family recipes",
+    )
 
 
 def build_judge_prompt(prompt_text: str, answer_a: str, answer_b: str) -> str:
@@ -164,6 +194,7 @@ def run_judge(
     judge_cell_id: str,
     cells_root: Path,
     suite: PreferenceSuite,
+    family_id: str,
     build_server: BuildServer | None = None,
     transport_factory: TransportFactory | None = None,
     credential_for: CredentialFor | None = None,
@@ -175,7 +206,8 @@ def run_judge(
     answers_by_cell = load_answers(run_dir)
     prompts_by_id = {prompt.prompt_id: prompt.prompt for prompt in suite.prompts}
 
-    cell = Cell.load(cells_root / f"{judge_cell_id}.json", family=DEFAULT_CELL_FAMILY)
+    family = load_family(family_id)
+    cell = Cell.load(cells_root / f"{judge_cell_id}.json", family=family)
     resolve = credential_for or (lambda server: resolve_credential(server))
     credential = resolve(cell.server)
     build = build_server or (

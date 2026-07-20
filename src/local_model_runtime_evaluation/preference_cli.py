@@ -1,4 +1,4 @@
-"""CLI for Gemma preference quality POC."""
+"""CLI for multi-family preference quality POC."""
 
 from __future__ import annotations
 
@@ -7,10 +7,16 @@ import json
 from pathlib import Path
 from typing import Sequence
 
-from .matrix_config import REPOSITORY_ROOT, Cell, load_family
+from .matrix_config import Cell, MatrixError, REPOSITORY_ROOT, load_family
 from .preference_collect import run_collect
-from .preference_config import DEFAULT_PREFERENCE_CELLS, PreferenceError, PreferenceSuite
-from .preference_judge import DEFAULT_JUDGE_CELL, load_pairs, run_judge
+from .preference_config import (
+    DEFAULT_PREFERENCE_CELLS,
+    PreferenceError,
+    PreferenceSelection,
+    PreferenceSuite,
+    resolve_preference_selection,
+)
+from .preference_judge import DEFAULT_JUDGE_CELL, load_pairs, resolve_judge_family, run_judge
 from .preference_review import run_review
 from .preference_tally import run_tally
 
@@ -18,7 +24,6 @@ DEFAULT_SUITE = REPOSITORY_ROOT / "suites" / "gemma-preference-v1.json"
 DEFAULT_RESULTS = REPOSITORY_ROOT / "results" / "preference"
 DEFAULT_CELLS_ROOT = REPOSITORY_ROOT / "config" / "matrix" / "cells"
 DEFAULT_REVIEW_SEED = 0
-DEFAULT_CELL_FAMILY = load_family("gemma-4-12b-qat")
 
 
 def _resolve_repo_path(path: Path) -> Path:
@@ -27,13 +32,34 @@ def _resolve_repo_path(path: Path) -> Path:
     return (REPOSITORY_ROOT / path).resolve()
 
 
-def _parse_cell_ids(raw: str | None) -> tuple[str, ...]:
+def _parse_cell_ids(raw: str | None) -> tuple[str, ...] | None:
     if raw is None:
-        return DEFAULT_PREFERENCE_CELLS
+        return None
     parts = tuple(part.strip() for part in raw.split(",") if part.strip())
     if not parts:
         raise PreferenceError("cells filter is empty")
     return parts
+
+
+def _selection_from_args(args: argparse.Namespace) -> PreferenceSelection:
+    cells = _parse_cell_ids(getattr(args, "cells", None))
+    return resolve_preference_selection(
+        family_id=getattr(args, "family", None),
+        cells=cells,
+    )
+
+
+def _load_cells(
+    cell_ids: tuple[str, ...],
+    cells_root: Path,
+    family_id: str,
+) -> None:
+    family = load_family(family_id)
+    for cell_id in cell_ids:
+        try:
+            Cell.load(cells_root / f"{cell_id}.json", family=family)
+        except MatrixError as error:
+            raise PreferenceError(str(error)) from error
 
 
 def _load_run_metadata(run_dir: Path) -> tuple[tuple[str, ...], str | None]:
@@ -56,27 +82,28 @@ def _load_run_metadata(run_dir: Path) -> tuple[tuple[str, ...], str | None]:
 def _cmd_collect(args: argparse.Namespace) -> int:
     suite_path = _resolve_repo_path(args.suite)
     cells_root = _resolve_repo_path(args.cells_root)
-    cell_ids = _parse_cell_ids(args.cells)
+    selection = _selection_from_args(args)
 
     suite = PreferenceSuite.load(suite_path)
-    for cell_id in cell_ids:
-        Cell.load(cells_root / f"{cell_id}.json", family=DEFAULT_CELL_FAMILY)
+    _load_cells(selection.cells, cells_root, selection.family_id)
 
     if args.dry_config:
         print(json.dumps({
             "ok": True,
+            "family_id": selection.family_id,
             "suite_id": suite.suite_id,
-            "cells": list(cell_ids),
+            "cells": list(selection.cells),
             "prompts": len(suite.prompts),
         }, sort_keys=True))
         return 0
 
     results_root = _resolve_repo_path(args.results_dir)
     run_dir = run_collect(
-        cell_ids,
+        selection.cells,
         suite_path,
         cells_root,
         results_root,
+        family_id=selection.family_id,
     )
     print(json.dumps({"ok": True, "run_dir": str(run_dir)}, sort_keys=True))
     return 0
@@ -112,7 +139,11 @@ def _cmd_judge(args: argparse.Namespace) -> int:
     suite_path = _resolve_repo_path(args.suite)
 
     suite = PreferenceSuite.load(suite_path)
-    Cell.load(cells_root / f"{judge_cell_id}.json", family=DEFAULT_CELL_FAMILY)
+    judge_family_id = resolve_judge_family(
+        judge_cell_id,
+        family_id=getattr(args, "family", None),
+    )
+    _load_cells((judge_cell_id,), cells_root, judge_family_id)
 
     answers_dir = run_dir / "answers"
     if not answers_dir.is_dir():
@@ -134,6 +165,7 @@ def _cmd_judge(args: argparse.Namespace) -> int:
         judge_cell_id=judge_cell_id,
         cells_root=cells_root,
         suite=suite,
+        family_id=judge_family_id,
     )
     print(json.dumps({"ok": True, "run_dir": str(run_dir)}, sort_keys=True))
     return 0
@@ -142,14 +174,28 @@ def _cmd_judge(args: argparse.Namespace) -> int:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="lmre-preference",
-        description="Gemma preference quality POC: collect, review, judge, and tally.",
+        description=(
+            "Multi-family preference POC: collect, review, judge, and tally. "
+            "Family resolves from --family or config/preference/defaults.json; "
+            "cells from --cells or the family recipe (four cells by default)."
+        ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     collect = subparsers.add_parser("collect", help="Collect answers from matrix cells")
     collect.add_argument(
+        "--family",
+        help=(
+            "Matrix family id (default: family_id in config/preference/defaults.json, "
+            "currently gemma-4-12b-qat; e.g. ornith-35b)"
+        ),
+    )
+    collect.add_argument(
         "--cells",
-        help="Comma-separated cell ids (default: three screen PASS cells)",
+        help=(
+            "Comma-separated cell ids (default: selected family's four-cell recipe "
+            "from config/preference/family-cells.json)"
+        ),
     )
     collect.add_argument(
         "--suite",
@@ -192,6 +238,10 @@ def _parser() -> argparse.ArgumentParser:
 
     judge = subparsers.add_parser("judge", help="Run local judge cell on blind pairs")
     judge.add_argument("--run", type=Path, required=True, help="Review run directory")
+    judge.add_argument(
+        "--family",
+        help="Matrix family id for judge cell (default: infer from recipes)",
+    )
     judge.add_argument(
         "--judge-cell",
         default=DEFAULT_JUDGE_CELL,

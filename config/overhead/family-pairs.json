@@ -1,0 +1,4 @@
+{
+  "gemma-4-12b-qat": ["oq4_fp16", "optiq_4bit"],
+  "ornith-35b": ["ornith_oq4", "ornith_optiq_4bit"]
+}

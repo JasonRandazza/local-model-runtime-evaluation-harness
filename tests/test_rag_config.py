@@ -8,8 +8,13 @@ from pathlib import Path
 from local_model_runtime_evaluation.rag_config import (
     DEFAULT_RAG_CELLS,
     RagCorpus,
+    RagDefaults,
     RagError,
     RagSuite,
+    default_rag_cells,
+    load_rag_defaults,
+    load_rag_family_cell_recipes,
+    resolve_rag_selection,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,10 +33,32 @@ class RagConfigTests(unittest.TestCase):
         self.assertEqual(suite.revision, "1")
         self.assertEqual(suite.corpus_id, "rag-oracle-v1")
         self.assertEqual(len(suite.questions), 6)
-        self.assertEqual(
-            DEFAULT_RAG_CELLS,
-            ("jang_4m__osaurus", "oq4_fp16__omlx", "optiq_4bit__optiq"),
-        )
+        cells = default_rag_cells()
+        self.assertEqual(len(cells), 4)
+        self.assertIn("optiq_4bit__omlx", cells)
+        self.assertEqual(len(DEFAULT_RAG_CELLS), 4)
+
+    def test_defaults_load_gemma_family(self) -> None:
+        defaults = load_rag_defaults()
+        self.assertEqual(defaults.family_id, "gemma-4-12b-qat")
+        self.assertEqual(len(defaults.cells), 4)
+        self.assertIn("optiq_4bit__omlx", defaults.cells)
+
+    def test_resolve_family_override_ornith(self) -> None:
+        selection = resolve_rag_selection(family_id="ornith-35b", cells=None)
+        self.assertEqual(selection.family_id, "ornith-35b")
+        self.assertEqual(len(selection.cells), 4)
+        self.assertTrue(all(c.startswith("ornith_") for c in selection.cells))
+
+    def test_resolve_missing_family_fails(self) -> None:
+        empty = RagDefaults(family_id="", cells=())
+        with self.assertRaises(RagError):
+            resolve_rag_selection(family_id=None, cells=None, defaults=empty)
+
+    def test_gemma_defaults_match_recipe(self) -> None:
+        defaults = load_rag_defaults()
+        recipes = load_rag_family_cell_recipes()
+        self.assertEqual(defaults.cells, recipes["gemma-4-12b-qat"])
 
     def test_suite_rejects_wrong_question_count(self) -> None:
         bad = {

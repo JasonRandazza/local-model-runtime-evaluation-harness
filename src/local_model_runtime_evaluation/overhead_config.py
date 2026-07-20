@@ -10,8 +10,10 @@ from typing import Any
 from .matrix_config import REPOSITORY_ROOT, Cell, ModelFamily
 
 
-DEFAULT_PAIR_IDS: tuple[str, ...] = ("oq4_fp16", "optiq_4bit")
-DEFAULT_PAIRS_ROOT = REPOSITORY_ROOT / "config" / "overhead" / "pairs"
+DEFAULT_OVERHEAD_ROOT = REPOSITORY_ROOT / "config" / "overhead"
+DEFAULT_OVERHEAD_DEFAULTS = DEFAULT_OVERHEAD_ROOT / "defaults.json"
+DEFAULT_FAMILY_PAIRS = DEFAULT_OVERHEAD_ROOT / "family-pairs.json"
+DEFAULT_PAIRS_ROOT = DEFAULT_OVERHEAD_ROOT / "pairs"
 ROUTED_BASE_URL = "http://127.0.0.1:1337/v1"
 
 PAIR_FIELDS = frozenset({
@@ -26,6 +28,83 @@ class OverheadError(RuntimeError):
 def _require_exact_fields(data: dict[str, Any], expected: frozenset[str], label: str) -> None:
     if set(data) != expected:
         raise OverheadError(f"{label} fields are invalid")
+
+
+@dataclass(frozen=True)
+class OverheadDefaults:
+    family_id: str
+    pairs: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class OverheadSelection:
+    family_id: str
+    pairs: tuple[str, ...]
+
+
+def load_overhead_defaults(path: Path | None = None) -> OverheadDefaults:
+    config_path = DEFAULT_OVERHEAD_DEFAULTS if path is None else path
+    data = json.loads(config_path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise OverheadError("overhead defaults must be a JSON object")
+    family_id = data.get("family_id")
+    pairs = data.get("pairs")
+    if not isinstance(family_id, str):
+        raise OverheadError("overhead defaults family_id is invalid")
+    if not isinstance(pairs, list) or not all(isinstance(pair, str) for pair in pairs):
+        raise OverheadError("overhead defaults pairs are invalid")
+    return OverheadDefaults(family_id, tuple(pairs))
+
+
+def load_family_pair_recipes(path: Path | None = None) -> dict[str, tuple[str, ...]]:
+    config_path = DEFAULT_FAMILY_PAIRS if path is None else path
+    data = json.loads(config_path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise OverheadError("overhead family pair recipes must be a JSON object")
+    recipes: dict[str, tuple[str, ...]] = {}
+    for family_id, pairs in data.items():
+        if not isinstance(family_id, str):
+            raise OverheadError("overhead family pair recipe key is invalid")
+        if not isinstance(pairs, list) or not all(isinstance(pair, str) for pair in pairs):
+            raise OverheadError(f"overhead family pair recipe for {family_id!r} is invalid")
+        recipes[family_id] = tuple(pairs)
+    return recipes
+
+
+def default_overhead_pairs() -> tuple[str, ...]:
+    return load_overhead_defaults().pairs
+
+
+DEFAULT_PAIR_IDS = default_overhead_pairs()
+
+
+def resolve_overhead_selection(
+    *,
+    family_id: str | None,
+    pairs: tuple[str, ...] | None,
+    defaults: OverheadDefaults | None = None,
+    recipes: dict[str, tuple[str, ...]] | None = None,
+) -> OverheadSelection:
+    resolved_defaults = load_overhead_defaults() if defaults is None else defaults
+    resolved_recipes = load_family_pair_recipes() if recipes is None else recipes
+
+    resolved_family = family_id if family_id else resolved_defaults.family_id
+    if not resolved_family:
+        raise OverheadError("family is required")
+
+    if resolved_family not in resolved_recipes:
+        raise OverheadError("overhead family recipe is missing")
+
+    recipe_pairs = resolved_recipes[resolved_family]
+    resolved_pairs = pairs if pairs is not None else recipe_pairs
+    if not resolved_pairs:
+        raise OverheadError("pairs filter is empty")
+
+    unknown = set(resolved_pairs) - set(recipe_pairs)
+    if unknown:
+        raise OverheadError("pairs filter is not in family recipe")
+
+    return OverheadSelection(resolved_family, resolved_pairs)
 
 
 @dataclass(frozen=True)
@@ -44,7 +123,7 @@ class OverheadPair:
         _require_exact_fields(data, PAIR_FIELDS, "pair")
 
         pair_id = str(data["pair_id"])
-        if pair_id not in DEFAULT_PAIR_IDS:
+        if not pair_id:
             raise OverheadError("pair_id is invalid")
 
         direct_cell_id = str(data["direct_cell_id"])

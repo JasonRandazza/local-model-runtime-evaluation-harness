@@ -7,12 +7,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .matrix_config import REPOSITORY_ROOT
 
-DEFAULT_RAG_CELLS: tuple[str, ...] = (
-    "jang_4m__osaurus",
-    "oq4_fp16__omlx",
-    "optiq_4bit__optiq",
-)
+
+DEFAULT_RAG_ROOT = REPOSITORY_ROOT / "config" / "rag"
+DEFAULT_RAG_DEFAULTS = DEFAULT_RAG_ROOT / "defaults.json"
+DEFAULT_FAMILY_CELLS = DEFAULT_RAG_ROOT / "family-cells.json"
 
 SUITE_FIELDS = frozenset({
     "schema_version", "suite_id", "revision", "temperature", "streaming", "corpus_id", "questions",
@@ -28,6 +28,78 @@ CHUNK_ENTRY_FIELDS = frozenset({"chunk_id", "path", "title"})
 
 class RagError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class RagDefaults:
+    family_id: str
+    cells: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class RagSelection:
+    family_id: str
+    cells: tuple[str, ...]
+
+
+def load_rag_defaults(path: Path | None = None) -> RagDefaults:
+    config_path = DEFAULT_RAG_DEFAULTS if path is None else path
+    data = json.loads(config_path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise RagError("rag defaults must be a JSON object")
+    family_id = data.get("family_id")
+    cells = data.get("cells")
+    if not isinstance(family_id, str):
+        raise RagError("rag defaults family_id is invalid")
+    if not isinstance(cells, list) or not all(isinstance(cell, str) for cell in cells):
+        raise RagError("rag defaults cells are invalid")
+    return RagDefaults(family_id, tuple(cells))
+
+
+def load_rag_family_cell_recipes(path: Path | None = None) -> dict[str, tuple[str, ...]]:
+    config_path = DEFAULT_FAMILY_CELLS if path is None else path
+    data = json.loads(config_path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise RagError("rag family cell recipes must be a JSON object")
+    recipes: dict[str, tuple[str, ...]] = {}
+    for family_id, cells in data.items():
+        if not isinstance(family_id, str):
+            raise RagError("rag family cell recipe key is invalid")
+        if not isinstance(cells, list) or not all(isinstance(cell, str) for cell in cells):
+            raise RagError(f"rag family cell recipe for {family_id!r} is invalid")
+        recipes[family_id] = tuple(cells)
+    return recipes
+
+
+def default_rag_cells() -> tuple[str, ...]:
+    return load_rag_defaults().cells
+
+
+DEFAULT_RAG_CELLS = default_rag_cells()
+
+
+def resolve_rag_selection(
+    *,
+    family_id: str | None,
+    cells: tuple[str, ...] | None,
+    defaults: RagDefaults | None = None,
+    recipes: dict[str, tuple[str, ...]] | None = None,
+) -> RagSelection:
+    resolved_defaults = load_rag_defaults() if defaults is None else defaults
+    resolved_recipes = load_rag_family_cell_recipes() if recipes is None else recipes
+
+    resolved_family = family_id if family_id else resolved_defaults.family_id
+    if not resolved_family:
+        raise RagError("family is required")
+
+    if resolved_family not in resolved_recipes:
+        raise RagError("rag family recipe is missing")
+
+    resolved_cells = cells if cells is not None else resolved_recipes[resolved_family]
+    if not resolved_cells:
+        raise RagError("cells filter is empty")
+
+    return RagSelection(resolved_family, resolved_cells)
 
 
 def _require_exact_fields(data: dict[str, Any], expected: frozenset[str], label: str) -> None:

@@ -54,13 +54,13 @@ def _answers_by_cell() -> dict[str, dict]:
 
 
 class BuildPairsTests(unittest.TestCase):
-    def test_build_pairs_count_is_eighteen(self) -> None:
+    def test_build_pairs_count_is_thirty_six(self) -> None:
         pairs = build_pairs(
             DEFAULT_PREFERENCE_CELLS,
             _prompt_ids(),
             rng=random.Random(0),
         )
-        self.assertEqual(len(pairs), 18)
+        self.assertEqual(len(pairs), 36)
 
     def test_build_pairs_unique_pair_ids(self) -> None:
         pairs = build_pairs(
@@ -133,7 +133,7 @@ class WriteReviewTests(unittest.TestCase):
             )
             payload = json.loads((run_dir / "judgments.json").read_text(encoding="utf-8"))
             self.assertIn("judgments", payload)
-            self.assertEqual(len(payload["judgments"]), 18)
+            self.assertEqual(len(payload["judgments"]), 36)
             for item in payload["judgments"]:
                 self.assertIsNone(item["winner"])
                 self.assertIn("pair_id", item)

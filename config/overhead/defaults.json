@@ -1,0 +1,7 @@
+{
+  "family_id": "gemma-4-12b-qat",
+  "pairs": [
+    "oq4_fp16",
+    "optiq_4bit"
+  ]
+}

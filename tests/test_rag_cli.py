@@ -23,6 +23,36 @@ class RagCliTests(unittest.TestCase):
         self.assertEqual(payload["mode"], "oracle")
         self.assertEqual(payload["top_k"], 2)
 
+    def test_collect_dry_config_includes_family_id(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["collect", "--dry-config"])
+        self.assertEqual(code, 0)
+        payload = json.loads(buffer.getvalue())
+        self.assertEqual(payload["family_id"], "gemma-4-12b-qat")
+        self.assertEqual(len(payload["cells"]), 4)
+        self.assertIn("optiq_4bit__omlx", payload["cells"])
+
+    def test_collect_dry_config_family_ornith(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["collect", "--dry-config", "--family", "ornith-35b"])
+        self.assertEqual(code, 0)
+        payload = json.loads(buffer.getvalue())
+        self.assertEqual(payload["family_id"], "ornith-35b")
+        self.assertEqual(len(payload["cells"]), 4)
+        self.assertTrue(all(c.startswith("ornith_") for c in payload["cells"]))
+
+    def test_collect_rejects_ornith_cell_under_gemma_family(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main([
+                "collect", "--dry-config",
+                "--family", "gemma-4-12b-qat",
+                "--cells", "ornith_jang_4m__omlx",
+            ])
+        self.assertNotEqual(code, 0)
+
     def test_cli_keyword_dry_config(self) -> None:
         buffer = io.StringIO()
         with redirect_stdout(buffer):

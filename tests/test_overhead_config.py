@@ -9,9 +9,13 @@ from local_model_runtime_evaluation.matrix_config import Cell, load_family
 from local_model_runtime_evaluation.overhead_config import (
     DEFAULT_PAIR_IDS,
     DEFAULT_PAIRS_ROOT,
+    OverheadDefaults,
     OverheadError,
     OverheadPair,
+    load_family_pair_recipes,
+    load_overhead_defaults,
     make_routed_measure_cell,
+    resolve_overhead_selection,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -62,6 +66,45 @@ class OverheadConfigTests(unittest.TestCase):
     def test_default_pair_ids_and_root(self) -> None:
         self.assertEqual(DEFAULT_PAIR_IDS, ("oq4_fp16", "optiq_4bit"))
         self.assertEqual(DEFAULT_PAIRS_ROOT, ROOT / "config" / "overhead" / "pairs")
+
+    def test_defaults_load_gemma_family(self) -> None:
+        defaults = load_overhead_defaults()
+        self.assertEqual(defaults.family_id, "gemma-4-12b-qat")
+        self.assertEqual(defaults.pairs, ("oq4_fp16", "optiq_4bit"))
+
+    def test_gemma_defaults_match_recipe(self) -> None:
+        defaults = load_overhead_defaults()
+        recipes = load_family_pair_recipes()
+        self.assertEqual(defaults.pairs, recipes["gemma-4-12b-qat"])
+
+    def test_load_ornith_oq4_pair(self) -> None:
+        pair = OverheadPair.load(ROOT / "config/overhead/pairs/ornith_oq4.json")
+        self.assertEqual(pair.pair_id, "ornith_oq4")
+        self.assertEqual(pair.direct_cell_id, "ornith_oq4__omlx")
+        self.assertEqual(pair.routed_model_id, "omlx/Ornith-1.0-35B-MLX-oQ4")
+
+    def test_load_ornith_optiq_4bit_pair(self) -> None:
+        pair = OverheadPair.load(ROOT / "config/overhead/pairs/ornith_optiq_4bit.json")
+        self.assertEqual(pair.pair_id, "ornith_optiq_4bit")
+        self.assertEqual(pair.direct_cell_id, "ornith_optiq_4bit__optiq")
+        self.assertIn("Ornith-1.0-35B-OptiQ-4bit", pair.routed_model_id)
+
+    def test_resolve_family_override_ornith(self) -> None:
+        selection = resolve_overhead_selection(family_id="ornith-35b", pairs=None)
+        self.assertEqual(selection.family_id, "ornith-35b")
+        self.assertEqual(selection.pairs, ("ornith_oq4", "ornith_optiq_4bit"))
+
+    def test_resolve_missing_family_fails(self) -> None:
+        empty = OverheadDefaults(family_id="", pairs=())
+        with self.assertRaises(OverheadError):
+            resolve_overhead_selection(family_id=None, pairs=None, defaults=empty)
+
+    def test_reject_ornith_pair_under_gemma_family(self) -> None:
+        with self.assertRaises(OverheadError):
+            resolve_overhead_selection(
+                family_id="gemma-4-12b-qat",
+                pairs=("ornith_oq4",),
+            )
 
 
 if __name__ == "__main__":

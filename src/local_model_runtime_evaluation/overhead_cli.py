@@ -9,11 +9,12 @@ from typing import Any, Sequence
 
 from .matrix_config import REPOSITORY_ROOT, Cell, MatrixSuite, load_family
 from .overhead_config import (
-    DEFAULT_PAIR_IDS,
     DEFAULT_PAIRS_ROOT,
     OverheadError,
     OverheadPair,
+    OverheadSelection,
     make_routed_measure_cell,
+    resolve_overhead_selection,
 )
 from .overhead_report import write_report
 from .overhead_runner import run_overhead
@@ -22,7 +23,6 @@ DEFAULT_SUITE = REPOSITORY_ROOT / "suites" / "gemma-matrix-v1.json"
 DEFAULT_RESULTS = REPOSITORY_ROOT / "results" / "overhead"
 DEFAULT_CELLS_ROOT = REPOSITORY_ROOT / "config" / "matrix" / "cells"
 DEFAULT_MODE = "screen"
-DEFAULT_CELL_FAMILY = load_family("gemma-4-12b-qat")
 
 
 def _resolve_repo_path(path: Path) -> Path:
@@ -31,28 +31,37 @@ def _resolve_repo_path(path: Path) -> Path:
     return (REPOSITORY_ROOT / path).resolve()
 
 
-def _parse_pair_ids(raw: str | None) -> tuple[str, ...]:
+def _parse_pair_ids(raw: str | None) -> tuple[str, ...] | None:
     if raw is None:
-        return DEFAULT_PAIR_IDS
+        return None
     parts = tuple(part.strip() for part in raw.split(",") if part.strip())
     if not parts:
         raise OverheadError("pairs filter is empty")
     return parts
 
 
+def _selection_from_args(args: argparse.Namespace) -> OverheadSelection:
+    pairs = _parse_pair_ids(args.pairs)
+    return resolve_overhead_selection(
+        family_id=getattr(args, "family", None),
+        pairs=pairs,
+    )
+
+
 def _dry_config_payload(
-    pair_ids: tuple[str, ...],
+    selection: OverheadSelection,
     pairs_root: Path,
     cells_root: Path,
     suite_path: Path,
 ) -> dict[str, Any]:
     suite = MatrixSuite.load(suite_path)
+    family = load_family(selection.family_id)
     pairs: list[dict[str, str]] = []
-    for pair_id in pair_ids:
+    for pair_id in selection.pairs:
         pair = OverheadPair.load(pairs_root / f"{pair_id}.json")
-        Cell.load(cells_root / f"{pair.direct_cell_id}.json", family=DEFAULT_CELL_FAMILY)
-        backend = Cell.load(cells_root / f"{pair.backend_cell_id}.json", family=DEFAULT_CELL_FAMILY)
-        routed = make_routed_measure_cell(backend, pair, family=DEFAULT_CELL_FAMILY)
+        Cell.load(cells_root / f"{pair.direct_cell_id}.json", family=family)
+        backend = Cell.load(cells_root / f"{pair.backend_cell_id}.json", family=family)
+        routed = make_routed_measure_cell(backend, pair, family=family)
         pairs.append({
             "pair_id": pair.pair_id,
             "direct_cell_id": pair.direct_cell_id,
@@ -62,6 +71,7 @@ def _dry_config_payload(
         })
     return {
         "ok": True,
+        "family_id": selection.family_id,
         "pairs": pairs,
         "suite_id": suite.suite_id,
         "mode": DEFAULT_MODE,
@@ -72,22 +82,23 @@ def _cmd_run(args: argparse.Namespace) -> int:
     pairs_root = _resolve_repo_path(args.pairs_root)
     cells_root = _resolve_repo_path(args.cells_root)
     suite_path = _resolve_repo_path(args.suite)
-    pair_ids = _parse_pair_ids(args.pairs)
+    selection = _selection_from_args(args)
 
     if args.dry_config:
         print(json.dumps(
-            _dry_config_payload(pair_ids, pairs_root, cells_root, suite_path),
+            _dry_config_payload(selection, pairs_root, cells_root, suite_path),
             sort_keys=True,
         ))
         return 0
 
     results_root = _resolve_repo_path(args.results_dir)
     run_dir = run_overhead(
-        pair_ids,
+        selection.pairs,
         pairs_root,
         cells_root,
         suite_path,
         results_root,
+        family_id=selection.family_id,
         mode=DEFAULT_MODE,
     )
     print(json.dumps({"ok": True, "run_dir": str(run_dir)}, sort_keys=True))
@@ -118,8 +129,15 @@ def _parser() -> argparse.ArgumentParser:
 
     run = subparsers.add_parser("run", help="Run direct and routed overhead legs")
     run.add_argument(
+        "--family",
+        help=(
+            "Matrix family id (default: family_id in config/overhead/defaults.json, "
+            "currently gemma-4-12b-qat; e.g. ornith-35b)"
+        ),
+    )
+    run.add_argument(
         "--pairs",
-        help="Comma-separated pair ids (default: oq4_fp16,optiq_4bit)",
+        help="Comma-separated pair ids (default: family recipe in family-pairs.json)",
     )
     run.add_argument(
         "--pairs-root",
@@ -164,6 +182,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command is None:
             if dry_config:
                 return _cmd_run(argparse.Namespace(
+                    family=None,
                     pairs=None,
                     pairs_root=DEFAULT_PAIRS_ROOT,
                     cells_root=DEFAULT_CELLS_ROOT,

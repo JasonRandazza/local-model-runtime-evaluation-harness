@@ -228,6 +228,7 @@ class RunJudgeTests(unittest.TestCase):
             judge_cell_id=JUDGE_CELL_ID,
             cells_root=CELLS_ROOT,
             suite=_TEST_SUITE,
+            family_id="gemma-4-12b-qat",
             build_server=lambda cell, transport_arg, log_dir, credential: FakeHandle(),
             transport_factory=lambda base_urls, timeout: transport,  # type: ignore[return-value]
             credential_for=lambda server: None,

@@ -28,6 +28,35 @@ class PreferenceCliTests(unittest.TestCase):
         self.assertEqual(payload["prompts"], 6)
         self.assertEqual(payload["suite_id"], "gemma-preference-v1")
 
+    def test_collect_dry_config_includes_family_id(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["collect", "--dry-config"])
+        self.assertEqual(code, 0)
+        payload = json.loads(buffer.getvalue())
+        self.assertEqual(payload["family_id"], "gemma-4-12b-qat")
+        self.assertEqual(len(payload["cells"]), 4)
+        self.assertIn("optiq_4bit__omlx", payload["cells"])
+
+    def test_collect_dry_config_family_ornith(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["collect", "--dry-config", "--family", "ornith-35b"])
+        self.assertEqual(code, 0)
+        payload = json.loads(buffer.getvalue())
+        self.assertEqual(payload["family_id"], "ornith-35b")
+        self.assertEqual(len(payload["cells"]), 4)
+
+    def test_collect_rejects_ornith_cell_under_gemma_family(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main([
+                "collect", "--dry-config",
+                "--family", "gemma-4-12b-qat",
+                "--cells", "ornith_jang_4m__omlx",
+            ])
+        self.assertNotEqual(code, 0)
+
     def test_review_missing_run_dir_nonzero(self) -> None:
         buffer = io.StringIO()
         with redirect_stdout(buffer):
