@@ -17,7 +17,7 @@ def _cell(**overrides: object) -> Cell:
         server="omlx",
         base_url="http://127.0.0.1:8100/v1",
         model_id="gemma-4-12B-it-qat-oQ4-fp16",
-        artifact_path="/Users/jrazz/.cache/huggingface/hub/models--avneetsb--gemma-4-12B-it-qat-oQ4-fp16",
+        artifact_path="/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
         start_command=("true",),
         stop_command=(),
         health_path="/health",
@@ -75,6 +75,23 @@ class MatrixServerTests(unittest.TestCase):
                 handle.wait_ready("missing", timeout_seconds=0.2)
             handle.stop()
 
+    def test_auth_failure_fails_fast(self) -> None:
+        from local_model_runtime_evaluation.transport import TransportError
+
+        transport = MagicMock()
+        transport.list_models.side_effect = TransportError("HTTP 401")
+        with TemporaryDirectory() as tmp:
+            handle = build_server(
+                _cell(), transport, Path(tmp),
+                spawner=lambda cmd, log: MagicMock(stop=MagicMock()),
+                port_free=lambda port: True,
+            )
+            handle.start()
+            with self.assertRaises(ServerError) as ctx:
+                handle.wait_ready("gemma-4-12B-it-qat-oQ4-fp16", timeout_seconds=2)
+            self.assertIn("401", str(ctx.exception))
+            handle.stop()
+
     def test_spawn_failure_becomes_server_error(self) -> None:
         transport = MagicMock()
 
@@ -121,6 +138,28 @@ class MatrixServerTests(unittest.TestCase):
             handle.start()
             handle.stop()
             process.stop.assert_called_once()
+
+    def test_omlx_injects_api_key_on_spawn(self) -> None:
+        from local_model_runtime_evaluation.credentials import Credential
+        from local_model_runtime_evaluation.matrix_servers import MATRIX_OMLX_API_KEY
+
+        transport = MagicMock()
+        seen: list[tuple[str, ...]] = []
+
+        def capture(cmd: tuple[str, ...], log: Path) -> MagicMock:
+            seen.append(cmd)
+            return MagicMock(stop=MagicMock())
+
+        with TemporaryDirectory() as tmp:
+            handle = build_server(
+                _cell(), transport, Path(tmp),
+                credential=Credential(MATRIX_OMLX_API_KEY),
+                spawner=capture,
+                port_free=lambda port: True,
+            )
+            handle.start()
+            self.assertEqual(seen[0][-2:], ("--api-key", MATRIX_OMLX_API_KEY))
+            handle.stop()
 
 
 if __name__ == "__main__":

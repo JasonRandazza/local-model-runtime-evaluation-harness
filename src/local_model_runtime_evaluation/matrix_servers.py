@@ -17,6 +17,10 @@ class ServerError(RuntimeError):
     code = "matrix_server_failed"
 
 
+# Loopback-only key for matrix-owned oMLX serves. Not a shared secret.
+MATRIX_OMLX_API_KEY = "lmre-matrix-local"
+
+
 class TransportProtocol(Protocol):
     def list_models(self, base_url: str, credential: object | None) -> tuple[str, ...]: ...
 
@@ -74,23 +78,43 @@ class SubprocessServerHandle:
                         wait_port_free(port, timeout_seconds=30)
                     else:
                         raise ServerError(f"port {port} is busy")
-                self._process = self._spawner(self._cell.start_command, self._log_path)
+                command = self._start_command()
+                self._process = self._spawner(command, self._log_path)
                 self._owned = True
         except (LifecycleError, OSError, ValueError) as error:
             raise ServerError(str(error)) from error
         self._started = True
 
+    def _start_command(self) -> tuple[str, ...]:
+        command = self._cell.start_command
+        if self._cell.server != "omlx":
+            return command
+        if "--api-key" in command:
+            return command
+        key = self._credential.api_key() if self._credential is not None else MATRIX_OMLX_API_KEY
+        return command + ("--api-key", key)
+
     def wait_ready(self, model_id: str, timeout_seconds: float) -> None:
         deadline = time.monotonic() + timeout_seconds
+        last_error: str | None = None
         while time.monotonic() < deadline:
             try:
                 models = self._transport.list_models(self._cell.base_url, self._credential)
-            except (TransportError, OSError, TimeoutError, ValueError, KeyError, TypeError):
+            except TransportError as error:
+                message = str(error)
+                last_error = message
+                # Auth failures will not recover by waiting.
+                if "HTTP 401" in message or "HTTP 403" in message:
+                    raise ServerError(message) from error
+                models = ()
+            except (OSError, TimeoutError, ValueError, KeyError, TypeError) as error:
+                last_error = str(error)
                 models = ()
             if model_id in models:
                 return
             time.sleep(0.1)
-        raise ServerError(f"model {model_id!r} not ready within {timeout_seconds}s")
+        detail = f" ({last_error})" if last_error else ""
+        raise ServerError(f"model {model_id!r} not ready within {timeout_seconds}s{detail}")
 
     def stop(self) -> None:
         # ponytail: never stop a pre-existing Osaurus/oMLX we did not spawn

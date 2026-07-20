@@ -3,10 +3,19 @@
   "quant": "oq4_fp16",
   "server": "osaurus",
   "base_url": "http://127.0.0.1:1337/v1",
-  "model_id": "gemma-4-12B-it-qat-oQ4-fp16",
-  "artifact_path": "/Users/jrazz/.cache/huggingface/hub/models--avneetsb--gemma-4-12B-it-qat-oQ4-fp16",
-  "start_command": ["osaurus", "serve", "--port", "1337", "--yes"],
-  "stop_command": ["osaurus", "stop"],
+  "model_id": "omlx/gemma-4-12B-it-qat-oQ4-fp16",
+  "artifact_path": "/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
+  "start_command": [
+    "osaurus",
+    "serve",
+    "--port",
+    "1337",
+    "--yes"
+  ],
+  "stop_command": [
+    "osaurus",
+    "stop"
+  ],
   "health_path": "/health",
-  "notes": "Osaurus start style with oQ4-fp16 artifact. Expect N/A if unloadable."
+  "notes": "Osaurus start style with oQ4-fp16 artifact. Expect N/A if unloadable. Inventory id is the oMLX-routed Osaurus route."
 }

@@ -35,6 +35,15 @@ class Credential:
     def authorization_header(self) -> str:
         return f"Bearer {self._value}"
 
+    def api_key(self) -> str:
+        """Raw key for argv injection (never log or serialize this)."""
+        return self._value
+
+    def looks_like_osaurus_access_key(self) -> bool:
+        """True when value has osk-v1.<payload>.<signature> shape (no secret logged)."""
+        parts = self._value.split(".")
+        return len(parts) == 3 and parts[0] == "osk-v1" and bool(parts[1]) and bool(parts[2])
+
 
 class CredentialProvider(Protocol):
     def status(self) -> CredentialState: ...

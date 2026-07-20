@@ -7,3 +7,8 @@ graphify-out/
 benchmark-runs/
 results/
 .DS_Store
+
+# Accidental Hugging Face hub clones under matrix oMLX roots (keep only pinned symlinks)
+config/matrix/omlx-roots/**/Jundot/
+config/matrix/omlx-roots/**/georgeis55/
+config/matrix/omlx-roots/optiq_4bit/mlx-community/

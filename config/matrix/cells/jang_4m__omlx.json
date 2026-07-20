@@ -5,7 +5,16 @@
   "base_url": "http://127.0.0.1:8100/v1",
   "model_id": "gemma-4-12b-it-qat-jang_4m",
   "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
-  "start_command": ["omlX", "serve", "OsaurusAI/gemma-4-12B-it-qat-JANG_4M", "--host", "127.0.0.1", "--port", "8100"],
+  "start_command": [
+    "omlX",
+    "serve",
+    "--model-dir",
+    "/Users/jrazz/Dev/active/local-model-runtime-evaluation-harness/config/matrix/omlx-roots/jang_4m",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8100"
+  ],
   "stop_command": [],
   "health_path": "/health",
   "notes": "oMLX start style with JANG artifact. Expect N/A if unloadable."

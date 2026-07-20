@@ -1,0 +1,131 @@
+from __future__ import annotations
+
+import io
+import json
+import sys
+import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+
+from local_model_runtime_evaluation.preference_config import DEFAULT_PREFERENCE_CELLS
+from local_model_runtime_evaluation.preference_cli import main
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class PreferenceCliTests(unittest.TestCase):
+    def test_collect_dry_config_ok(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["collect", "--dry-config"])
+        self.assertEqual(code, 0)
+        payload = json.loads(buffer.getvalue())
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["cells"], list(DEFAULT_PREFERENCE_CELLS))
+        self.assertEqual(payload["prompts"], 6)
+        self.assertEqual(payload["suite_id"], "gemma-preference-v1")
+
+    def test_review_missing_run_dir_nonzero(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["review", "--run", "/nonexistent/preference-run"])
+        self.assertNotEqual(code, 0)
+        payload = json.loads(buffer.getvalue())
+        self.assertFalse(payload["ok"])
+
+    def test_tally_missing_run_dir_nonzero(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["tally", "--run", "/nonexistent/preference-run"])
+        self.assertNotEqual(code, 0)
+        payload = json.loads(buffer.getvalue())
+        self.assertFalse(payload["ok"])
+
+    def test_review_and_tally_roundtrip_fakes(self) -> None:
+        from local_model_runtime_evaluation.preference_config import PreferenceSuite
+
+        suite = PreferenceSuite.load(ROOT / "suites/gemma-preference-v1.json")
+        with TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "gemma-preference-test"
+            answers_dir = run_dir / "answers"
+            answers_dir.mkdir(parents=True)
+            for index, cell_id in enumerate(DEFAULT_PREFERENCE_CELLS):
+                payload = {
+                    "cell_id": cell_id,
+                    "model_id": f"model-{index}",
+                    "answers": [
+                        {
+                            "prompt_id": prompt.prompt_id,
+                            "cell_id": cell_id,
+                            "model_id": f"model-{index}",
+                            "content": f"Answer {prompt.prompt_id} v{index}.",
+                            "success": True,
+                            "error": None,
+                            "total_seconds": 1.0,
+                            "ttft_seconds": 0.1,
+                        }
+                        for prompt in suite.prompts
+                    ],
+                }
+                (answers_dir / f"{cell_id}.json").write_text(
+                    json.dumps(payload, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+            (run_dir / "raw.json").write_text(
+                json.dumps(
+                    {
+                        "suite_id": suite.suite_id,
+                        "cell_ids": list(DEFAULT_PREFERENCE_CELLS),
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                review_code = main(["review", "--run", str(run_dir), "--seed", "0"])
+            self.assertEqual(review_code, 0)
+            self.assertTrue((run_dir / "review.md").is_file())
+            self.assertTrue((run_dir / "judgments.json").is_file())
+
+            judgments_path = run_dir / "judgments.json"
+            judgments_payload = json.loads(judgments_path.read_text(encoding="utf-8"))
+            for item in judgments_payload["judgments"]:
+                item["winner"] = "A"
+
+            judgments_path.write_text(
+                json.dumps(judgments_payload, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                tally_code = main(["tally", "--run", str(run_dir)])
+            self.assertEqual(tally_code, 0)
+            self.assertTrue((run_dir / "report.md").is_file())
+            tally_payload = json.loads(buffer.getvalue())
+            self.assertTrue(tally_payload["ok"])
+            self.assertEqual(tally_payload["run_dir"], str(run_dir))
+
+    def test_collect_live_delegates_to_run_collect(self) -> None:
+        fake_run_dir = ROOT / "results" / "preference" / "fake-run"
+        with patch(
+            "local_model_runtime_evaluation.preference_cli.run_collect",
+            return_value=fake_run_dir,
+        ) as mock_collect:
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                code = main(["collect"])
+            self.assertEqual(code, 0)
+            mock_collect.assert_called_once()
+            payload = json.loads(buffer.getvalue())
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["run_dir"], str(fake_run_dir))
+
+
+if __name__ == "__main__":
+    unittest.main()

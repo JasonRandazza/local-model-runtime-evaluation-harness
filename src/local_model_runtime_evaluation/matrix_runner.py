@@ -20,7 +20,12 @@ from .credentials import (
 from .matrix_config import REPOSITORY_ROOT, Cell, Campaign, MatrixSuite
 from .matrix_lifecycle import port_is_free
 from .matrix_measure import MODES, CellResult, measure_cell as default_measure_cell
-from .matrix_servers import ServerError, ServerHandle, build_server as default_build_server
+from .matrix_servers import (
+    MATRIX_OMLX_API_KEY,
+    ServerError,
+    ServerHandle,
+    build_server as default_build_server,
+)
 from .resources import HostResourceProbe
 from .transport import LoopbackTransport
 
@@ -77,6 +82,59 @@ def _format_table_cell(entry: dict[str, Any] | None) -> str:
     return "-"
 
 
+def _format_metric_cell(
+    entry: dict[str, Any] | None,
+    *,
+    key: str,
+    kind: str,
+) -> str:
+    if entry is None or entry.get("status") != "PASS":
+        return "—"
+    summary = entry.get("summary") or {}
+    if kind == "ratio":
+        success = summary.get("success_count")
+        contract = summary.get("contract_pass_count")
+        measured = summary.get("measured_count")
+        if not isinstance(measured, int) or measured <= 0:
+            return "—"
+        if not isinstance(success, int) or not isinstance(contract, int):
+            return "—"
+        return f"{contract}/{success}"
+    value = summary.get(key)
+    if not isinstance(value, (int, float)):
+        return "—"
+    if kind == "seconds":
+        return f"{value:.2f}s"
+    if kind == "toks":
+        return f"{value:.1f}"
+    if kind == "toks_est":
+        return f"{value:.1f} est."
+    return "—"
+
+
+def _metric_table(
+    by_key: dict[tuple[str, str], dict[str, Any]],
+    *,
+    title: str,
+    key: str,
+    kind: str,
+) -> list[str]:
+    lines = [
+        f"### {title}",
+        "",
+        "| quant \\\\ server | osaurus | omlx | optiq |",
+        "|---|---|---|---|",
+    ]
+    for quant in QUANT_ORDER:
+        cells = [
+            _format_metric_cell(by_key.get((quant, server)), key=key, kind=kind)
+            for server in SERVER_ORDER
+        ]
+        lines.append(f"| {quant} | {' | '.join(cells)} |")
+    lines.append("")
+    return lines
+
+
 def _cell_json(cell: Cell, result: CellResult) -> dict[str, Any]:
     return {
         "cell_id": cell.cell_id,
@@ -101,6 +159,12 @@ def _na_result(reason: str, memory_before: int | None) -> CellResult:
             "success_count": 0,
             "contract_pass_count": 0,
             "median_total_seconds": None,
+            "median_ttft_seconds": None,
+            "median_decode_tokens_per_second": None,
+            "median_estimated_decode_tokens_per_second": None,
+            "ttft_sample_count": 0,
+            "decode_sample_count": 0,
+            "estimated_decode_sample_count": 0,
             "by_workload": {},
         },
         memory_free_percent_before=memory_before,
@@ -126,7 +190,36 @@ def render_report(raw: dict[str, Any]) -> str:
         lines.append(f"| {quant} | {' | '.join(cells)} |")
     if raw.get("stopped_early"):
         lines.extend(["", f"Campaign stopped early: `{raw.get('stop_reason')}`"])
-    lines.append("")
+    lines.extend([
+        "",
+        "## Metrics",
+        "",
+        "Option A decode tok/s requires incremental streaming and `EXACT_VISIBLE` token accounting. "
+        "Option B estimated decode tok/s uses `completion_tokens / (total − TTFT)` when incremental "
+        "timing exists (labeled `est.`). Incomparable cells show `—`.",
+        "",
+    ])
+    lines.extend(_metric_table(
+        by_key, title="Median total latency", key="median_total_seconds", kind="seconds",
+    ))
+    lines.extend(_metric_table(
+        by_key, title="Median TTFT", key="median_ttft_seconds", kind="seconds",
+    ))
+    lines.extend(_metric_table(
+        by_key,
+        title="Median decode tok/s (exact)",
+        key="median_decode_tokens_per_second",
+        kind="toks",
+    ))
+    lines.extend(_metric_table(
+        by_key,
+        title="Median decode tok/s (estimated)",
+        key="median_estimated_decode_tokens_per_second",
+        kind="toks_est",
+    ))
+    lines.extend(_metric_table(
+        by_key, title="Contract passes / successes", key="", kind="ratio",
+    ))
     return "\n".join(lines)
 
 
@@ -134,9 +227,8 @@ def _credential_for(server: str) -> Credential | None:
     if server == "optiq":
         return None
     if server == "omlx":
-        # Spawned oMLX serves are unauthenticated; Keychain is unused for inventory
-        # against our own process. Kept for future reuse of a managed server.
-        return None
+        # Matrix-owned oMLX serve gets a fixed loopback API key at spawn time.
+        return Credential(MATRIX_OMLX_API_KEY)
     if server == "osaurus":
         try:
             return KeychainCredentialProvider(OSAURUS_KEYCHAIN_SERVICE).get()
@@ -239,7 +331,10 @@ def run_campaign(
                 break
 
             if previous is not None:
-                previous.stop()
+                try:
+                    previous.stop()
+                except (ServerError, OSError, PermissionError):
+                    pass
 
             credential = resolve_credential(cell.server)
             handle = build(cell, transport, log_dir, credential)
@@ -248,7 +343,10 @@ def run_campaign(
                 handle.wait_ready(cell.model_id, campaign.ready_timeout_seconds)
             except ServerError as error:
                 records.append(_cell_json(cell, _na_result(str(error), memory_before)))
-                handle.stop()
+                try:
+                    handle.stop()
+                except (ServerError, OSError, PermissionError):
+                    pass
                 if cell.server != "osaurus":
                     _verify_port_free(_port_from_base_url(cell.base_url), check_port)
                 previous = handle
@@ -261,7 +359,10 @@ def run_campaign(
 
             result = measure(cell, suite, mode, transport, resource_probe, cancel, credential)
             records.append(_cell_json(cell, result))
-            handle.stop()
+            try:
+                handle.stop()
+            except (ServerError, OSError, PermissionError):
+                pass
             if cell.server != "osaurus":
                 _verify_port_free(_port_from_base_url(cell.base_url), check_port)
             previous = handle
