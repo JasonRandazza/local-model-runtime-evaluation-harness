@@ -10,6 +10,7 @@ from typing import Sequence
 from .matrix_config import REPOSITORY_ROOT, Cell
 from .preference_collect import run_collect
 from .preference_config import DEFAULT_PREFERENCE_CELLS, PreferenceError, PreferenceSuite
+from .preference_judge import DEFAULT_JUDGE_CELL, run_judge
 from .preference_review import run_review
 from .preference_tally import run_tally
 
@@ -100,10 +101,59 @@ def _cmd_tally(args: argparse.Namespace) -> int:
     return 0
 
 
+def _count_pairs(run_dir: Path) -> int:
+    pairs_path = run_dir / "pairs.json"
+    if not pairs_path.is_file():
+        raise PreferenceError(f"missing pairs file: {pairs_path}")
+    payload = json.loads(pairs_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise PreferenceError("pairs.json must be a JSON object")
+    pairs = payload.get("pairs")
+    if not isinstance(pairs, list):
+        raise PreferenceError("pairs.json must contain a pairs array")
+    return len(pairs)
+
+
+def _cmd_judge(args: argparse.Namespace) -> int:
+    run_dir = _resolve_repo_path(args.run)
+    if not run_dir.is_dir():
+        raise PreferenceError(f"run directory not found: {run_dir}")
+
+    judge_cell_id = args.judge_cell
+    cells_root = _resolve_repo_path(args.cells_root)
+    suite_path = _resolve_repo_path(args.suite)
+
+    suite = PreferenceSuite.load(suite_path)
+    Cell.load(cells_root / f"{judge_cell_id}.json")
+
+    answers_dir = run_dir / "answers"
+    if not answers_dir.is_dir():
+        raise PreferenceError(f"missing answers directory: {answers_dir}")
+    pair_count = _count_pairs(run_dir)
+
+    if args.dry_config:
+        print(json.dumps({
+            "ok": True,
+            "judge_cell": judge_cell_id,
+            "run_dir": str(run_dir),
+            "pairs": pair_count,
+        }, sort_keys=True))
+        return 0
+
+    run_judge(
+        run_dir,
+        judge_cell_id=judge_cell_id,
+        cells_root=cells_root,
+        suite=suite,
+    )
+    print(json.dumps({"ok": True, "run_dir": str(run_dir)}, sort_keys=True))
+    return 0
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="lmre-preference",
-        description="Gemma preference quality POC: collect, blind review, and tally.",
+        description="Gemma preference quality POC: collect, review, judge, and tally.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -151,6 +201,31 @@ def _parser() -> argparse.ArgumentParser:
         help="Preference suite JSON",
     )
 
+    judge = subparsers.add_parser("judge", help="Run local judge cell on blind pairs")
+    judge.add_argument("--run", type=Path, required=True, help="Review run directory")
+    judge.add_argument(
+        "--judge-cell",
+        default=DEFAULT_JUDGE_CELL,
+        help=f"Matrix cell id for the judge (default: {DEFAULT_JUDGE_CELL})",
+    )
+    judge.add_argument(
+        "--suite",
+        type=Path,
+        default=DEFAULT_SUITE,
+        help="Preference suite JSON",
+    )
+    judge.add_argument(
+        "--cells-root",
+        type=Path,
+        default=DEFAULT_CELLS_ROOT,
+        help="Matrix cell JSON directory",
+    )
+    judge.add_argument(
+        "--dry-config",
+        action="store_true",
+        help="Validate judge cell and run dir without network or server start",
+    )
+
     tally = subparsers.add_parser("tally", help="Score judgments and write report")
     tally.add_argument("--run", type=Path, required=True, help="Review run directory")
 
@@ -164,6 +239,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _cmd_collect(args)
         if args.command == "review":
             return _cmd_review(args)
+        if args.command == "judge":
+            return _cmd_judge(args)
         if args.command == "tally":
             return _cmd_tally(args)
         raise PreferenceError(f"unknown command {args.command!r}")

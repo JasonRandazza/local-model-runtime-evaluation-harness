@@ -35,7 +35,7 @@ def build_pairs(
     return pairs
 
 
-def _answer_content(
+def get_answer_content(
     answers_by_cell: dict[str, dict[str, Any]],
     cell_id: str,
     prompt_id: str,
@@ -76,8 +76,8 @@ def _render_review_markdown(
     for pair in pairs:
         prompt_id = pair["prompt_id"]
         prompt_text = prompts_by_id[prompt_id]
-        answer_a = _answer_content(answers_by_cell, pair["cell_a"], prompt_id)
-        answer_b = _answer_content(answers_by_cell, pair["cell_b"], prompt_id)
+        answer_a = get_answer_content(answers_by_cell, pair["cell_a"], prompt_id)
+        answer_b = get_answer_content(answers_by_cell, pair["cell_b"], prompt_id)
         lines.extend([
             f"### Pair `{pair['pair_id']}`",
             f"Prompt (`{prompt_id}`):",

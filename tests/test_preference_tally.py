@@ -91,6 +91,21 @@ class TallyTests(unittest.TestCase):
         self.assertEqual(result["c2"]["wins"], 1)
         self.assertAlmostEqual(result["c2"]["win_rate"], 1.0)
 
+    def test_tally_allows_optional_reason(self) -> None:
+        pairs = [
+            {"pair_id": "p1", "prompt_id": "x", "cell_a": "c1", "cell_b": "c2"},
+            {"pair_id": "p2", "prompt_id": "x", "cell_a": "c1", "cell_b": "c2"},
+        ]
+        judgments = [
+            {"pair_id": "p1", "winner": "A", "reason": "Clearer explanation."},
+            {"pair_id": "p2", "winner": "B", "reason": "More concise."},
+        ]
+        result = tally(pairs, judgments)
+        self.assertEqual(result["c1"]["wins"], 1)
+        self.assertEqual(result["c1"]["losses"], 1)
+        self.assertEqual(result["c2"]["wins"], 1)
+        self.assertEqual(result["c2"]["losses"], 1)
+
 
 class RenderTallyReportTests(unittest.TestCase):
     def test_render_includes_cells_and_latency_note(self) -> None:
