@@ -17,7 +17,9 @@ SERVER_PORTS = {"osaurus": 1337, "omlx": 8100, "optiq": 8080}
 EXPECTED_CAMPAIGN_PORTS = dict(SERVER_PORTS)
 
 FAMILY_FIELDS = frozenset({"family_id", "quants"})
-FAMILY_QUANT_FIELDS = frozenset({"artifact_path", "model_ids"})
+FAMILY_QUANT_REQUIRED_FIELDS = frozenset({"artifact_path", "model_ids"})
+FAMILY_QUANT_OPTIONAL_FIELDS = frozenset({"role"})
+ALLOWED_QUANT_ROLES = frozenset({"osaurus_native"})
 
 CELL_FIELDS = frozenset({
     "cell_id", "quant", "server", "base_url", "model_id", "artifact_path",
@@ -92,6 +94,28 @@ class FamilyQuant:
     quant: str
     artifact_path: str
     model_ids: tuple[str, ...]
+    role: str | None = None
+
+
+def _parse_family_quant(quant_key: str, entry: Any) -> FamilyQuant:
+    if not isinstance(entry, dict):
+        raise MatrixError("family quant entry is invalid")
+    keys = set(entry)
+    if not FAMILY_QUANT_REQUIRED_FIELDS.issubset(keys):
+        raise MatrixError("family quant fields are invalid")
+    if keys - FAMILY_QUANT_REQUIRED_FIELDS - FAMILY_QUANT_OPTIONAL_FIELDS:
+        raise MatrixError("family quant fields are invalid")
+    role: str | None = None
+    if "role" in entry:
+        role = str(entry["role"])
+        if role not in ALLOWED_QUANT_ROLES:
+            raise MatrixError("family quant role is invalid")
+    return FamilyQuant(
+        quant=str(quant_key),
+        artifact_path=str(entry["artifact_path"]),
+        model_ids=_model_ids_tuple(entry["model_ids"], "family quant model_ids"),
+        role=role,
+    )
 
 
 @dataclass(frozen=True)
@@ -113,12 +137,7 @@ class ModelFamily:
             raise MatrixError("family quants are invalid")
         quants: dict[str, FamilyQuant] = {}
         for quant_key, entry in raw_quants.items():
-            if not isinstance(entry, dict):
-                raise MatrixError("family quant entry is invalid")
-            _require_exact_fields(entry, FAMILY_QUANT_FIELDS, "family quant")
-            artifact_path = str(entry["artifact_path"])
-            model_ids = _model_ids_tuple(entry["model_ids"], "family quant model_ids")
-            quants[str(quant_key)] = FamilyQuant(str(quant_key), artifact_path, model_ids)
+            quants[str(quant_key)] = _parse_family_quant(str(quant_key), entry)
         return cls(family_id, quants)
 
 

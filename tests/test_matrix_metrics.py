@@ -96,6 +96,71 @@ class MatrixMetricsTest(unittest.TestCase):
         self.assertIn("18.5 est.", report)
         self.assertIn("9/9", report)
 
+    def test_report_quant_order_follows_campaign_cells(self) -> None:
+        raw = {
+            "campaign_id": "qwen36-35b-a3b-3x3",
+            "mode": "screen",
+            "suite_id": "gemma-matrix-v1",
+            "suite_revision": "1",
+            "cells": [
+                {
+                    "cell_id": "qwen_mxfp4__osaurus",
+                    "quant": "qwen_mxfp4",
+                    "server": "osaurus",
+                    "status": "PASS",
+                    "na_reason": None,
+                    "summary": {
+                        "median_total_seconds": 1.0,
+                        "median_ttft_seconds": 0.2,
+                        "median_decode_tokens_per_second": None,
+                        "median_estimated_decode_tokens_per_second": 10.0,
+                        "measured_count": 9,
+                        "success_count": 9,
+                        "contract_pass_count": 9,
+                    },
+                },
+                {
+                    "cell_id": "qwen_oq4__omlx",
+                    "quant": "qwen_oq4",
+                    "server": "omlx",
+                    "status": "N/A",
+                    "na_reason": "missing artifact",
+                    "summary": {
+                        "median_total_seconds": None,
+                        "median_ttft_seconds": None,
+                        "median_decode_tokens_per_second": None,
+                        "median_estimated_decode_tokens_per_second": None,
+                        "measured_count": 0,
+                        "success_count": 0,
+                        "contract_pass_count": 0,
+                    },
+                },
+                {
+                    "cell_id": "qwen_optiq_4bit__optiq",
+                    "quant": "qwen_optiq_4bit",
+                    "server": "optiq",
+                    "status": "PASS",
+                    "na_reason": None,
+                    "summary": {
+                        "median_total_seconds": 1.5,
+                        "median_ttft_seconds": 0.3,
+                        "median_decode_tokens_per_second": 20.0,
+                        "median_estimated_decode_tokens_per_second": 22.0,
+                        "measured_count": 9,
+                        "success_count": 9,
+                        "contract_pass_count": 9,
+                    },
+                },
+            ],
+        }
+        report = render_report(raw)
+        mxfp_at = report.index("| qwen_mxfp4 |")
+        oq4_at = report.index("| qwen_oq4 |")
+        optiq_at = report.index("| qwen_optiq_4bit |")
+        self.assertLess(mxfp_at, oq4_at)
+        self.assertLess(oq4_at, optiq_at)
+        self.assertNotIn("| jang_4m |", report)
+
 
 if __name__ == "__main__":
     unittest.main()

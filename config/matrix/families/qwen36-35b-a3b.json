@@ -1,0 +1,34 @@
+{
+  "family_id": "qwen36-35b-a3b",
+  "quants": {
+    "qwen_mxfp4": {
+      "role": "osaurus_native",
+      "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/Qwen3.6-35B-A3B-MXFP4-MTP",
+      "model_ids": [
+        "qwen3.6-35b-a3b-mxfp4-mtp",
+        "/Users/jrazz/MLXModels/OsaurusAI/Qwen3.6-35B-A3B-MXFP4-MTP"
+      ]
+    },
+    "qwen_oq4": {
+      "artifact_path": "/Users/jrazz/.cache/huggingface/hub/Jundot/Qwen3.6-35B-A3B-oQ4-mtp",
+      "model_ids": [
+        "Qwen3.6-35B-A3B-oQ4-mtp",
+        "omlx/Qwen3.6-35B-A3B-oQ4-mtp",
+        "/Users/jrazz/.cache/huggingface/hub/Jundot/Qwen3.6-35B-A3B-oQ4-mtp"
+      ]
+    },
+    "qwen_optiq_4bit": {
+      "artifact_path": "/Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "model_ids": [
+        "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+        "mlx-community__Qwen3.6-35B-A3B-OptiQ-4bit",
+        "omlx/Qwen3.6-35B-A3B-OptiQ-4bit",
+        "/Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+        "/Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit:no-think",
+        "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+        "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit:no-think",
+        "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit:think"
+      ]
+    }
+  }
+}

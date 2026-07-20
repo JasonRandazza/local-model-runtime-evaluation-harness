@@ -16,11 +16,13 @@ from local_model_runtime_evaluation.matrix_config import (
 
 GEMMA_FAMILY = load_family("gemma-4-12b-qat")
 ORNITH_FAMILY = load_family("ornith-35b")
+QWEN_FAMILY = load_family("qwen36-35b-a3b")
 
 ROOT = Path(__file__).resolve().parents[1]
 CELLS = ROOT / "config" / "matrix" / "cells"
 GEMMA_CAMPAIGN = ROOT / "config" / "matrix" / "gemma-4-12b-qat-campaign.json"
 ORNITH_CAMPAIGN = ROOT / "config" / "matrix" / "ornith-35b-campaign.json"
+QWEN_CAMPAIGN = ROOT / "config" / "matrix" / "qwen36-35b-a3b-campaign.json"
 
 
 class MatrixConfigTests(unittest.TestCase):
@@ -183,6 +185,7 @@ class MatrixConfigTests(unittest.TestCase):
             "/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
         )
         self.assertIn("gemma-4-12b-it-qat-jang_4m", jang.model_ids)
+        self.assertEqual(jang.role, "osaurus_native")
 
     def test_gemma_family_oq4_fp16_artifact_path(self) -> None:
         oq4 = load_family("gemma-4-12b-qat").quants["oq4_fp16"]
@@ -191,6 +194,7 @@ class MatrixConfigTests(unittest.TestCase):
             "/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
         )
         self.assertIn("gemma-4-12B-it-qat-oQ4-fp16", oq4.model_ids)
+        self.assertIsNone(oq4.role)
 
     def test_gemma_family_optiq_4bit_artifact_path(self) -> None:
         optiq = load_family("gemma-4-12b-qat").quants["optiq_4bit"]
@@ -250,6 +254,7 @@ class MatrixConfigTests(unittest.TestCase):
             "/Users/jrazz/MLXModels/OsaurusAI/Ornith-1.0-35B-JANG_4M",
         )
         self.assertIn("ornith-1.0-35b-jang_4m", jang.model_ids)
+        self.assertEqual(jang.role, "osaurus_native")
 
     def test_ornith_family_oq4_artifact_path(self) -> None:
         oq4 = load_family("ornith-35b").quants["ornith_oq4"]
@@ -271,6 +276,74 @@ class MatrixConfigTests(unittest.TestCase):
         cell = Cell.load(
             ROOT / "config/matrix/cells/ornith_optiq_4bit__optiq.json",
             family=ORNITH_FAMILY,
+        )
+        self.assertTrue(cell.model_id.endswith(":no-think"), cell.model_id)
+        self.assertEqual(cell.server, "optiq")
+
+    def test_family_quant_rejects_unknown_role(self) -> None:
+        payload = {
+            "family_id": "bad-role-family",
+            "quants": {
+                "qwen_mxfp4": {
+                    "role": "not_a_role",
+                    "artifact_path": "/tmp/x",
+                    "model_ids": ["x"],
+                }
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bad-role-family.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaises(MatrixError):
+                ModelFamily.load(path)
+
+    def test_qwen_campaign_lists_exactly_nine_cells(self) -> None:
+        campaign = Campaign.load(QWEN_CAMPAIGN)
+        self.assertEqual(campaign.campaign_id, "qwen36-35b-a3b-3x3")
+        self.assertEqual(campaign.family_id, "qwen36-35b-a3b")
+        self.assertEqual(campaign.family.family_id, "qwen36-35b-a3b")
+        self.assertEqual(len(campaign.cell_paths), 9)
+        self.assertEqual(campaign.ports, {"osaurus": 1337, "omlx": 8100, "optiq": 8080})
+
+    def test_all_nine_qwen_cells_load(self) -> None:
+        campaign = Campaign.load(QWEN_CAMPAIGN)
+        cells = [Cell.load(path, family=QWEN_FAMILY) for path in campaign.cell_paths]
+        self.assertEqual(len(cells), 9)
+        servers = {(c.quant, c.server) for c in cells}
+        self.assertEqual(len(servers), 9)
+        for cell in cells:
+            self.assertTrue(cell.base_url.startswith("http://127.0.0.1:"))
+            self.assertTrue(cell.base_url.endswith("/v1"))
+            self.assertIn(cell.server, {"osaurus", "omlx", "optiq"})
+            self.assertIn(
+                cell.quant,
+                {"qwen_mxfp4", "qwen_oq4", "qwen_optiq_4bit"},
+            )
+            self.assertTrue(cell.cell_id.startswith("qwen_"))
+
+    def test_load_qwen_family_by_id(self) -> None:
+        family = load_family("qwen36-35b-a3b")
+        self.assertEqual(family.family_id, "qwen36-35b-a3b")
+        self.assertEqual(
+            set(family.quants.keys()),
+            {"qwen_mxfp4", "qwen_oq4", "qwen_optiq_4bit"},
+        )
+        self.assertEqual(family.quants["qwen_mxfp4"].role, "osaurus_native")
+        self.assertIsNone(family.quants["qwen_oq4"].role)
+        self.assertIsNone(family.quants["qwen_optiq_4bit"].role)
+
+    def test_qwen_family_mxfp4_artifact_path(self) -> None:
+        mxfp = load_family("qwen36-35b-a3b").quants["qwen_mxfp4"]
+        self.assertEqual(
+            mxfp.artifact_path,
+            "/Users/jrazz/MLXModels/OsaurusAI/Qwen3.6-35B-A3B-MXFP4-MTP",
+        )
+        self.assertIn("qwen3.6-35b-a3b-mxfp4-mtp", mxfp.model_ids)
+
+    def test_qwen_optiq_native_cell_uses_no_think_model_id(self) -> None:
+        cell = Cell.load(
+            ROOT / "config/matrix/cells/qwen_optiq_4bit__optiq.json",
+            family=QWEN_FAMILY,
         )
         self.assertTrue(cell.model_id.endswith(":no-think"), cell.model_id)
         self.assertEqual(cell.server, "optiq")

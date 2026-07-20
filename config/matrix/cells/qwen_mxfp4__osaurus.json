@@ -1,0 +1,12 @@
+{
+  "cell_id": "qwen_mxfp4__osaurus",
+  "quant": "qwen_mxfp4",
+  "server": "osaurus",
+  "base_url": "http://127.0.0.1:1337/v1",
+  "model_id": "qwen3.6-35b-a3b-mxfp4-mtp",
+  "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/Qwen3.6-35B-A3B-MXFP4-MTP",
+  "start_command": ["osaurus", "serve", "--port", "1337", "--yes"],
+  "stop_command": ["osaurus", "stop"],
+  "health_path": "/health",
+  "notes": "Native Osaurus MXFP path. First chat may load the model."
+}

@@ -2,6 +2,7 @@
   "family_id": "gemma-4-12b-qat",
   "quants": {
     "jang_4m": {
+      "role": "osaurus_native",
       "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
       "model_ids": [
         "gemma-4-12b-it-qat-jang_4m",

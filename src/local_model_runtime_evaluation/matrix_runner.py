@@ -29,9 +29,19 @@ from .matrix_servers import (
 from .resources import HostResourceProbe
 from .transport import LoopbackTransport
 
-QUANT_ORDER = ("jang_4m", "oq4_fp16", "optiq_4bit")
 SERVER_ORDER = ("osaurus", "omlx", "optiq")
 PORT_VERIFY_TIMEOUT_SECONDS = 5.0
+
+
+def _quant_order(cells: Sequence[dict[str, Any]]) -> tuple[str, ...]:
+    """Preserve first-seen quant order from campaign cell list."""
+    ordered: list[str] = []
+    for item in cells:
+        quant = str(item["quant"])
+        if quant not in ordered:
+            ordered.append(quant)
+    return tuple(ordered)
+
 
 BuildServer = Callable[[Cell, LoopbackTransport, Path, Credential | None], ServerHandle]
 MeasureCell = Callable[
@@ -118,6 +128,7 @@ def _metric_table(
     title: str,
     key: str,
     kind: str,
+    quant_order: Sequence[str],
 ) -> list[str]:
     lines = [
         f"### {title}",
@@ -125,7 +136,7 @@ def _metric_table(
         "| quant \\\\ server | osaurus | omlx | optiq |",
         "|---|---|---|---|",
     ]
-    for quant in QUANT_ORDER:
+    for quant in quant_order:
         cells = [
             _format_metric_cell(by_key.get((quant, server)), key=key, kind=kind)
             for server in SERVER_ORDER
@@ -174,6 +185,7 @@ def _na_result(reason: str, memory_before: int | None) -> CellResult:
 
 def render_report(raw: dict[str, Any]) -> str:
     by_key = {(item["quant"], item["server"]): item for item in raw["cells"]}
+    quant_order = _quant_order(raw["cells"])
     lines = [
         f"# Matrix campaign {raw['campaign_id']}",
         "",
@@ -185,7 +197,7 @@ def render_report(raw: dict[str, Any]) -> str:
         "| quant \\\\ server | osaurus | omlx | optiq |",
         "|---|---|---|---|",
     ]
-    for quant in QUANT_ORDER:
+    for quant in quant_order:
         cells = [_format_table_cell(by_key.get((quant, server))) for server in SERVER_ORDER]
         lines.append(f"| {quant} | {' | '.join(cells)} |")
     if raw.get("stopped_early"):
@@ -200,25 +212,39 @@ def render_report(raw: dict[str, Any]) -> str:
         "",
     ])
     lines.extend(_metric_table(
-        by_key, title="Median total latency", key="median_total_seconds", kind="seconds",
+        by_key,
+        title="Median total latency",
+        key="median_total_seconds",
+        kind="seconds",
+        quant_order=quant_order,
     ))
     lines.extend(_metric_table(
-        by_key, title="Median TTFT", key="median_ttft_seconds", kind="seconds",
+        by_key,
+        title="Median TTFT",
+        key="median_ttft_seconds",
+        kind="seconds",
+        quant_order=quant_order,
     ))
     lines.extend(_metric_table(
         by_key,
         title="Median decode tok/s (exact)",
         key="median_decode_tokens_per_second",
         kind="toks",
+        quant_order=quant_order,
     ))
     lines.extend(_metric_table(
         by_key,
         title="Median decode tok/s (estimated)",
         key="median_estimated_decode_tokens_per_second",
         kind="toks_est",
+        quant_order=quant_order,
     ))
     lines.extend(_metric_table(
-        by_key, title="Contract passes / successes", key="", kind="ratio",
+        by_key,
+        title="Contract passes / successes",
+        key="",
+        kind="ratio",
+        quant_order=quant_order,
     ))
     return "\n".join(lines)
 
