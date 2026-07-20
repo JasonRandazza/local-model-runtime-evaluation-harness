@@ -83,8 +83,8 @@ PYTHONPATH=src /opt/homebrew/bin/python3 -m unittest tests.test_rag_config tests
 PYTHONPATH=src /opt/homebrew/bin/python3 -m unittest \
   tests.test_rag_retrieve tests.test_rag_config tests.test_rag_prompt \
   tests.test_rag_score tests.test_rag_collect tests.test_rag_cli -q
-PATH="/Users/jrazz/.local/bin:/opt/homebrew/bin:$PATH" ./bin/lmre-rag --dry-config
-PATH="/Users/jrazz/.local/bin:/opt/homebrew/bin:$PATH" ./bin/lmre-rag --dry-config --family ornith-35b
+PATH="/Users/jrazz/.local/bin:/opt/homebrew/bin:$PATH" ./bin/lmre-rag collect --dry-config
+PATH="/Users/jrazz/.local/bin:/opt/homebrew/bin:$PATH" ./bin/lmre-rag collect --dry-config --family ornith-35b
 ```
 
 Expected: Gemma dry-config 4 cells + `family_id` `gemma-4-12b-qat`; Ornith 4 `ornith_*` cells.
@@ -162,8 +162,8 @@ PYTHONPATH=src /opt/homebrew/bin/python3 -m unittest tests.test_overhead_config 
 
 ```bash
 PYTHONPATH=src /opt/homebrew/bin/python3 -m unittest tests.test_overhead_config tests.test_overhead_cli -q
-PATH="/Users/jrazz/.local/bin:/opt/homebrew/bin:$PATH" ./bin/lmre-overhead --dry-config
-PATH="/Users/jrazz/.local/bin:/opt/homebrew/bin:$PATH" ./bin/lmre-overhead --dry-config --family ornith-35b
+PATH="/Users/jrazz/.local/bin:/opt/homebrew/bin:$PATH" ./bin/lmre-overhead run --dry-config
+PATH="/Users/jrazz/.local/bin:/opt/homebrew/bin:$PATH" ./bin/lmre-overhead run --dry-config --family ornith-35b
 ```
 
 - [ ] **Step 5: Commit only if user asked**
