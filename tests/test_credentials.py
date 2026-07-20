@@ -23,6 +23,13 @@ class CredentialBoundaryTest(unittest.TestCase):
             provider.get()
         self.assertNotIn("secret", str(raised.exception).lower())
 
+    def test_osaurus_access_key_shape(self) -> None:
+        self.assertTrue(
+            Credential("osk-v1.eyJpc3MiOiIxIn0.signature").looks_like_osaurus_access_key()
+        )
+        self.assertFalse(Credential("osk-v1.eyJpc3MiOiIxIn0").looks_like_osaurus_access_key())
+        self.assertFalse(Credential("not-an-access-key").looks_like_osaurus_access_key())
+
 
 if __name__ == "__main__":
     unittest.main()

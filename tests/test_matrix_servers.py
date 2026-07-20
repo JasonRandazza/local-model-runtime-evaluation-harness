@@ -139,6 +139,28 @@ class MatrixServerTests(unittest.TestCase):
             handle.stop()
             process.stop.assert_called_once()
 
+    def test_omlx_injects_api_key_on_spawn(self) -> None:
+        from local_model_runtime_evaluation.credentials import Credential
+        from local_model_runtime_evaluation.matrix_servers import MATRIX_OMLX_API_KEY
+
+        transport = MagicMock()
+        seen: list[tuple[str, ...]] = []
+
+        def capture(cmd: tuple[str, ...], log: Path) -> MagicMock:
+            seen.append(cmd)
+            return MagicMock(stop=MagicMock())
+
+        with TemporaryDirectory() as tmp:
+            handle = build_server(
+                _cell(), transport, Path(tmp),
+                credential=Credential(MATRIX_OMLX_API_KEY),
+                spawner=capture,
+                port_free=lambda port: True,
+            )
+            handle.start()
+            self.assertEqual(seen[0][-2:], ("--api-key", MATRIX_OMLX_API_KEY))
+            handle.stop()
+
 
 if __name__ == "__main__":
     unittest.main()

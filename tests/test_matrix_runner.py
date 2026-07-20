@@ -63,7 +63,17 @@ def _pass_result(cell: Cell, median: float = 1.5) -> CellResult:
         status="PASS",
         na_reason=None,
         observations=(),
-        summary={"median_total_seconds": median, "measured_count": 9},
+        summary={
+            "median_total_seconds": median,
+            "median_ttft_seconds": 0.2,
+            "median_decode_tokens_per_second": None,
+            "measured_count": 9,
+            "success_count": 9,
+            "contract_pass_count": 9,
+            "ttft_sample_count": 9,
+            "decode_sample_count": 0,
+            "by_workload": {},
+        },
         memory_free_percent_before=80,
         memory_free_percent_after=79,
     )

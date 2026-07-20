@@ -117,7 +117,7 @@ Per request:
 - TTFT and decode tok/s only when streaming is incremental and token evidence is trustworthy; otherwise null
 - memory free % before start and after teardown
 
-Per-cell and campaign summaries: success rate, contract pass rate, median/min/max latency (p95 on finalist only), and a 3×3 status table (`PASS` / `FAIL` / `N/A`).
+Per-cell and campaign summaries: success rate, contract pass rate, median/min/max latency (p95 on finalist only), median TTFT (incremental only), median decode tok/s (`EXACT_VISIBLE` only — Option A), median **estimated** decode tok/s from `completion_tokens / (total − TTFT)` (Option B, labeled `est.`), and a 3×3 status table (`PASS` / `FAIL` / `N/A`) plus metric tables in `report.md`.
 
 ## Stage 2B Boundary
 
@@ -138,6 +138,8 @@ Per-cell and campaign summaries: success rate, contract pass rate, median/min/ma
 
 1. Osaurus routing overhead on winning or all loadable cells
 2. Quality evaluation: LMSYS-style / judge models / longer RAG corpora
+
+Keep those after the performance matrix (including Option A latency/throughput breakdown) is useful. Do not fold quality judges into the first native 3×3 comparison.
 
 ## Likely Files
 

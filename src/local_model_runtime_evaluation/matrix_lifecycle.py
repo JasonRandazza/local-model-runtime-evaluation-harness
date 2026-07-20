@@ -43,7 +43,7 @@ class ManagedProcess:
     def stop(self, timeout_seconds: float = 15) -> None:
         try:
             os.killpg(self.process_group_id, signal.SIGTERM)
-        except ProcessLookupError:
+        except (ProcessLookupError, PermissionError):
             return
         try:
             self._child.wait(timeout=timeout_seconds)
@@ -52,7 +52,7 @@ class ManagedProcess:
         # Always escalate: leader exit after SIGTERM can leave descendants alive.
         try:
             os.killpg(self.process_group_id, signal.SIGKILL)
-        except ProcessLookupError:
+        except (ProcessLookupError, PermissionError):
             return
         try:
             self._child.wait(timeout=5)

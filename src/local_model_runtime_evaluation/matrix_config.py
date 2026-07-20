@@ -18,18 +18,31 @@ EXPECTED_CAMPAIGN_PORTS = dict(SERVER_PORTS)
 
 QUANT_CONTROL_ARTIFACTS = {
     "jang_4m": {
-        "model_ids": ("gemma-4-12b-it-qat-jang_4m",),
+        "model_ids": (
+            "gemma-4-12b-it-qat-jang_4m",
+            # OptiQ serves advertise the absolute --model path as id
+            "/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
+        ),
         "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
     },
     "oq4_fp16": {
-        "model_ids": ("gemma-4-12B-it-qat-oQ4-fp16",),
+        "model_ids": (
+            "gemma-4-12B-it-qat-oQ4-fp16",
+            "omlx/gemma-4-12B-it-qat-oQ4-fp16",
+            "/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
+        ),
         "artifact_path": "/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
     },
     "optiq_4bit": {
-        # slash form for OptiQ/Osaurus; underscore form for oMLX --model-dir subdir names
+        # slash form for Osaurus; underscore form for oMLX --model-dir; path for OptiQ serve;
+        # omlx/ prefix when exposed into Osaurus via an oMLX provider route;
+        # :no-think required so OptiQ streams visible text in delta.content
         "model_ids": (
             "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
             "mlx-community__gemma-4-12B-it-qat-OptiQ-4bit",
+            "omlx/gemma-4-12B-it-qat-OptiQ-4bit",
+            "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+            "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
         ),
         "artifact_path": "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
     },
