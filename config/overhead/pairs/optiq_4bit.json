@@ -3,5 +3,5 @@
   "direct_cell_id": "optiq_4bit__optiq",
   "backend_cell_id": "optiq_4bit__optiq",
   "routed_base_url": "http://127.0.0.1:1337/v1",
-  "routed_model_id": "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"
+  "routed_model_id": "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think"
 }

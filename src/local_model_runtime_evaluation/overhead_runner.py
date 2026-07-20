@@ -11,7 +11,7 @@ from typing import Any, Callable
 from urllib.parse import urlparse
 
 from .matrix_config import Cell, MatrixSuite
-from .matrix_lifecycle import port_is_free
+from .matrix_lifecycle import LifecycleError, port_is_free, run_stop_command
 from .matrix_measure import CellResult, measure_cell as default_measure_cell
 from .matrix_servers import ServerError, ServerHandle, build_server as default_build_server
 from .overhead_config import OverheadError, OverheadPair, make_routed_measure_cell
@@ -24,6 +24,7 @@ OSAURUS_PORT = 1337
 DEFAULT_MEMORY_FLOOR_PERCENT = 20
 DEFAULT_READY_TIMEOUT_SECONDS = 180.0
 PORT_VERIFY_TIMEOUT_SECONDS = 5.0
+OMLX_STOP_WAIT_SECONDS = 30.0
 
 BuildServer = Callable[[Cell, LoopbackTransport, Path, object | None], ServerHandle]
 MeasureCell = Callable[
@@ -35,6 +36,7 @@ MeasureCell = Callable[
 ]
 PortFree = Callable[[int], bool]
 CredentialFor = Callable[[str], object | None]
+StopRunner = Callable[[tuple[str, ...]], None]
 
 
 def _stamp() -> str:
@@ -54,15 +56,47 @@ def require_osaurus_listening(*, port_free: PortFree | None = None) -> None:
         raise OverheadError("Osaurus is not listening on port 1337")
 
 
-def _verify_port_free(port: int, port_free: PortFree) -> None:
+def _verify_port_free(
+    port: int,
+    port_free: PortFree,
+    *,
+    timeout_seconds: float = PORT_VERIFY_TIMEOUT_SECONDS,
+) -> None:
     if port_free(port):
         return
-    deadline = time.monotonic() + PORT_VERIFY_TIMEOUT_SECONDS
+    deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
         if port_free(port):
             return
         time.sleep(0.1)
     raise OverheadError(f"port {port} did not free in time")
+
+
+def _ensure_backend_port_ready(
+    backend: Cell,
+    check_port: PortFree,
+    stop_runner: StopRunner,
+) -> None:
+    """Free the backend port when possible so this leg can own the serve.
+
+    Matches matrix behavior for oMLX: `omlX stop` then wait. Other backends
+    (OptiQ) still require the port already free — same as matrix.
+    """
+    backend_port = _port_from_base_url(backend.base_url)
+    if check_port(backend_port):
+        return
+    if backend.server == "omlx":
+        try:
+            stop_runner(("omlX", "stop"))
+            _verify_port_free(
+                backend_port, check_port, timeout_seconds=OMLX_STOP_WAIT_SECONDS,
+            )
+        except (LifecycleError, OverheadError, OSError, PermissionError) as error:
+            raise OverheadError(
+                f"backend port {backend_port} is busy and oMLX stop failed: {error}"
+            ) from error
+        return
+    raise OverheadError(f"backend port {backend_port} is busy")
 
 
 def _na_result(reason: str, memory_before: int | None) -> CellResult:
@@ -118,12 +152,15 @@ def _run_leg(
     log_dir: Path,
     ready_timeout: float,
     check_port: PortFree,
+    stop_runner: StopRunner,
     measure_credential_server: str,
 ) -> CellResult:
     backend_port = _port_from_base_url(backend.base_url)
     memory_before = probe.free_memory_percent()
-    if not check_port(backend_port):
-        return _na_result(f"backend port {backend_port} is busy", memory_before)
+    try:
+        _ensure_backend_port_ready(backend, check_port, stop_runner)
+    except OverheadError as error:
+        return _na_result(str(error), memory_before)
 
     backend_credential = resolve_credential(backend.server, resolve_credential_fn)
     handle = build(backend, transport, log_dir, backend_credential)
@@ -168,6 +205,7 @@ def run_overhead(
     measure_cell: MeasureCell | None = None,
     probe: HostResourceProbe | None = None,
     port_free: PortFree | None = None,
+    stop_runner: StopRunner | None = None,
     credential_for: CredentialFor | None = None,
     ready_timeout_seconds: float = DEFAULT_READY_TIMEOUT_SECONDS,
     memory_floor_percent: int = DEFAULT_MEMORY_FLOOR_PERCENT,
@@ -175,6 +213,7 @@ def run_overhead(
     suite = MatrixSuite.load(suite_path)
     resource_probe = probe if probe is not None else HostResourceProbe()
     check_port = port_free or port_is_free
+    stop = stop_runner or run_stop_command
     resolve_credential_fn = credential_for
     build = build_server or (
         lambda cell, transport, log_dir, credential: default_build_server(
@@ -243,6 +282,7 @@ def run_overhead(
                 log_dir=log_dir,
                 ready_timeout=ready_timeout_seconds,
                 check_port=check_port,
+                stop_runner=stop,
                 measure_credential_server=direct.server,
             )
 
@@ -300,6 +340,7 @@ def run_overhead(
                 log_dir=log_dir,
                 ready_timeout=ready_timeout_seconds,
                 check_port=check_port,
+                stop_runner=stop,
                 measure_credential_server="osaurus",
             )
 

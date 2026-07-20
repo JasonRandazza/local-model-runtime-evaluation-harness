@@ -13,6 +13,8 @@ The harness **starts and stops only the native backend** for both legs. Jason ow
 3. **Routed leg (harness)** — Leave Osaurus up. Start the **same** backend again (provider needs it); measure the same suite against `http://127.0.0.1:1337/v1` with the configured routed `model_id`; stop **only** the backend. Never start, stop, or configure Osaurus.
 4. **Next pair** — After ports free and RAM OK.
 
+If `:8100` is already busy, the harness matches matrix behavior and runs `omlX stop` before owning the serve. OptiQ still requires `:8080` free (stop Lab/`optiq serve` yourself first).
+
 The harness never starts, stops, signals, or configures Osaurus or its providers.
 
 ## Live prep checklist
