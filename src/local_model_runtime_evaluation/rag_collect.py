@@ -1,4 +1,4 @@
-"""Collect RAG oracle answers one cell at a time."""
+"""Collect RAG oracle and keyword answers one cell at a time."""
 
 from __future__ import annotations
 
@@ -20,8 +20,8 @@ from .preference_collect import (
     resolve_credential,
     write_answers,
 )
-from .rag_config import RagCorpus, RagSuite
-from .rag_prompt import build_oracle_prompt
+from .rag_config import RagCorpus, RagError, RagSuite
+from .rag_prompt import build_keyword_prompt, build_oracle_prompt
 from .resources import HostResourceProbe
 from .transport import LoopbackTransport, TransportError
 
@@ -29,9 +29,16 @@ BuildServer = Callable[[Cell, LoopbackTransport, Path, Credential | None], Serve
 TransportFactory = Callable[[set[str], int], LoopbackTransport]
 CredentialFor = Callable[[str], Credential | None]
 
+_VALID_MODES = frozenset({"oracle", "keyword"})
+
 
 def _stamp() -> str:
     return time.strftime("%Y%m%d-%H%M%S")
+
+
+def _validate_mode(mode: str) -> None:
+    if mode not in _VALID_MODES:
+        raise RagError(f"unknown collect mode {mode!r}")
 
 
 def collect_cell(
@@ -47,7 +54,10 @@ def collect_cell(
     ready_timeout: float,
     request_timeout: float,
     log_dir: Path,
+    mode: str = "oracle",
+    top_k: int = 2,
 ) -> list[AnswerRecord]:
+    _validate_mode(mode)
     del probe, request_timeout
     handle = build_server(cell, transport, log_dir, credential)
     try:
@@ -65,7 +75,13 @@ def collect_cell(
         for question in suite.questions:
             if cancel.is_set():
                 break
-            prompt = build_oracle_prompt(question, corpus)
+            retrieved_chunk_ids: tuple[str, ...] | None = None
+            if mode == "keyword":
+                prompt, retrieved_chunk_ids = build_keyword_prompt(
+                    question, corpus, k=top_k,
+                )
+            else:
+                prompt = build_oracle_prompt(question, corpus)
             try:
                 result = transport.chat(
                     cell.base_url,
@@ -86,6 +102,7 @@ def collect_cell(
                         str(error),
                         None,
                         None,
+                        retrieved_chunk_ids,
                     )
                 )
                 continue
@@ -99,6 +116,7 @@ def collect_cell(
                     None,
                     result.total_seconds,
                     result.ttft_seconds,
+                    retrieved_chunk_ids,
                 )
             )
     finally:
@@ -123,7 +141,10 @@ def run_collect(
     ready_timeout: float = DEFAULT_READY_TIMEOUT_SECONDS,
     request_timeout: float = DEFAULT_REQUEST_TIMEOUT_SECONDS,
     memory_floor_percent: int = DEFAULT_MEMORY_FLOOR_PERCENT,
+    mode: str = "oracle",
+    top_k: int = 2,
 ) -> Path:
+    _validate_mode(mode)
     suite = RagSuite.load(suite_path)
     corpus = RagCorpus.load(corpus_root)
     if corpus.corpus_id != suite.corpus_id:
@@ -159,11 +180,12 @@ def run_collect(
     stop_reason: str | None = None
 
     def _persist_raw() -> None:
-        raw = {
+        raw: dict[str, object] = {
             "suite_id": suite.suite_id,
             "suite_revision": suite.revision,
             "corpus_id": suite.corpus_id,
             "cell_ids": list(cell_ids),
+            "mode": mode,
             "started_at": started_at,
             "finished_at": datetime.now(timezone.utc).isoformat(),
             "stopped_early": stopped_early,
@@ -172,6 +194,8 @@ def run_collect(
             "ready_timeout_seconds": ready_timeout,
             "request_timeout_seconds": request_timeout,
         }
+        if mode == "keyword":
+            raw["top_k"] = top_k
         (run_dir / "raw.json").write_text(
             json.dumps(raw, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
@@ -199,6 +223,8 @@ def run_collect(
                     ready_timeout=ready_timeout,
                     request_timeout=request_timeout,
                     log_dir=log_dir,
+                    mode=mode,
+                    top_k=top_k,
                 )
             except ServerError as error:
                 write_answers(

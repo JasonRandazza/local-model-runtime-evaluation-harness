@@ -10,8 +10,10 @@ from unittest.mock import MagicMock
 
 from local_model_runtime_evaluation.matrix_config import Cell
 from local_model_runtime_evaluation.matrix_servers import ServerError
+from dataclasses import asdict
+
 from local_model_runtime_evaluation.rag_collect import collect_cell, run_collect
-from local_model_runtime_evaluation.rag_config import RagCorpus, RagSuite
+from local_model_runtime_evaluation.rag_config import RagCorpus, RagError, RagSuite
 from local_model_runtime_evaluation.rag_prompt import build_oracle_prompt
 from local_model_runtime_evaluation.transport import TransportError
 
@@ -136,6 +138,90 @@ class CollectCellTests(unittest.TestCase):
             self.assertIsNone(record.error)
             expected_prompt = build_oracle_prompt(question, self.corpus)
             self.assertEqual(chat_calls[index], expected_prompt)
+            self.assertIsNone(record.retrieved_chunk_ids)
+
+    def test_collect_keyword_records_retrieved_ids(self) -> None:
+        chat_calls: list[str] = []
+        question_index = {"value": 0}
+
+        class FakeTransport:
+            def chat(
+                self,
+                base_url: str,
+                model_id: str,
+                prompt: str,
+                max_tokens: int,
+                credential: object | None,
+                cancel: threading.Event,
+            ) -> SimpleNamespace:
+                question = self.suite.questions[question_index["value"]]
+                question_index["value"] += 1
+                chat_calls.append(prompt)
+                return SimpleNamespace(
+                    content=" ".join(question.required_facts),
+                    total_seconds=1.0,
+                    ttft_seconds=0.2,
+                )
+
+        transport = FakeTransport()
+        transport.suite = self.suite  # type: ignore[attr-defined]
+
+        records = collect_cell(
+            self.cell,
+            self.suite,
+            self.corpus,
+            transport,  # type: ignore[arg-type]
+            credential=None,
+            build_server=lambda cell, transport, log_dir, credential: FakeHandle(),
+            probe=None,
+            cancel=self.cancel,
+            ready_timeout=1.0,
+            request_timeout=5.0,
+            log_dir=self.log_dir,
+            mode="keyword",
+            top_k=2,
+        )
+        self.assertEqual(len(records), 6)
+        for record in records:
+            self.assertIsNotNone(record.retrieved_chunk_ids)
+            self.assertEqual(len(record.retrieved_chunk_ids or ()), 2)
+            payload = asdict(record)
+            self.assertIn("retrieved_chunk_ids", payload)
+            self.assertEqual(len(payload["retrieved_chunk_ids"]), 2)
+
+    def test_collect_oracle_omits_or_nulls_retrieved_ids(self) -> None:
+        class FakeTransport:
+            def chat(
+                self,
+                base_url: str,
+                model_id: str,
+                prompt: str,
+                max_tokens: int,
+                credential: object | None,
+                cancel: threading.Event,
+            ) -> SimpleNamespace:
+                return SimpleNamespace(
+                    content="answer",
+                    total_seconds=1.0,
+                    ttft_seconds=0.2,
+                )
+
+        records = collect_cell(
+            self.cell,
+            self.suite,
+            self.corpus,
+            FakeTransport(),  # type: ignore[arg-type]
+            credential=None,
+            build_server=lambda cell, transport, log_dir, credential: FakeHandle(),
+            probe=None,
+            cancel=self.cancel,
+            ready_timeout=1.0,
+            request_timeout=5.0,
+            log_dir=self.log_dir,
+            mode="oracle",
+        )
+        for record in records:
+            self.assertIsNone(record.retrieved_chunk_ids)
 
     def test_transport_error_continues(self) -> None:
         calls = {"count": 0}
@@ -187,6 +273,25 @@ class CollectCellTests(unittest.TestCase):
         for record in records[1:]:
             self.assertTrue(record.success)
             self.assertIsNotNone(record.content)
+
+    def test_collect_cell_rejects_unknown_mode(self) -> None:
+        with self.assertRaises(RagError):
+            collect_cell(
+                self.cell,
+                self.suite,
+                self.corpus,
+                object(),  # type: ignore[arg-type]
+                credential=None,
+                build_server=lambda *args, **kwargs: (_ for _ in ()).throw(
+                    AssertionError("build_server must not run"),
+                ),
+                probe=None,
+                cancel=self.cancel,
+                ready_timeout=1.0,
+                request_timeout=5.0,
+                log_dir=self.log_dir,
+                mode="bm25",
+            )
 
 
 class RunCollectTests(unittest.TestCase):
@@ -283,6 +388,88 @@ class RunCollectTests(unittest.TestCase):
             ok = json.loads((run_dir / "answers" / "oq4_fp16__omlx.json").read_text())
             self.assertEqual(len(ok["answers"]), 6)
             self.assertTrue(all(item["success"] for item in ok["answers"]))
+
+    def test_run_collect_keyword_raw_includes_mode_and_top_k(self) -> None:
+        cell = _cell()
+
+        class FakeTransport:
+            def __init__(self, allowed_base_urls: set[str], timeout_seconds: int = 120) -> None:
+                self.timeout_seconds = timeout_seconds
+
+            def list_models(self, base_url: str, credential: object | None) -> tuple[str, ...]:
+                return (cell.model_id,)
+
+            def chat(
+                self,
+                base_url: str,
+                model_id: str,
+                prompt: str,
+                max_tokens: int,
+                credential: object | None,
+                cancel: threading.Event,
+            ) -> SimpleNamespace:
+                return SimpleNamespace(
+                    content="OSAURUS_PORT=1337",
+                    total_seconds=1.0,
+                    ttft_seconds=0.2,
+                )
+
+        with TemporaryDirectory() as tmp:
+            cells_root = Path(tmp) / "cells"
+            cells_root.mkdir()
+            (cells_root / f"{cell.cell_id}.json").write_text(
+                json.dumps({
+                    "cell_id": cell.cell_id,
+                    "quant": cell.quant,
+                    "server": cell.server,
+                    "base_url": cell.base_url,
+                    "model_id": cell.model_id,
+                    "artifact_path": cell.artifact_path,
+                    "start_command": list(cell.start_command),
+                    "stop_command": list(cell.stop_command),
+                    "health_path": cell.health_path,
+                    "notes": cell.notes,
+                }),
+                encoding="utf-8",
+            )
+
+            run_dir = run_collect(
+                (cell.cell_id,),
+                ROOT / "suites/gemma-rag-oracle-v1.json",
+                ROOT / "corpora/rag-oracle-v1",
+                cells_root,
+                Path(tmp) / "results" / "rag",
+                build_server=lambda cell, transport, log_dir, credential: FakeHandle(),
+                transport_factory=FakeTransport,
+                probe=FakeProbe([80]),
+                credential_for=lambda server: None,
+                ready_timeout=1.0,
+                request_timeout=5.0,
+                memory_floor_percent=20,
+                mode="keyword",
+                top_k=2,
+            )
+
+            raw = json.loads((run_dir / "raw.json").read_text(encoding="utf-8"))
+            self.assertEqual(raw["mode"], "keyword")
+            self.assertEqual(raw["top_k"], 2)
+
+            answers = json.loads(
+                (run_dir / "answers" / f"{cell.cell_id}.json").read_text(encoding="utf-8")
+            )
+            self.assertTrue(all("retrieved_chunk_ids" in item for item in answers["answers"]))
+
+    def test_run_collect_rejects_unknown_mode(self) -> None:
+        with TemporaryDirectory() as tmp:
+            with self.assertRaises(RagError):
+                run_collect(
+                    ("jang_4m__osaurus",),
+                    ROOT / "suites/gemma-rag-oracle-v1.json",
+                    ROOT / "corpora/rag-oracle-v1",
+                    ROOT / "cells",
+                    Path(tmp) / "results" / "rag",
+                    mode="bm25",
+                )
 
 
 if __name__ == "__main__":

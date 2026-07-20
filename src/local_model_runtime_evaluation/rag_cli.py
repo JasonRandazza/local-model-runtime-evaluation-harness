@@ -1,4 +1,4 @@
-"""CLI for Gemma RAG oracle Phase 1."""
+"""CLI for Gemma RAG oracle and keyword retrieval."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ DEFAULT_SUITE = REPOSITORY_ROOT / "suites" / "gemma-rag-oracle-v1.json"
 DEFAULT_CORPUS = REPOSITORY_ROOT / "corpora" / "rag-oracle-v1"
 DEFAULT_RESULTS = REPOSITORY_ROOT / "results" / "rag"
 DEFAULT_CELLS_ROOT = REPOSITORY_ROOT / "config" / "matrix" / "cells"
+DEFAULT_TOP_K = 2
 
 
 def _resolve_repo_path(path: Path) -> Path:
@@ -55,6 +56,8 @@ def _cmd_collect(args: argparse.Namespace) -> int:
             "cells": list(cell_ids),
             "questions": len(suite.questions),
             "corpus_id": corpus.corpus_id,
+            "mode": args.mode,
+            "top_k": args.top_k,
         }, sort_keys=True))
         return 0
 
@@ -65,6 +68,8 @@ def _cmd_collect(args: argparse.Namespace) -> int:
         corpus_root,
         cells_root,
         results_root,
+        mode=args.mode,
+        top_k=args.top_k,
     )
     print(json.dumps({"ok": True, "run_dir": str(run_dir)}, sort_keys=True))
     return 0
@@ -83,7 +88,7 @@ def _cmd_score(args: argparse.Namespace) -> int:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="lmre-rag",
-        description="Gemma RAG oracle Phase 1: collect answers and score fact-hit rate.",
+        description="Gemma RAG oracle and keyword retrieval: collect answers and score.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -120,6 +125,18 @@ def _parser() -> argparse.ArgumentParser:
         "--dry-config",
         action="store_true",
         help="Validate suite, corpus, and cell configs without network or server start",
+    )
+    collect.add_argument(
+        "--mode",
+        choices=("oracle", "keyword"),
+        default="oracle",
+        help="Collect mode: oracle gold injection (default) or keyword retrieval",
+    )
+    collect.add_argument(
+        "--top-k",
+        type=int,
+        default=DEFAULT_TOP_K,
+        help="Keyword retrieval top-k (default: 2; ignored in oracle mode)",
     )
 
     score = subparsers.add_parser("score", help="Score answers and write report")
