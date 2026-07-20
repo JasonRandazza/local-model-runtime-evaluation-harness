@@ -9,48 +9,15 @@ from typing import Any
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_FAMILIES_ROOT = REPOSITORY_ROOT / "config" / "matrix" / "families"
 
 ALLOWED_SERVERS = frozenset({"osaurus", "omlx", "optiq"})
-ALLOWED_QUANTS = frozenset({"jang_4m", "oq4_fp16", "optiq_4bit"})
 
 SERVER_PORTS = {"osaurus": 1337, "omlx": 8100, "optiq": 8080}
 EXPECTED_CAMPAIGN_PORTS = dict(SERVER_PORTS)
 
-QUANT_CONTROL_ARTIFACTS = {
-    "jang_4m": {
-        "model_ids": (
-            "gemma-4-12b-it-qat-jang_4m",
-            # OptiQ serves advertise the absolute --model path as id
-            "/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
-        ),
-        "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
-    },
-    "oq4_fp16": {
-        "model_ids": (
-            "gemma-4-12B-it-qat-oQ4-fp16",
-            "omlx/gemma-4-12B-it-qat-oQ4-fp16",
-            "/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
-        ),
-        "artifact_path": "/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
-    },
-    "optiq_4bit": {
-        # slash form for Osaurus; underscore form for oMLX --model-dir; path for OptiQ serve;
-        # omlx/ prefix when exposed into Osaurus via an oMLX provider route;
-        # :no-think required so OptiQ streams visible text in delta.content
-        "model_ids": (
-            "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
-            "mlx-community__gemma-4-12B-it-qat-OptiQ-4bit",
-            "omlx/gemma-4-12B-it-qat-OptiQ-4bit",
-            "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
-            "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
-            # Osaurus OptiQ provider routes (note the literal optiq// prefix)
-            "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
-            "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
-            "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:think",
-        ),
-        "artifact_path": "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
-    },
-}
+FAMILY_FIELDS = frozenset({"family_id", "quants"})
+FAMILY_QUANT_FIELDS = frozenset({"artifact_path", "model_ids"})
 
 CELL_FIELDS = frozenset({
     "cell_id", "quant", "server", "base_url", "model_id", "artifact_path",
@@ -58,7 +25,7 @@ CELL_FIELDS = frozenset({
 })
 
 CAMPAIGN_FIELDS = frozenset({
-    "campaign_id", "suite_path", "results_root", "memory_floor_percent",
+    "campaign_id", "family_id", "suite_path", "results_root", "memory_floor_percent",
     "ready_timeout_seconds", "request_timeout_seconds", "on_cell_failure",
     "ports", "cells",
 })
@@ -83,9 +50,16 @@ def _validate_server_base_url(server: str, base_url: str) -> None:
         raise MatrixError("base_url must match server port mapping")
 
 
-def _validate_quant_artifact(quant: str, model_id: str, artifact_path: str) -> None:
-    control = QUANT_CONTROL_ARTIFACTS[quant]
-    if model_id not in control["model_ids"] or artifact_path != control["artifact_path"]:
+def _validate_quant_artifact(
+    quant: str,
+    model_id: str,
+    artifact_path: str,
+    quants: dict[str, FamilyQuant],
+) -> None:
+    if quant not in quants:
+        raise MatrixError("model_id and artifact_path must match quant control artifact")
+    control = quants[quant]
+    if model_id not in control.model_ids or artifact_path != control.artifact_path:
         raise MatrixError("model_id and artifact_path must match quant control artifact")
 
 
@@ -107,6 +81,58 @@ def _resolve_repo_path(path: Path | str, base: Path = REPOSITORY_ROOT) -> Path:
     return (base / candidate).resolve()
 
 
+def _model_ids_tuple(value: Any, label: str) -> tuple[str, ...]:
+    if not isinstance(value, list) or not value or not all(isinstance(item, str) for item in value):
+        raise MatrixError(f"{label} must be a non-empty string array")
+    return tuple(value)
+
+
+@dataclass(frozen=True)
+class FamilyQuant:
+    quant: str
+    artifact_path: str
+    model_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ModelFamily:
+    family_id: str
+    quants: dict[str, FamilyQuant]
+
+    @classmethod
+    def load(cls, path: Path) -> ModelFamily:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise MatrixError("family must be a JSON object")
+        _require_exact_fields(data, FAMILY_FIELDS, "family")
+        family_id = str(data["family_id"])
+        if Path(path).stem != family_id:
+            raise MatrixError("family_id must match filename")
+        raw_quants = data["quants"]
+        if not isinstance(raw_quants, dict) or not raw_quants:
+            raise MatrixError("family quants are invalid")
+        quants: dict[str, FamilyQuant] = {}
+        for quant_key, entry in raw_quants.items():
+            if not isinstance(entry, dict):
+                raise MatrixError("family quant entry is invalid")
+            _require_exact_fields(entry, FAMILY_QUANT_FIELDS, "family quant")
+            artifact_path = str(entry["artifact_path"])
+            model_ids = _model_ids_tuple(entry["model_ids"], "family quant model_ids")
+            quants[str(quant_key)] = FamilyQuant(str(quant_key), artifact_path, model_ids)
+        return cls(family_id, quants)
+
+
+def load_family(family_id: str, *, families_root: Path | None = None) -> ModelFamily:
+    root = families_root if families_root is not None else DEFAULT_FAMILIES_ROOT
+    path = root / f"{family_id}.json"
+    if not path.is_file():
+        raise MatrixError("family file is missing")
+    family = ModelFamily.load(path)
+    if family.family_id != family_id:
+        raise MatrixError("family_id is invalid")
+    return family
+
+
 @dataclass(frozen=True)
 class Cell:
     cell_id: str
@@ -122,17 +148,21 @@ class Cell:
 
     def __post_init__(self) -> None:
         _validate_loopback_base_url(self.base_url)
-        if self.quant not in ALLOWED_QUANTS:
-            raise MatrixError("quant is invalid")
         if self.server not in ALLOWED_SERVERS:
             raise MatrixError("server is invalid")
         _validate_server_base_url(self.server, self.base_url)
-        _validate_quant_artifact(self.quant, self.model_id, self.artifact_path)
         if not self.start_command:
             raise MatrixError("start_command must not be empty")
 
+    def validate_for_family(self, family: ModelFamily) -> None:
+        if self.quant not in family.quants:
+            raise MatrixError("quant is invalid")
+        _validate_quant_artifact(
+            self.quant, self.model_id, self.artifact_path, family.quants,
+        )
+
     @classmethod
-    def load(cls, path: Path) -> Cell:
+    def load(cls, path: Path, *, family: ModelFamily) -> Cell:
         data = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             raise MatrixError("cell must be a JSON object")
@@ -140,7 +170,7 @@ class Cell:
         expected_cell_id = f"{data['quant']}__{data['server']}"
         if data["cell_id"] != expected_cell_id:
             raise MatrixError("cell_id must match quant__server")
-        return cls(
+        cell = cls(
             cell_id=str(data["cell_id"]),
             quant=str(data["quant"]),
             server=str(data["server"]),
@@ -152,6 +182,8 @@ class Cell:
             health_path=str(data["health_path"]),
             notes=str(data["notes"]),
         )
+        cell.validate_for_family(family)
+        return cell
 
 
 @dataclass(frozen=True)
@@ -198,6 +230,8 @@ class MatrixSuite:
 @dataclass(frozen=True)
 class Campaign:
     campaign_id: str
+    family_id: str
+    family: ModelFamily
     suite_path: Path
     results_root: Path
     memory_floor_percent: int
@@ -213,8 +247,13 @@ class Campaign:
         if not isinstance(data, dict):
             raise MatrixError("campaign must be a JSON object")
         _require_exact_fields(data, CAMPAIGN_FIELDS, "campaign")
-        if data["campaign_id"] != "gemma-4-12b-qat-3x3":
+        campaign_id = str(data["campaign_id"])
+        if not campaign_id:
             raise MatrixError("campaign_id is invalid")
+        family_id = str(data["family_id"])
+        if not family_id:
+            raise MatrixError("family_id is invalid")
+        family = load_family(family_id)
         if data["on_cell_failure"] != "continue":
             raise MatrixError("on_cell_failure is invalid")
         ports = data["ports"]
@@ -230,7 +269,9 @@ class Campaign:
             raise MatrixError("campaign must list exactly nine cells")
         cell_paths = tuple(_resolve_repo_path(str(item)) for item in cells)
         return cls(
-            str(data["campaign_id"]),
+            campaign_id,
+            family_id,
+            family,
             _resolve_repo_path(str(data["suite_path"])),
             _resolve_repo_path(str(data["results_root"])),
             int(data["memory_floor_percent"]),

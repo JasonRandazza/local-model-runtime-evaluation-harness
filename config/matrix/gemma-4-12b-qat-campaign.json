@@ -1,5 +1,6 @@
 {
   "campaign_id": "gemma-4-12b-qat-3x3",
+  "family_id": "gemma-4-12b-qat",
   "suite_path": "suites/gemma-matrix-v1.json",
   "results_root": "results/matrix",
   "memory_floor_percent": 20,

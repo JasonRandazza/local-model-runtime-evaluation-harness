@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .matrix_config import REPOSITORY_ROOT, Cell
+from .matrix_config import REPOSITORY_ROOT, Cell, ModelFamily
 
 
 DEFAULT_PAIR_IDS: tuple[str, ...] = ("oq4_fp16", "optiq_4bit")
@@ -69,8 +69,8 @@ class OverheadPair:
         )
 
 
-def make_routed_measure_cell(backend: Cell, pair: OverheadPair) -> Cell:
-    return Cell(
+def make_routed_measure_cell(backend: Cell, pair: OverheadPair, *, family: ModelFamily) -> Cell:
+    cell = Cell(
         cell_id=f"{backend.quant}__osaurus",
         quant=backend.quant,
         server="osaurus",
@@ -82,3 +82,5 @@ def make_routed_measure_cell(backend: Cell, pair: OverheadPair) -> Cell:
         health_path=backend.health_path,
         notes="overhead routed measure cell; do not spawn via this cell",
     )
+    cell.validate_for_family(family)
+    return cell

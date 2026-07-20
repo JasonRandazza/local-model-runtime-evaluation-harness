@@ -1,0 +1,21 @@
+{
+  "cell_id": "ornith_jang_4m__osaurus",
+  "quant": "ornith_jang_4m",
+  "server": "osaurus",
+  "base_url": "http://127.0.0.1:1337/v1",
+  "model_id": "ornith-1.0-35b-jang_4m",
+  "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/Ornith-1.0-35B-JANG_4M",
+  "start_command": [
+    "osaurus",
+    "serve",
+    "--port",
+    "1337",
+    "--yes"
+  ],
+  "stop_command": [
+    "osaurus",
+    "stop"
+  ],
+  "health_path": "/health",
+  "notes": "Native Osaurus JANG path. First chat may load the model."
+}

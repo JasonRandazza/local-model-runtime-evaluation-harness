@@ -1,0 +1,24 @@
+{
+  "cell_id": "ornith_jang_4m__optiq",
+  "quant": "ornith_jang_4m",
+  "server": "optiq",
+  "base_url": "http://127.0.0.1:8080/v1",
+  "model_id": "/Users/jrazz/MLXModels/OsaurusAI/Ornith-1.0-35B-JANG_4M",
+  "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/Ornith-1.0-35B-JANG_4M",
+  "start_command": [
+    "optiq",
+    "serve",
+    "--model",
+    "/Users/jrazz/MLXModels/OsaurusAI/Ornith-1.0-35B-JANG_4M",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8080",
+    "--no-anthropic",
+    "--no-responses",
+    "--no-auth"
+  ],
+  "stop_command": [],
+  "health_path": "/health",
+  "notes": "OptiQ start style with JANG artifact. Expect N/A if unloadable."
+}

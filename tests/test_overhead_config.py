@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from local_model_runtime_evaluation.matrix_config import Cell
+from local_model_runtime_evaluation.matrix_config import Cell, load_family
 from local_model_runtime_evaluation.overhead_config import (
     DEFAULT_PAIR_IDS,
     DEFAULT_PAIRS_ROOT,
@@ -42,9 +42,12 @@ class OverheadConfigTests(unittest.TestCase):
             path.unlink(missing_ok=True)
 
     def test_make_routed_measure_cell_uses_osaurus_endpoint(self) -> None:
-        backend = Cell.load(ROOT / "config/matrix/cells/oq4_fp16__omlx.json")
+        backend = Cell.load(
+            ROOT / "config/matrix/cells/oq4_fp16__omlx.json",
+            family=load_family("gemma-4-12b-qat"),
+        )
         pair = OverheadPair.load(ROOT / "config/overhead/pairs/oq4_fp16.json")
-        routed = make_routed_measure_cell(backend, pair)
+        routed = make_routed_measure_cell(backend, pair, family=load_family("gemma-4-12b-qat"))
         self.assertEqual(routed.server, "osaurus")
         self.assertEqual(routed.base_url, "http://127.0.0.1:1337/v1")
         self.assertEqual(routed.model_id, pair.routed_model_id)

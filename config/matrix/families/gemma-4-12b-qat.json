@@ -1,0 +1,33 @@
+{
+  "family_id": "gemma-4-12b-qat",
+  "quants": {
+    "jang_4m": {
+      "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
+      "model_ids": [
+        "gemma-4-12b-it-qat-jang_4m",
+        "/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M"
+      ]
+    },
+    "oq4_fp16": {
+      "artifact_path": "/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
+      "model_ids": [
+        "gemma-4-12B-it-qat-oQ4-fp16",
+        "omlx/gemma-4-12B-it-qat-oQ4-fp16",
+        "/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16"
+      ]
+    },
+    "optiq_4bit": {
+      "artifact_path": "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+      "model_ids": [
+        "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+        "mlx-community__gemma-4-12B-it-qat-OptiQ-4bit",
+        "omlx/gemma-4-12B-it-qat-OptiQ-4bit",
+        "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+        "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
+        "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+        "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
+        "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:think"
+      ]
+    }
+  }
+}

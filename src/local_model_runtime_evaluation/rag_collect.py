@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Callable
 
 from .credentials import Credential
-from .matrix_config import Cell
+from .matrix_config import Cell, load_family
 from .matrix_servers import ServerError, ServerHandle, build_server as default_build_server
 from .preference_collect import (
     DEFAULT_MEMORY_FLOOR_PERCENT,
@@ -24,6 +24,8 @@ from .rag_config import RagCorpus, RagError, RagSuite
 from .rag_prompt import build_keyword_prompt, build_oracle_prompt
 from .resources import HostResourceProbe
 from .transport import LoopbackTransport, TransportError
+
+DEFAULT_CELL_FAMILY = load_family("gemma-4-12b-qat")
 
 BuildServer = Callable[[Cell, LoopbackTransport, Path, Credential | None], ServerHandle]
 TransportFactory = Callable[[set[str], int], LoopbackTransport]
@@ -152,7 +154,10 @@ def run_collect(
             f"corpus id mismatch: suite expects {suite.corpus_id!r}, "
             f"corpus has {corpus.corpus_id!r}"
         )
-    loaded_cells = tuple(Cell.load(cells_root / f"{cell_id}.json") for cell_id in cell_ids)
+    loaded_cells = tuple(
+        Cell.load(cells_root / f"{cell_id}.json", family=DEFAULT_CELL_FAMILY)
+        for cell_id in cell_ids
+    )
     resource_probe = probe if probe is not None else HostResourceProbe()
     resolve_credential_fn = credential_for or resolve_credential
     build = build_server or (

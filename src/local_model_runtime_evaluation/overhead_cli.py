@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any, Sequence
 
-from .matrix_config import REPOSITORY_ROOT, Cell, MatrixSuite
+from .matrix_config import REPOSITORY_ROOT, Cell, MatrixSuite, load_family
 from .overhead_config import (
     DEFAULT_PAIR_IDS,
     DEFAULT_PAIRS_ROOT,
@@ -22,6 +22,7 @@ DEFAULT_SUITE = REPOSITORY_ROOT / "suites" / "gemma-matrix-v1.json"
 DEFAULT_RESULTS = REPOSITORY_ROOT / "results" / "overhead"
 DEFAULT_CELLS_ROOT = REPOSITORY_ROOT / "config" / "matrix" / "cells"
 DEFAULT_MODE = "screen"
+DEFAULT_CELL_FAMILY = load_family("gemma-4-12b-qat")
 
 
 def _resolve_repo_path(path: Path) -> Path:
@@ -49,9 +50,9 @@ def _dry_config_payload(
     pairs: list[dict[str, str]] = []
     for pair_id in pair_ids:
         pair = OverheadPair.load(pairs_root / f"{pair_id}.json")
-        Cell.load(cells_root / f"{pair.direct_cell_id}.json")
-        backend = Cell.load(cells_root / f"{pair.backend_cell_id}.json")
-        routed = make_routed_measure_cell(backend, pair)
+        Cell.load(cells_root / f"{pair.direct_cell_id}.json", family=DEFAULT_CELL_FAMILY)
+        backend = Cell.load(cells_root / f"{pair.backend_cell_id}.json", family=DEFAULT_CELL_FAMILY)
+        routed = make_routed_measure_cell(backend, pair, family=DEFAULT_CELL_FAMILY)
         pairs.append({
             "pair_id": pair.pair_id,
             "direct_cell_id": pair.direct_cell_id,

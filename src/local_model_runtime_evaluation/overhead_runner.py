@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
 
-from .matrix_config import Cell, MatrixSuite
+from .matrix_config import Cell, MatrixSuite, load_family
 from .matrix_lifecycle import LifecycleError, port_is_free, run_stop_command
 from .matrix_measure import CellResult, measure_cell as default_measure_cell
 from .matrix_servers import ServerError, ServerHandle, build_server as default_build_server
@@ -23,6 +23,7 @@ from .transport import LoopbackTransport
 OSAURUS_PORT = 1337
 DEFAULT_MEMORY_FLOOR_PERCENT = 20
 DEFAULT_READY_TIMEOUT_SECONDS = 180.0
+DEFAULT_CELL_FAMILY = load_family("gemma-4-12b-qat")
 PORT_VERIFY_TIMEOUT_SECONDS = 5.0
 OMLX_STOP_WAIT_SECONDS = 30.0
 
@@ -262,8 +263,8 @@ def run_overhead(
                 break
 
             pair = OverheadPair.load(pairs_root / f"{pair_id}.json")
-            direct = Cell.load(cells_root / f"{pair.direct_cell_id}.json")
-            backend = Cell.load(cells_root / f"{pair.backend_cell_id}.json")
+            direct = Cell.load(cells_root / f"{pair.direct_cell_id}.json", family=DEFAULT_CELL_FAMILY)
+            backend = Cell.load(cells_root / f"{pair.backend_cell_id}.json", family=DEFAULT_CELL_FAMILY)
 
             base_urls = {direct.base_url, pair.routed_base_url}
             transport = LoopbackTransport(base_urls)
@@ -295,7 +296,7 @@ def run_overhead(
                     "routed_model_id": pair.routed_model_id,
                     "direct": _leg_json(direct, direct_result),
                     "routed": _leg_json(
-                        make_routed_measure_cell(backend, pair),
+                        make_routed_measure_cell(backend, pair, family=DEFAULT_CELL_FAMILY),
                         _na_result("skipped: memory_floor", memory_before),
                     ),
                     "deltas": pair_deltas(
@@ -311,7 +312,7 @@ def run_overhead(
             try:
                 require_osaurus_listening(port_free=check_port)
             except OverheadError as error:
-                routed_cell = make_routed_measure_cell(backend, pair)
+                routed_cell = make_routed_measure_cell(backend, pair, family=DEFAULT_CELL_FAMILY)
                 routed_result = _na_result(str(error), memory_before)
                 pair_records.append({
                     "pair_id": pair.pair_id,
@@ -325,7 +326,7 @@ def run_overhead(
                 _persist(datetime.now(timezone.utc).isoformat())
                 continue
 
-            routed_cell = make_routed_measure_cell(backend, pair)
+            routed_cell = make_routed_measure_cell(backend, pair, family=DEFAULT_CELL_FAMILY)
             routed_result = _run_leg(
                 measure_cell_obj=routed_cell,
                 backend=backend,

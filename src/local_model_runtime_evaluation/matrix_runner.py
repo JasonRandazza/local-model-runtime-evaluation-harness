@@ -269,7 +269,9 @@ def run_campaign(
         raise MatrixRunnerError(f"unknown mode {mode!r}")
 
     suite = MatrixSuite.load(campaign.suite_path)
-    loaded_cells = cells if cells is not None else tuple(Cell.load(path) for path in campaign.cell_paths)
+    loaded_cells = cells if cells is not None else tuple(
+        Cell.load(path, family=campaign.family) for path in campaign.cell_paths
+    )
     if cell_filter is not None:
         allowed = set(cell_filter)
         loaded_cells = tuple(cell for cell in loaded_cells if cell.cell_id in allowed)
@@ -430,20 +432,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         campaign = Campaign.load(_resolve_repo_path(args.campaign))
         suite = MatrixSuite.load(campaign.suite_path)
         cell_filter = _parse_cell_filter(args.cells)
-        cells = tuple(Cell.load(path) for path in campaign.cell_paths)
+        cells = tuple(Cell.load(path, family=campaign.family) for path in campaign.cell_paths)
         if cell_filter is not None:
             allowed = set(cell_filter)
             cells = tuple(cell for cell in cells if cell.cell_id in allowed)
 
         if args.dry_config:
+            artifact_paths = sorted({cell.artifact_path for cell in cells})
+            artifact_missing = [
+                path for path in artifact_paths if not Path(path).exists()
+            ]
             print(json.dumps({
                 "ok": True,
                 "campaign_id": campaign.campaign_id,
+                "family_id": campaign.family_id,
                 "mode": args.mode,
                 "suite_id": suite.suite_id,
                 "suite_revision": suite.revision,
                 "cell_count": len(cells),
                 "cells": [cell.cell_id for cell in cells],
+                "artifact_missing": artifact_missing,
             }, sort_keys=True))
             return 0
 

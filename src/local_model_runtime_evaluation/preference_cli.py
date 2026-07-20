@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Sequence
 
-from .matrix_config import REPOSITORY_ROOT, Cell
+from .matrix_config import REPOSITORY_ROOT, Cell, load_family
 from .preference_collect import run_collect
 from .preference_config import DEFAULT_PREFERENCE_CELLS, PreferenceError, PreferenceSuite
 from .preference_judge import DEFAULT_JUDGE_CELL, load_pairs, run_judge
@@ -18,6 +18,7 @@ DEFAULT_SUITE = REPOSITORY_ROOT / "suites" / "gemma-preference-v1.json"
 DEFAULT_RESULTS = REPOSITORY_ROOT / "results" / "preference"
 DEFAULT_CELLS_ROOT = REPOSITORY_ROOT / "config" / "matrix" / "cells"
 DEFAULT_REVIEW_SEED = 0
+DEFAULT_CELL_FAMILY = load_family("gemma-4-12b-qat")
 
 
 def _resolve_repo_path(path: Path) -> Path:
@@ -59,7 +60,7 @@ def _cmd_collect(args: argparse.Namespace) -> int:
 
     suite = PreferenceSuite.load(suite_path)
     for cell_id in cell_ids:
-        Cell.load(cells_root / f"{cell_id}.json")
+        Cell.load(cells_root / f"{cell_id}.json", family=DEFAULT_CELL_FAMILY)
 
     if args.dry_config:
         print(json.dumps({
@@ -111,7 +112,7 @@ def _cmd_judge(args: argparse.Namespace) -> int:
     suite_path = _resolve_repo_path(args.suite)
 
     suite = PreferenceSuite.load(suite_path)
-    Cell.load(cells_root / f"{judge_cell_id}.json")
+    Cell.load(cells_root / f"{judge_cell_id}.json", family=DEFAULT_CELL_FAMILY)
 
     answers_dir = run_dir / "answers"
     if not answers_dir.is_dir():

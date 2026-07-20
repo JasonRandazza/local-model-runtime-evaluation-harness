@@ -1,0 +1,21 @@
+{
+  "cell_id": "ornith_oq4__osaurus",
+  "quant": "ornith_oq4",
+  "server": "osaurus",
+  "base_url": "http://127.0.0.1:1337/v1",
+  "model_id": "omlx/Ornith-1.0-35B-MLX-oQ4",
+  "artifact_path": "/Users/jrazz/.cache/huggingface/hub/georgeis55/Ornith-1.0-35B-MLX-oQ4",
+  "start_command": [
+    "osaurus",
+    "serve",
+    "--port",
+    "1337",
+    "--yes"
+  ],
+  "stop_command": [
+    "osaurus",
+    "stop"
+  ],
+  "health_path": "/health",
+  "notes": "Osaurus start style with oQ4 artifact. Expect N/A if unloadable. Inventory id is the oMLX-routed Osaurus route."
+}

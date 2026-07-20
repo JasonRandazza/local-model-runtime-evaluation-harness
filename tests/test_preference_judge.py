@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from typing import Any
 
-from local_model_runtime_evaluation.matrix_config import Cell
+from local_model_runtime_evaluation.matrix_config import Cell, load_family
 from local_model_runtime_evaluation.preference_config import (
     PreferenceError,
     PreferencePrompt,
@@ -209,7 +209,10 @@ class LoadPairsTests(unittest.TestCase):
 class RunJudgeTests(unittest.TestCase):
     def setUp(self) -> None:
         self.cancel = threading.Event()
-        self.judge_cell = Cell.load(CELLS_ROOT / f"{JUDGE_CELL_ID}.json")
+        self.judge_cell = Cell.load(
+            CELLS_ROOT / f"{JUDGE_CELL_ID}.json",
+            family=load_family("gemma-4-12b-qat"),
+        )
 
     def _run(
         self,

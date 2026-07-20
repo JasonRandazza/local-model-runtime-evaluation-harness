@@ -1,0 +1,21 @@
+{
+  "cell_id": "ornith_oq4__omlx",
+  "quant": "ornith_oq4",
+  "server": "omlx",
+  "base_url": "http://127.0.0.1:8100/v1",
+  "model_id": "Ornith-1.0-35B-MLX-oQ4",
+  "artifact_path": "/Users/jrazz/.cache/huggingface/hub/georgeis55/Ornith-1.0-35B-MLX-oQ4",
+  "start_command": [
+    "omlX",
+    "serve",
+    "--model-dir",
+    "/Users/jrazz/Dev/active/local-model-runtime-evaluation-harness/config/matrix/omlx-roots/ornith_oq4",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8100"
+  ],
+  "stop_command": [],
+  "health_path": "/health",
+  "notes": "Direct oMLX. Empty stop_command means lifecycle helper kills the spawned process group."
+}

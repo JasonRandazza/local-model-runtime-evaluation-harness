@@ -1,0 +1,24 @@
+{
+  "cell_id": "ornith_optiq_4bit__optiq",
+  "quant": "ornith_optiq_4bit",
+  "server": "optiq",
+  "base_url": "http://127.0.0.1:8080/v1",
+  "model_id": "/Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit:no-think",
+  "artifact_path": "/Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit",
+  "start_command": [
+    "optiq",
+    "serve",
+    "--model",
+    "/Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8080",
+    "--no-anthropic",
+    "--no-responses",
+    "--no-auth"
+  ],
+  "stop_command": [],
+  "health_path": "/health",
+  "notes": "Uses :no-think so streams put text in delta.content (default/think use delta.reasoning)."
+}

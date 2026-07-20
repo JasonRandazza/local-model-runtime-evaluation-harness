@@ -1,0 +1,33 @@
+{
+  "family_id": "ornith-35b",
+  "quants": {
+    "ornith_jang_4m": {
+      "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/Ornith-1.0-35B-JANG_4M",
+      "model_ids": [
+        "ornith-1.0-35b-jang_4m",
+        "/Users/jrazz/MLXModels/OsaurusAI/Ornith-1.0-35B-JANG_4M"
+      ]
+    },
+    "ornith_oq4": {
+      "artifact_path": "/Users/jrazz/.cache/huggingface/hub/georgeis55/Ornith-1.0-35B-MLX-oQ4",
+      "model_ids": [
+        "Ornith-1.0-35B-MLX-oQ4",
+        "omlx/Ornith-1.0-35B-MLX-oQ4",
+        "/Users/jrazz/.cache/huggingface/hub/georgeis55/Ornith-1.0-35B-MLX-oQ4"
+      ]
+    },
+    "ornith_optiq_4bit": {
+      "artifact_path": "/Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit",
+      "model_ids": [
+        "mlx-community/Ornith-1.0-35B-OptiQ-4bit",
+        "mlx-community__Ornith-1.0-35B-OptiQ-4bit",
+        "omlx/Ornith-1.0-35B-OptiQ-4bit",
+        "/Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit",
+        "/Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit:no-think",
+        "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit",
+        "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit:no-think",
+        "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit:think"
+      ]
+    }
+  }
+}

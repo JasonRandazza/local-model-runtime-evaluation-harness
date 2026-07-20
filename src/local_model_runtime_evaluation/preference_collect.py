@@ -16,7 +16,7 @@ from .credentials import (
     CredentialError,
     KeychainCredentialProvider,
 )
-from .matrix_config import Cell
+from .matrix_config import Cell, load_family
 from .matrix_servers import (
     MATRIX_OMLX_API_KEY,
     ServerError,
@@ -30,6 +30,7 @@ from .transport import LoopbackTransport, TransportError
 DEFAULT_READY_TIMEOUT_SECONDS = 180.0
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 120.0
 DEFAULT_MEMORY_FLOOR_PERCENT = 20
+DEFAULT_CELL_FAMILY = load_family("gemma-4-12b-qat")
 
 BuildServer = Callable[[Cell, LoopbackTransport, Path, Credential | None], ServerHandle]
 TransportFactory = Callable[[set[str], int], LoopbackTransport]
@@ -186,7 +187,10 @@ def run_collect(
     memory_floor_percent: int = DEFAULT_MEMORY_FLOOR_PERCENT,
 ) -> Path:
     suite = PreferenceSuite.load(suite_path)
-    loaded_cells = tuple(Cell.load(cells_root / f"{cell_id}.json") for cell_id in cell_ids)
+    loaded_cells = tuple(
+        Cell.load(cells_root / f"{cell_id}.json", family=DEFAULT_CELL_FAMILY)
+        for cell_id in cell_ids
+    )
     resource_probe = probe if probe is not None else HostResourceProbe()
     resolve_credential_fn = credential_for or _credential_for
     build = build_server or (

@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Sequence
 
-from .matrix_config import REPOSITORY_ROOT, Cell
+from .matrix_config import REPOSITORY_ROOT, Cell, load_family
 from .rag_collect import run_collect
 from .rag_config import DEFAULT_RAG_CELLS, RagCorpus, RagError, RagSuite
 from .rag_score import score_run
@@ -17,6 +17,7 @@ DEFAULT_CORPUS = REPOSITORY_ROOT / "corpora" / "rag-oracle-v1"
 DEFAULT_RESULTS = REPOSITORY_ROOT / "results" / "rag"
 DEFAULT_CELLS_ROOT = REPOSITORY_ROOT / "config" / "matrix" / "cells"
 DEFAULT_TOP_K = 2
+DEFAULT_CELL_FAMILY = load_family("gemma-4-12b-qat")
 
 
 def _resolve_repo_path(path: Path) -> Path:
@@ -48,7 +49,7 @@ def _cmd_collect(args: argparse.Namespace) -> int:
             f"corpus has {corpus.corpus_id!r}"
         )
     for cell_id in cell_ids:
-        Cell.load(cells_root / f"{cell_id}.json")
+        Cell.load(cells_root / f"{cell_id}.json", family=DEFAULT_CELL_FAMILY)
 
     if args.dry_config:
         print(json.dumps({
