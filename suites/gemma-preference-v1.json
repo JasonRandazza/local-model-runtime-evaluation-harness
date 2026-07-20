@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0.0",
+  "suite_id": "gemma-preference-v1",
+  "revision": "1",
+  "temperature": 0,
+  "streaming": true,
+  "prompts": [
+    {
+      "prompt_id": "tradeoff-explain",
+      "prompt": "In 4-6 sentences, explain the tradeoff between running a larger local model slowly versus a smaller one that answers instantly for everyday coding questions on a 64 GB Mac. End with one concrete recommendation.",
+      "max_tokens": 256
+    },
+    {
+      "prompt_id": "local-ops-advice",
+      "prompt": "Give practical advice for keeping one heavy local LLM resident without thrashing memory when switching between chat and a short benchmark. Use short bullets.",
+      "max_tokens": 256
+    },
+    {
+      "prompt_id": "multi-step-plan",
+      "prompt": "Outline a concise 5-step plan to compare two local model servers on the same artifact without overlapping their ports or leaving orphan processes.",
+      "max_tokens": 256
+    },
+    {
+      "prompt_id": "uncertainty-handling",
+      "prompt": "A user asks which unpublished quantization will be fastest on their machine next month. Respond helpfully while clearly marking what is unknown versus what can be measured today.",
+      "max_tokens": 256
+    },
+    {
+      "prompt_id": "clarity-rewrite",
+      "prompt": "Rewrite this for clarity without adding new claims: \"We should maybe like try the thing with the servers but only one at a time because RAM and also the key might be wrong so check inventory first I guess.\"",
+      "max_tokens": 256
+    },
+    {
+      "prompt_id": "compare-recommend",
+      "prompt": "Briefly compare wall-clock latency versus answer quality when choosing a daily-driver local 12B model, then recommend which to prioritize for interactive coding help and why (one short paragraph).",
+      "max_tokens": 256
+    }
+  ]
+}
