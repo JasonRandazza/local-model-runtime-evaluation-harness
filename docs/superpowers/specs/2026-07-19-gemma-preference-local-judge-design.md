@@ -49,7 +49,7 @@ For each pair, send prompt text + answer A + answer B with **no cell ids**. Requ
 ```
 
 - `winner` must be exactly `A`, `B`, or `tie` (case-sensitive).
-- `reason` is optional; if present, store it; truncate if excessively long.
+- `reason` is optional; if present, store it; truncate to 500 characters.
 - Fail closed on bad JSON or invalid `winner`.
 - **One automatic retry** on parse failure for that pair; then leave `winner: null` and record the error.
 
