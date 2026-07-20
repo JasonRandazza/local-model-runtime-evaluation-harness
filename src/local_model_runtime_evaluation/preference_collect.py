@@ -50,6 +50,7 @@ class AnswerRecord:
     error: str | None
     total_seconds: float | None
     ttft_seconds: float | None
+    retrieved_chunk_ids: tuple[str, ...] | None = None
 
 
 def _stamp() -> str:

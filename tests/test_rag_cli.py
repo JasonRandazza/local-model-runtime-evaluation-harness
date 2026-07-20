@@ -20,6 +20,18 @@ class RagCliTests(unittest.TestCase):
         self.assertEqual(payload["cells"], list(DEFAULT_RAG_CELLS))
         self.assertEqual(payload["questions"], 6)
         self.assertEqual(payload["corpus_id"], "rag-oracle-v1")
+        self.assertEqual(payload["mode"], "oracle")
+        self.assertEqual(payload["top_k"], 2)
+
+    def test_cli_keyword_dry_config(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["collect", "--mode", "keyword", "--dry-config"])
+        self.assertEqual(code, 0)
+        payload = json.loads(buffer.getvalue())
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["mode"], "keyword")
+        self.assertEqual(payload["top_k"], 2)
 
     def test_score_missing_run_fails(self) -> None:
         buffer = io.StringIO()
