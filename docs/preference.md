@@ -2,6 +2,8 @@
 
 Pairwise human preference on the three screen **PASS** cells (`jang_4m__osaurus`, `oq4_fp16__omlx`, `optiq_4bit__optiq`) using a six-prompt pack. Separate from `lmre-matrix` performance reports; Stage 0–2B machinery stays frozen.
 
+**RAG oracle Phase 1:** oracle-injected gold context fact-hit scoring on the same three cells — see [rag.md](rag.md).
+
 ## Prerequisites
 
 Same artifact paths, credentials, RAM floor, and server rules as the matrix campaign for these three cells — see [matrix.md](matrix.md) (Osaurus Keychain, oMLX loopback key, OptiQ `:no-think` ids, `20%` free RAM).

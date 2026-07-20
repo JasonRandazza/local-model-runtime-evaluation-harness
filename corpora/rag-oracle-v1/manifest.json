@@ -1,0 +1,11 @@
+{
+  "corpus_id": "rag-oracle-v1",
+  "chunks": [
+    {"chunk_id": "syn-ports", "path": "syn-ports.md", "title": "Loopback ports"},
+    {"chunk_id": "syn-auth", "path": "syn-auth.md", "title": "Auth tokens"},
+    {"chunk_id": "syn-ram", "path": "syn-ram.md", "title": "RAM and timeouts"},
+    {"chunk_id": "syn-lifecycle", "path": "syn-lifecycle.md", "title": "Lifecycle rules"},
+    {"chunk_id": "excerpt-matrix-auth", "path": "excerpt-matrix-auth.md", "title": "Matrix Keychain excerpt"},
+    {"chunk_id": "excerpt-preference-pointer", "path": "excerpt-preference-pointer.md", "title": "Preference pointer excerpt"}
+  ]
+}

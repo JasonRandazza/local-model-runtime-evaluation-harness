@@ -4,6 +4,8 @@ Direct native comparison of three control artifacts across Osaurus (`1337`), oML
 
 **Preference quality POC:** pairwise human preference on the three screen PASS cells — see [preference.md](preference.md).
 
+**RAG oracle Phase 1:** oracle-injected gold context fact-hit scoring on the same three cells — see [rag.md](rag.md).
+
 ## Prerequisites
 
 - Artifact paths in `config/matrix/cells/` must exist on disk (JANG under `MLXModels/OsaurusAI/`, oQ4 and OptiQ-4bit under Hugging Face cache).
