@@ -1,0 +1,7 @@
+{
+  "pair_id": "oq4_fp16",
+  "direct_cell_id": "oq4_fp16__omlx",
+  "backend_cell_id": "oq4_fp16__omlx",
+  "routed_base_url": "http://127.0.0.1:1337/v1",
+  "routed_model_id": "omlx/gemma-4-12B-it-qat-oQ4-fp16"
+}

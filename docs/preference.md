@@ -113,9 +113,9 @@ Latency is not used for preference scoring.
 - Pinned cell start argv only; harness starts and stops only what each cell defines.
 - One cell at a time; verify port free and RAM floor between cells.
 
-## Not implemented (follow-ons)
+## Follow-ons
 
-- RAG corpora or retrieval-augmented prompts
-- Osaurus routing-overhead measurement
+- **RAG oracle and keyword retrieval** — see [rag.md](rag.md)
+- **Osaurus routing overhead** — direct vs routed latency tax for oQ4 and OptiQ — see [overhead.md](overhead.md)
 
-These are documented seams only; this POC is collect → review → judge (or human edit) → tally.
+This POC remains collect → review → judge (or human edit) → tally.
