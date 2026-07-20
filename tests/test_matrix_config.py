@@ -109,6 +109,11 @@ class MatrixConfigTests(unittest.TestCase):
         self.assertEqual(suite.revision, "1")
         self.assertEqual(len(suite.workloads), 3)
 
+    def test_optiq_native_cell_uses_no_think_model_id(self) -> None:
+        cell = Cell.load(ROOT / "config/matrix/cells/optiq_4bit__optiq.json")
+        self.assertTrue(cell.model_id.endswith(":no-think"), cell.model_id)
+        self.assertEqual(cell.server, "optiq")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,7 +10,7 @@ from typing import Sequence
 from .matrix_config import REPOSITORY_ROOT, Cell
 from .preference_collect import run_collect
 from .preference_config import DEFAULT_PREFERENCE_CELLS, PreferenceError, PreferenceSuite
-from .preference_judge import DEFAULT_JUDGE_CELL, run_judge
+from .preference_judge import DEFAULT_JUDGE_CELL, load_pairs, run_judge
 from .preference_review import run_review
 from .preference_tally import run_tally
 
@@ -101,19 +101,6 @@ def _cmd_tally(args: argparse.Namespace) -> int:
     return 0
 
 
-def _count_pairs(run_dir: Path) -> int:
-    pairs_path = run_dir / "pairs.json"
-    if not pairs_path.is_file():
-        raise PreferenceError(f"missing pairs file: {pairs_path}")
-    payload = json.loads(pairs_path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        raise PreferenceError("pairs.json must be a JSON object")
-    pairs = payload.get("pairs")
-    if not isinstance(pairs, list):
-        raise PreferenceError("pairs.json must contain a pairs array")
-    return len(pairs)
-
-
 def _cmd_judge(args: argparse.Namespace) -> int:
     run_dir = _resolve_repo_path(args.run)
     if not run_dir.is_dir():
@@ -129,7 +116,8 @@ def _cmd_judge(args: argparse.Namespace) -> int:
     answers_dir = run_dir / "answers"
     if not answers_dir.is_dir():
         raise PreferenceError(f"missing answers directory: {answers_dir}")
-    pair_count = _count_pairs(run_dir)
+    pairs = load_pairs(run_dir)
+    pair_count = len(pairs)
 
     if args.dry_config:
         print(json.dumps({

@@ -150,9 +150,112 @@ class PreferenceCliTests(unittest.TestCase):
             self.assertEqual(payload["run_dir"], str(run_dir))
             self.assertEqual(payload["pairs"], 2)
 
+    def test_judge_dry_config_judge_cell_override(self) -> None:
+        with TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "gemma-preference-judge-dry"
+            run_dir.mkdir()
+            (run_dir / "answers").mkdir()
+            (run_dir / "pairs.json").write_text(
+                json.dumps(
+                    {
+                        "pairs": [
+                            {
+                                "pair_id": "p1",
+                                "prompt_id": "x",
+                                "cell_a": "c1",
+                                "cell_b": "c2",
+                            },
+                        ],
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                code = main(
+                    ["judge", "--run", str(run_dir), "--dry-config", "--judge-cell", "oq4_fp16__omlx"],
+                )
+            self.assertEqual(code, 0)
+            payload = json.loads(buffer.getvalue())
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["judge_cell"], "oq4_fp16__omlx")
+
+    def test_judge_dry_config_rejects_empty_pairs(self) -> None:
+        with TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "gemma-preference-judge-dry"
+            run_dir.mkdir()
+            (run_dir / "answers").mkdir()
+            (run_dir / "pairs.json").write_text(
+                json.dumps({"pairs": []}, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                code = main(["judge", "--run", str(run_dir), "--dry-config"])
+            self.assertEqual(code, 1)
+            payload = json.loads(buffer.getvalue())
+            self.assertFalse(payload["ok"])
+
+    def test_judge_dry_config_rejects_invalid_pair(self) -> None:
+        with TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "gemma-preference-judge-dry"
+            run_dir.mkdir()
+            (run_dir / "answers").mkdir()
+            (run_dir / "pairs.json").write_text(
+                json.dumps({"pairs": [{"pair_id": "p1"}]}, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                code = main(["judge", "--run", str(run_dir), "--dry-config"])
+            self.assertEqual(code, 1)
+            payload = json.loads(buffer.getvalue())
+            self.assertFalse(payload["ok"])
+
     def test_judge_missing_run_fails(self) -> None:
-        code = main(["judge", "--run", "/tmp/lmre-preference-missing-run-xyz"])
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["judge", "--run", "/tmp/lmre-preference-missing-run-xyz"])
         self.assertEqual(code, 1)
+        payload = json.loads(buffer.getvalue())
+        self.assertFalse(payload["ok"])
+
+    def test_judge_live_delegates_to_run_judge(self) -> None:
+        with TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "gemma-preference-judge-live"
+            run_dir.mkdir()
+            (run_dir / "answers").mkdir()
+            (run_dir / "pairs.json").write_text(
+                json.dumps(
+                    {
+                        "pairs": [
+                            {
+                                "pair_id": "p1",
+                                "prompt_id": "x",
+                                "cell_a": "c1",
+                                "cell_b": "c2",
+                            },
+                        ],
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            with patch(
+                "local_model_runtime_evaluation.preference_cli.run_judge",
+                return_value=run_dir,
+            ) as mock_judge:
+                buffer = io.StringIO()
+                with redirect_stdout(buffer):
+                    code = main(["judge", "--run", str(run_dir)])
+                self.assertEqual(code, 0)
+                mock_judge.assert_called_once()
+                payload = json.loads(buffer.getvalue())
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["run_dir"], str(run_dir))
 
     def test_collect_live_delegates_to_run_collect(self) -> None:
         fake_run_dir = ROOT / "results" / "preference" / "fake-run"

@@ -17,11 +17,12 @@ from local_model_runtime_evaluation.preference_config import (
 from local_model_runtime_evaluation.preference_judge import (
     DEFAULT_JUDGE_CELL,
     REASON_MAX_CHARS,
-    _load_pairs,
     build_judge_prompt,
+    load_pairs,
     parse_judge_response,
     run_judge,
 )
+from local_model_runtime_evaluation.transport import TransportError
 
 ROOT = Path(__file__).resolve().parents[1]
 CELLS_ROOT = ROOT / "config/matrix/cells"
@@ -144,6 +145,16 @@ class PreferenceJudgeParseTests(unittest.TestCase):
         with self.assertRaises(PreferenceError):
             parse_judge_response('{"winner": "C"}')
 
+    def test_parse_rejects_lowercase_winner(self) -> None:
+        with self.assertRaises(PreferenceError):
+            parse_judge_response('{"winner": "a"}')
+
+    def test_parse_fenced_includes_reason(self) -> None:
+        text = '```json\n{"winner": "B", "reason": "More concrete."}\n```'
+        result = parse_judge_response(text)
+        self.assertEqual(result["winner"], "B")
+        self.assertEqual(result["reason"], "More concrete.")
+
     def test_parse_rejects_malformed_json(self) -> None:
         with self.assertRaises(PreferenceError):
             parse_judge_response("not json")
@@ -192,7 +203,7 @@ class LoadPairsTests(unittest.TestCase):
                         encoding="utf-8",
                     )
                     with self.assertRaises(PreferenceError):
-                        _load_pairs(run_dir)
+                        load_pairs(run_dir)
 
 
 class RunJudgeTests(unittest.TestCase):
@@ -302,6 +313,28 @@ class RunJudgeTests(unittest.TestCase):
             self.assertFalse(judge_raw["pairs"][0]["attempts"][0]["ok"])
             self.assertTrue(judge_raw["pairs"][0]["attempts"][1]["ok"])
             self.assertEqual(judge_raw["pairs"][0]["winner"], "B")
+
+    def test_run_judge_transport_error_retries_then_null(self) -> None:
+        with TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "run"
+            pairs = [
+                {
+                    "pair_id": "p1__00",
+                    "prompt_id": "p1",
+                    "cell_a": "cell_a",
+                    "cell_b": "cell_b",
+                },
+            ]
+            _write_run_dir(run_dir, pairs=pairs)
+            transport = FakeTransport(
+                [TransportError("chat failed"), TransportError("chat failed again")],
+            )
+            self._run(run_dir, transport)
+
+            judgments = json.loads((run_dir / "judgments.json").read_text(encoding="utf-8"))
+            self.assertIsNone(judgments["judgments"][0]["winner"])
+            judge_raw = json.loads((run_dir / "judge_raw.json").read_text(encoding="utf-8"))
+            self.assertEqual(len(judge_raw["pairs"][0]["attempts"]), 2)
 
 
 if __name__ == "__main__":

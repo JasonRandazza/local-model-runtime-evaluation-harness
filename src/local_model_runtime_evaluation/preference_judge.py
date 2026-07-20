@@ -73,7 +73,7 @@ def parse_judge_response(text: str) -> dict[str, str | None]:
     return {"winner": winner, "reason": reason}
 
 
-def _load_pairs(run_dir: Path) -> list[dict[str, str]]:
+def load_pairs(run_dir: Path) -> list[dict[str, str]]:
     pairs_path = run_dir / "pairs.json"
     if not pairs_path.is_file():
         raise PreferenceError(f"missing pairs file: {pairs_path}")
@@ -170,7 +170,7 @@ def run_judge(
     request_timeout: float = DEFAULT_REQUEST_TIMEOUT_SECONDS,
     cancel: threading.Event | None = None,
 ) -> Path:
-    pairs = _load_pairs(run_dir)
+    pairs = load_pairs(run_dir)
     answers_by_cell = load_answers(run_dir)
     prompts_by_id = {prompt.prompt_id: prompt.prompt for prompt in suite.prompts}
 
