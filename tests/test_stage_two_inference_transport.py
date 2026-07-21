@@ -174,8 +174,29 @@ class StageTwoInferenceTransportTest(unittest.TestCase):
     def test_rejects_malformed_sse(self) -> None:
         CaptureHandler.post_body = b"data: {not-json}\n\n"
         with self.assertRaises(StageTwoError) as raised:
-            self.transport.chat(self.base_url, "model-id", "prompt", 128, threading.Event())
+            self.transport.chat(self.base_url, "model-id", "prompt secret", 128, threading.Event())
         self.assertEqual(raised.exception.code, "transport_failed")
+        self.assertNotIn("prompt secret", str(raised.exception))
+
+    def test_rejects_incomplete_sse_without_prompt_leakage(self) -> None:
+        CaptureHandler.post_body = (
+            b'data: {"choices":[{"delta":{"content":"reply"},"finish_reason":"stop"}]}\n\n'
+        )
+        with self.assertRaises(StageTwoError) as raised:
+            self.transport.chat(self.base_url, "model-id", "prompt secret", 128, threading.Event())
+        self.assertEqual(raised.exception.code, "transport_failed")
+        self.assertNotIn("prompt secret", str(raised.exception))
+
+    def test_rejects_unsupported_sse_framing_without_prompt_leakage(self) -> None:
+        CaptureHandler.post_body = (
+            b"event: message\n\n"
+            b'data: {"choices":[{"delta":{"content":"reply"},"finish_reason":"stop"}]}\n\n'
+            b"data: [DONE]\n\n"
+        )
+        with self.assertRaises(StageTwoError) as raised:
+            self.transport.chat(self.base_url, "model-id", "prompt secret", 128, threading.Event())
+        self.assertEqual(raised.exception.code, "transport_failed")
+        self.assertNotIn("prompt secret", str(raised.exception))
 
     def test_translates_cancellation_without_exposing_prompt(self) -> None:
         cancel = threading.Event()

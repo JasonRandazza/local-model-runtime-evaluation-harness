@@ -20,6 +20,7 @@ class Handler(BaseHTTPRequestHandler):
     stream_trickle_interval = 0.0
     response_header_trickle_interval = 0.0
     error_body_trickle_interval = 0.0
+    stream_body_override: bytes | None = None
     first_event_sent = threading.Event()
     stream_release = threading.Event()
     response_release = threading.Event()
@@ -79,6 +80,13 @@ class Handler(BaseHTTPRequestHandler):
                     self.wfile.flush()
             except BrokenPipeError:
                 return
+            return
+        if Handler.stream_body_override is not None:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Content-Length", str(len(Handler.stream_body_override)))
+            self.end_headers()
+            self.wfile.write(Handler.stream_body_override)
             return
         usage = {"completion_tokens": 4}
         if Handler.include_reasoning_details:
@@ -146,6 +154,7 @@ class TransportTest(unittest.TestCase):
         Handler.stream_trickle_interval = 0.0
         Handler.response_header_trickle_interval = 0.0
         Handler.error_body_trickle_interval = 0.0
+        Handler.stream_body_override = None
         Handler.first_event_sent = threading.Event()
         Handler.stream_release = threading.Event()
         Handler.response_release = threading.Event()
@@ -319,6 +328,41 @@ class TransportTest(unittest.TestCase):
             )
 
         self.assertEqual(result.content, "reply")
+
+    def test_chat_rejects_eof_without_done(self) -> None:
+        Handler.stream_body_override = (
+            b'data: {"choices":[{"delta":{"content":"reply"},"finish_reason":"stop"}]}\n\n'
+        )
+
+        with self.assertRaisesRegex(TransportError, "incomplete"):
+            LoopbackTransport({self.base_url}).chat(self.base_url, "model", "prompt", 16, None)
+
+    def test_chat_rejects_unexpected_non_data_line(self) -> None:
+        Handler.stream_body_override = (
+            b'data: {"choices":[{"delta":{"content":"reply"},"finish_reason":null}]}\n\n'
+            b"event: message\n\n"
+            b"data: [DONE]\n\n"
+        )
+
+        with self.assertRaisesRegex(TransportError, "framing"):
+            LoopbackTransport({self.base_url}).chat(self.base_url, "model", "prompt", 16, None)
+
+    def test_chat_allows_sse_comment_lines(self) -> None:
+        Handler.stream_body_override = (
+            b": keepalive\n\n"
+            b'data: {"choices":[{"delta":{"content":"reply"},"finish_reason":"stop"}]}\n\n'
+            b"data: [DONE]\n\n"
+        )
+
+        result = LoopbackTransport({self.base_url}).chat(self.base_url, "model", "prompt", 16, None)
+
+        self.assertEqual(result.content, "reply")
+
+    def test_chat_rejects_malformed_data_payload(self) -> None:
+        Handler.stream_body_override = b"data: {not-json}\n\ndata: [DONE]\n\n"
+
+        with self.assertRaises(TransportError):
+            LoopbackTransport({self.base_url}).chat(self.base_url, "model", "prompt", 16, None)
 
     def test_chat_sanitizes_pre_stream_timeouts_and_cancellation(self) -> None:
         class FakeConnection:

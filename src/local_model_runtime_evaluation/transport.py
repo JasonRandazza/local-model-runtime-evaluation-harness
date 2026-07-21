@@ -212,8 +212,10 @@ class LoopbackTransport:
                     line = bytes(pending[:newline])
                     del pending[:newline + 1]
                     decoded = line.decode("utf-8").strip()
-                    if not decoded or not decoded.startswith("data: "):
+                    if not decoded or decoded.startswith(":"):
                         continue
+                    if not decoded.startswith("data: "):
+                        raise TransportError("unsupported SSE framing")
                     data = decoded[6:]
                     if data == "[DONE]":
                         stream_done = True
@@ -253,6 +255,8 @@ class LoopbackTransport:
                             reasoning_tokens = reasoning_value
                 if stream_done:
                     break
+            if not stream_done:
+                raise TransportError("incomplete SSE stream")
         except TransportError:
             raise
         except TimeoutError as error:
