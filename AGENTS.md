@@ -54,10 +54,11 @@ Run the Python and Swift test suites after relevant changes. Preserve the legacy
   failed with `unsupported_sse` (Osaurus HTTP chunked encoding vs raw `response.fp`).
   That cohort cleaned as sealed `STOPPED` (`checksum_validation: PASS`). Chunked-SSE
   decode fix is in tree (`ce107b2`). Jason authorized unused run
-  `stage2-20260721-005` (manifest `manifests/stage-2-optiq-inference-005.json`;
-  expires end of day Eastern). Live eight-POST attempt still requires operator
-  OptiQ up + warm-up, Gate B `READY_FOR_MANIFEST_AUTHORIZATION`, Coordinator
-  prompt, and one-time tool approvals. Stage 2B-2 remains unauthorized.
+  `stage2-20260721-005`; that cohort cleaned as sealed **PASS** (8/8 POSTs;
+  inference_path_acceptance and behavioral_contract_acceptance `PASS`;
+  checksum_validation `PASS`). Manager-reviewed. Stage 2B-1 Gemma OptiQ
+  inference-path acceptance for schema `3.3.0` / profile revision `2` is
+  evidenced by `005`. Stage 2B-2 remains unauthorized.
 - Do not create additional run IDs or manifests without Jason's separate
   current-session authorization. Do not operate OptiQ/Osaurus lifecycle from
   the harness. Do not install a Coordinator prompt or issue inference without

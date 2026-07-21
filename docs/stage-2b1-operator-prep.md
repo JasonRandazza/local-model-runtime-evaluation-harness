@@ -12,12 +12,12 @@ Keep that note as the live checklist (active run ID, copy-paste prompts, OptiQ l
 
 | Field | Value |
 |---|---|
-| Run ID | `stage2-20260721-005` |
-| Manifest | `manifests/stage-2-optiq-inference-005.json` |
+| Run ID | none — `stage2-20260721-005` sealed **PASS** (consumed) |
+| Last PASS | `stage2-20260721-005` — Gemma OptiQ Stage 2B-1 inference-path acceptance |
 | Profile | `gemma-4-12b-optiq-4bit` revision `2` |
 | Launcher | `bin/lmre-stage2-operator-serve-gemma` |
-| Expires | end of `2026-07-21` Eastern |
-| Transport | SSE timeout fix (`256b78e`) + chunked decode (`ce107b2`) on `main` |
+
+Ask Cursor for a new unused ID only if repeating the cohort or moving to a separately gated stage.
 
 ## Minimal command strip
 
@@ -30,19 +30,19 @@ curl -sS --max-time 180 -N -X POST http://127.0.0.1:8080/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{"model":"/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think","messages":[{"role":"user","content":"Reply with the single word: ready"}],"max_tokens":8,"temperature":0,"stream":true}'
 
-# Gate B (must be READY_FOR_MANIFEST_AUTHORIZATION before Coordinator run_scenario)
+# Gate B
 cd /Users/jrazz/Dev/active/local-model-runtime-evaluation-harness
 ./bin/lmre-stage2-gate-b-check
 
-# Terminal B — after Coordinator run_scenario
-/Users/jrazz/Dev/active/local-model-runtime-evaluation-harness/bin/lmre-stage2-wait stage2-20260721-005
+# Terminal B — after Coordinator run_scenario (use the active authorized run ID)
+/Users/jrazz/Dev/active/local-model-runtime-evaluation-harness/bin/lmre-stage2-wait <run-id>
 
 # After waiter: Ctrl+C on Terminal A, confirm port free, then Coordinator status + cleanup
 lsof -nP -iTCP:8080 -sTCP:LISTEN
 ```
 
-Osaurus: reconnect existing `Optiq` (no edits); load only `gemma-4-12b-it-qat-jang_4m` (or idle); Stage 2B-1 Coordinator prompt for schema `3.3.0` / profile revision `2`; fresh chat; one-time approvals for `inventory` → `preflight` → `run_scenario` → (after OptiQ stop) `status` → `cleanup`.
+Osaurus: reconnect existing `Optiq` (no edits); load only `gemma-4-12b-it-qat-jang_4m` (or idle); Stage 2B-1 Coordinator prompt for schema `3.3.0` / profile revision `2`; fresh chat.
 
-**Consumed:** `001`–`004` (sealed STOPPED). **Active:** `stage2-20260721-005`.
+**Consumed STOPPED:** `001`–`004`. **Consumed PASS:** `005`.
 
 Full copy-paste prompts and checks live in the vault note.
