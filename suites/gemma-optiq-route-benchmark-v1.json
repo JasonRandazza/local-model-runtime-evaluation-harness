@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0.0",
+  "suite_id": "gemma-optiq-route-benchmark-v1",
+  "revision": "1",
+  "temperature": 0,
+  "streaming": true,
+  "workloads": [
+    {
+      "workload_id": "short-chat",
+      "prompt": "In two sentences, explain why reproducible measurements matter.",
+      "max_tokens": 128,
+      "response_contract": "text"
+    },
+    {
+      "workload_id": "structured-tool-json",
+      "prompt": "Return exactly this JSON object with no markdown or extra text: {\"name\":\"status\",\"arguments\":{\"run_id\":\"stage2b-test\",\"include_details\":false}}",
+      "max_tokens": 512,
+      "response_contract": "stage2b-status-tool-json"
+    }
+  ]
+}
