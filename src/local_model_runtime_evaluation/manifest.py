@@ -62,7 +62,7 @@ def validate_manifest(
     if stage not in {0, 1, 2}:
         raise ManifestError("stage_forbidden", "stage must be 0, 1, or 2")
     schema_version = data.get("schema_version")
-    if stage == 2 and schema_version in {"3.2.0", "3.3.0"}:
+    if stage == 2 and schema_version in {"3.2.0", "3.3.0", "3.4.0"}:
         required_keys = STAGE_TWO_INFERENCE_KEYS
     else:
         required_keys = (
@@ -81,7 +81,7 @@ def validate_manifest(
     elif stage == 1:
         allowed_schemas = {"2.0.0"}
     else:
-        allowed_schemas = {"3.0.0", "3.1.0", "3.2.0", "3.3.0"}
+        allowed_schemas = {"3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0"}
     if data["schema_version"] not in allowed_schemas:
         raise ManifestError("unsupported_schema", "schema_version does not match stage")
     if stage == 0:
@@ -92,6 +92,8 @@ def validate_manifest(
         expected_mode = "lifecycle_probe"
     elif data["schema_version"] == "3.1.0":
         expected_mode = "operator_route_probe"
+    elif data["schema_version"] == "3.4.0":
+        expected_mode = "operator_route_benchmark"
     else:
         expected_mode = "operator_inference_probe"
     if data["mode"] != expected_mode:
@@ -173,8 +175,18 @@ def validate_manifest(
             "limits": dict(limits),
         }
     else:
-        if data["schema_version"] in {"3.2.0", "3.3.0"}:
-            if data["schema_version"] == "3.3.0":
+        if data["schema_version"] in {"3.2.0", "3.3.0", "3.4.0"}:
+            if data["schema_version"] == "3.4.0":
+                if data["comparison_class"] != "gemma-optiq-operator-route-benchmark":
+                    raise ManifestError("comparison_forbidden", "Stage 2B comparison contract is not approved")
+                if data["runtime_profile_id"] != "gemma-4-12b-optiq-4bit":
+                    raise ManifestError("profile_forbidden", "Stage 2B requires the approved runtime profile")
+                if data["runtime_profile_revision"] != "2":
+                    raise ManifestError("profile_revision_forbidden", "Stage 2B requires runtime profile revision 2")
+                if data["suite_id"] != "gemma-optiq-route-benchmark-v1" or data["suite_revision"] != "1":
+                    raise ManifestError("suite_forbidden", "Stage 2B requires the approved benchmark suite")
+                total_request_limit = 72
+            elif data["schema_version"] == "3.3.0":
                 if data["comparison_class"] != "gemma-optiq-operator-route-smoke":
                     raise ManifestError("comparison_forbidden", "Stage 2B comparison contract is not approved")
                 if data["runtime_profile_id"] != "gemma-4-12b-optiq-4bit":
@@ -183,6 +195,7 @@ def validate_manifest(
                     raise ManifestError("profile_revision_forbidden", "Stage 2B requires runtime profile revision 2")
                 if data["suite_id"] != "gemma-optiq-route-smoke-v1" or data["suite_revision"] != "1":
                     raise ManifestError("suite_forbidden", "Stage 2B requires the approved smoke suite")
+                total_request_limit = 8
             else:
                 if data["comparison_class"] != "optiq-operator-route-smoke":
                     raise ManifestError("comparison_forbidden", "Stage 2B comparison contract is not approved")
@@ -192,6 +205,7 @@ def validate_manifest(
                     raise ManifestError("profile_revision_forbidden", "Stage 2B requires runtime profile revision 3")
                 if data["suite_id"] != "optiq-route-smoke-v1" or data["suite_revision"] != "1":
                     raise ManifestError("suite_forbidden", "Stage 2B requires the approved smoke suite")
+                total_request_limit = 8
             if (
                 type(data["repetitions"]) is not int
                 or data["repetitions"] != 1
@@ -209,7 +223,7 @@ def validate_manifest(
                 "request_timeout_seconds": 120,
                 "memory_stop_level": "warning",
                 "maximum_in_flight_requests": 1,
-                "total_request_limit": 8,
+                "total_request_limit": total_request_limit,
             }
             if (
                 not isinstance(limits, dict)

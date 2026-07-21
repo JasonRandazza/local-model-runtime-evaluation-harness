@@ -10,7 +10,7 @@ from local_model_runtime_evaluation.adapters.base import LiveExecutionDisabled
 from local_model_runtime_evaluation.adapters.openai_compatible import OpenAICompatibleAdapter
 from local_model_runtime_evaluation.adapters.optiq import OptiQAdapter
 from local_model_runtime_evaluation.adapters.osaurus import OsaurusAdapter
-from local_model_runtime_evaluation.manifest import load_manifest, validate_manifest
+from local_model_runtime_evaluation.manifest import ManifestError, load_manifest, validate_manifest
 from local_model_runtime_evaluation.models import Operation
 from local_model_runtime_evaluation.policy import PolicyError, StageTwoPolicy, StageZeroPolicy
 
@@ -72,6 +72,46 @@ class PolicyTest(unittest.TestCase):
         manifest = load_manifest(fixture, now=datetime(2026, 7, 14, tzinfo=timezone.utc))
         with self.assertRaises(PolicyError):
             StageTwoPolicy().authorize(replace(manifest, schema_version="3.0.0"), Operation.INVENTORY)
+
+    def test_benchmark_manifest_authorizes_all_six_operations(self) -> None:
+        data = json.loads((
+            Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json"
+        ).read_text())
+        data.update({
+            "schema_version": "3.4.0",
+            "mode": "operator_route_benchmark",
+            "comparison_class": "gemma-optiq-operator-route-benchmark",
+            "suite_id": "gemma-optiq-route-benchmark-v1",
+            "limits": {
+                "request_timeout_seconds": 120,
+                "memory_stop_level": "warning",
+                "maximum_in_flight_requests": 1,
+                "total_request_limit": 72,
+            },
+        })
+        manifest = validate_manifest(data, now=datetime(2026, 7, 21, tzinfo=timezone.utc))
+        policy = StageTwoPolicy()
+        for operation in Operation:
+            policy.authorize(manifest, operation)
+
+    def test_benchmark_manifest_rejects_smoke_suite_under_policy(self) -> None:
+        data = json.loads((
+            Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json"
+        ).read_text())
+        data.update({
+            "schema_version": "3.4.0",
+            "mode": "operator_route_benchmark",
+            "comparison_class": "gemma-optiq-operator-route-benchmark",
+            "suite_id": "gemma-optiq-route-smoke-v1",
+            "limits": {
+                "request_timeout_seconds": 120,
+                "memory_stop_level": "warning",
+                "maximum_in_flight_requests": 1,
+                "total_request_limit": 72,
+            },
+        })
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=datetime(2026, 7, 21, tzinfo=timezone.utc))
 
 
 if __name__ == "__main__":

@@ -56,6 +56,10 @@ class StageTwoPolicy:
                 "3.3.0", "operator_inference_probe",
                 "gemma-optiq-operator-route-smoke", "2",
             ),
+            (
+                "3.4.0", "operator_route_benchmark",
+                "gemma-optiq-operator-route-benchmark", "2",
+            ),
         }
         contract = (
             manifest.schema_version, manifest.mode,
