@@ -988,6 +988,17 @@ class StageTwoInferenceEngine:
         else:
             raise StageTwoError("evidence_incomplete", "cleaned Stage 2B-1 disposition is invalid")
         self._assert_redacted_artifacts()
+        self._assert_current_lock()
+        identity = self._load_operator_identity()
+        shutdown_recheck_failed = False
+        try:
+            self.controller.assert_stopped(identity)
+        except Exception:
+            shutdown_recheck_failed = True
+        if shutdown_recheck_failed:
+            raise StageTwoError(
+                "cleanup_failed", "Stage 2B-1 cleanup could not be completed",
+            )
         self.bundle.reseal_after_state_transition()
         validation = self.bundle.validate_partial() if partial else self.bundle.validate()
         return {

@@ -593,6 +593,57 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
             self.assertEqual(repeated["disposition"], "PASS")
             self.assertEqual(repeated["checksum_validation"], "PASS")
 
+    def test_recovery_cleanup_fails_if_lock_disappears_before_reseal(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            engine, controller, transport = self._complete_and_shutdown(output)
+            original_reseal = engine.bundle.reseal_after_state_transition
+
+            def fail_once() -> None:
+                engine.bundle.reseal_after_state_transition = original_reseal
+                raise ArtifactError("injected reseal failure fake-secret")
+
+            engine.bundle.reseal_after_state_transition = fail_once
+            with self.assertRaises(StageTwoError):
+                engine.cleanup()
+            self.assertEqual(engine.lifecycle.read(self.manifest.run_id).status, RunStatus.CLEANED)
+
+            lock_owner = MutableLockOwner(self.manifest.run_id)
+            recovery_engine = self._engine(output, transport, controller, lock_owner=lock_owner)
+            original_reconcile_memory = recovery_engine._reconcile_memory
+
+            def drop_lock_then_reconcile() -> None:
+                original_reconcile_memory()
+                lock_owner.value = None
+
+            recovery_engine._reconcile_memory = drop_lock_then_reconcile
+            with self.assertRaises(StageTwoError) as context:
+                recovery_engine.cleanup()
+            self.assertEqual(context.exception.code, "lock_identity_failed")
+
+    def test_recovery_cleanup_rechecks_shutdown_immediately_before_final_reseal(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            engine, controller, transport = self._complete_and_shutdown(output)
+            original_reseal = engine.bundle.reseal_after_state_transition
+
+            def fail_once() -> None:
+                engine.bundle.reseal_after_state_transition = original_reseal
+                raise ArtifactError("injected reseal failure fake-secret")
+
+            engine.bundle.reseal_after_state_transition = fail_once
+            with self.assertRaises(StageTwoError):
+                engine.cleanup()
+            self.assertEqual(engine.lifecycle.read(self.manifest.run_id).status, RunStatus.CLEANED)
+
+            restarting_controller = RestartingController()
+            restarting_controller.running = False
+            recovery_engine = self._engine(output, transport, restarting_controller)
+            with self.assertRaises(StageTwoError) as context:
+                recovery_engine.cleanup()
+            self.assertEqual(context.exception.code, "cleanup_failed")
+            self.assertEqual(restarting_controller.assert_stopped_calls, 2)
+
     def test_empty_content_is_behavioral_and_finishes_safe_cohort(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             transport = FakeTransport(empty_content=True)
