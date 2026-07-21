@@ -6,14 +6,12 @@
 findings have in-tree code-and-test remediation on `main`, and Jason accepted
 Gate A as complete for moving to Slice 2 (Gemma schema `3.3.0` retarget).
 
-**Slice 2 / Gate B status (2026-07-21):** Gemma profile revision `2` (path-based
-`:no-think` route) is authorizing. Gate B reported
-`READY_FOR_MANIFEST_AUTHORIZATION`. Runs `stage2-20260721-001` and
-`stage2-20260721-002` cleaned as `STOPPED` (first-POST cold-load SSE /
-`stream_failed`; manager reviewed). Unused run `stage2-20260721-003` is
-authorized via `manifests/stage-2-optiq-inference-003.json` (expires end of
-2026-07-21 Eastern) after warm-up + Gate B. Live eight-POST attempt requires
-Coordinator tools. Stage 2B-2 remains unauthorized. See
+**Slice 2 / Gate B status (2026-07-21):** Gemma profile revision `2` is
+authorizing. Cohorts `001`–`003` cleaned as `STOPPED` (SSE 1s-timeout poison;
+fixed in `transport.py` / `256b78e`). Unused run `stage2-20260721-004` is
+authorized via `manifests/stage-2-optiq-inference-004.json` (expires end of
+2026-07-21 Eastern). Before Coordinator `run_scenario`: OptiQ up, warm-up,
+Gate B `READY_FOR_MANIFEST_AUTHORIZATION`. Stage 2B-2 remains unauthorized. See
 `docs/superpowers/specs/2026-07-20-stage-2b1-gemma-retarget-design.md`.
 
 Historical note: the prior `GATE_A_STOPPED` decision and the five findings are
