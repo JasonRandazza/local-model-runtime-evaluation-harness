@@ -969,6 +969,8 @@ class StageTwoBenchmarkEngine:
             "disposition": "PASS",
             "inference_path_acceptance": "PASS",
             "behavioral_contract_acceptance": benchmark["behavioral_contract_acceptance"],
+            "route_overhead_summary": benchmark["route_overhead_summary"],
+            "route_overhead_deltas": benchmark["route_overhead_deltas"],
             "measured_requests": 60,
             "excluded_warmups": 12,
             "inference_request_attempts": 72,

@@ -235,11 +235,16 @@ class StageTwoBenchmarkEngineTest(unittest.TestCase):
             output = Path(temp)
             engine, _, _ = self._complete_and_shutdown(output)
             result = engine.cleanup()
+            run_dir = output / self.manifest.run_id
             self.assertEqual(result["disposition"], "PASS")
             self.assertEqual(result["inference_path_acceptance"], "PASS")
             self.assertEqual(result["behavioral_contract_acceptance"], "PASS")
             self.assertEqual(result["checksum_validation"], "PASS")
-            run_dir = output / self.manifest.run_id
+            self.assertIn("route_overhead_summary", result)
+            self.assertIn("route_overhead_deltas", result)
+            summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+            self.assertEqual(summary["route_overhead_summary"], result["route_overhead_summary"])
+            self.assertEqual(summary["route_overhead_deltas"], result["route_overhead_deltas"])
             artifact_bytes = b"".join(
                 path.read_bytes() for path in run_dir.iterdir() if path.is_file()
             )
