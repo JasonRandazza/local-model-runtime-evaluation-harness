@@ -23,16 +23,23 @@ Keep that note as the live checklist (active run ID, copy-paste prompts, OptiQ l
 # Terminal A — Gemma OptiQ (foreground, no args)
 /Users/jrazz/Dev/active/local-model-runtime-evaluation-harness/bin/lmre-stage2-operator-serve-gemma
 
+# Terminal B — mandatory warm-up BEFORE run_scenario (cold load outside harness SSE)
+curl -sS --max-time 180 -N -X POST http://127.0.0.1:8080/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think","messages":[{"role":"user","content":"Reply with the single word: ready"}],"max_tokens":8,"temperature":0,"stream":true}'
+
 # Gate B (host agent or you)
 cd /Users/jrazz/Dev/active/local-model-runtime-evaluation-harness
 ./bin/lmre-stage2-gate-b-check
 
-# Terminal B — after Coordinator run_scenario
-/Users/jrazz/Dev/active/local-model-runtime-evaluation-harness/bin/lmre-stage2-wait stage2-20260721-002
+# Terminal B — after Coordinator run_scenario (use the active authorized run ID)
+/Users/jrazz/Dev/active/local-model-runtime-evaluation-harness/bin/lmre-stage2-wait <run-id>
 
 # After waiter: Ctrl+C on Terminal A, then Coordinator status + cleanup
 ```
 
 Osaurus: reconnect existing `Optiq` (no edits); load only `gemma-4-12b-it-qat-jang_4m` (or idle); use Stage 2B-1 Coordinator prompt revision for schema `3.3.0` / profile revision `2`; fresh chat; one-time approvals for `inventory` → `preflight` → `run_scenario` → (after OptiQ stop) `status` → `cleanup`.
+
+**Consumed through 2026-07-21:** `stage2-20260721-001`, `stage2-20260721-002` (both STOPPED on first-POST cold-load SSE). Ask Cursor for the next unused ID before retrying.
 
 Full copy-paste prompts and checks live in the vault note.
