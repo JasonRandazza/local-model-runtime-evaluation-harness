@@ -58,7 +58,8 @@ Run the Python and Swift test suites after relevant changes. Preserve the legacy
   inference_path_acceptance and behavioral_contract_acceptance `PASS`;
   checksum_validation `PASS`). Manager-reviewed. Stage 2B-1 Gemma OptiQ
   inference-path acceptance for schema `3.3.0` / profile revision `2` is
-  evidenced by `005`. Stage 2B-2 remains unauthorized.
+  evidenced by `005`. Stage 2B-2 Gate A is `GATE_A_PASSED`; live 2B-2 Gate B–D
+  remain separately gated.
 - Do not create additional run IDs or manifests without Jason's separate
   current-session authorization. Do not operate OptiQ/Osaurus lifecycle from
   the harness. Do not install a Coordinator prompt or issue inference without
@@ -72,7 +73,7 @@ Run the Python and Swift test suites after relevant changes. Preserve the legacy
 
 ## Stage 2B-2 Boundary
 
-- Current decision: `GATE_A_IMPLEMENTED_PENDING_REVIEW` (2026-07-21). Gate A code is in tree: schema `3.4.0`, mode `operator_route_benchmark`, comparison class `gemma-optiq-operator-route-benchmark`, suite `gemma-optiq-route-benchmark-v1` revision `1`, profile `gemma-4-12b-optiq-4bit` revision `2`, seventy-two serial POSTs (twelve warm-ups excluded, sixty measured), `StageTwoBenchmarkEngine`, and non-authorizing template `manifests/stage-2-optiq-route-benchmark.json.template`. Gate B, Gate C (manifest authorization), Gate D (live benchmark), Coordinator prompt installation, and manager review remain blocked.
+- Current decision: `GATE_A_PASSED` (Jason, 2026-07-21). Gate A implementation and review are closed: schema `3.4.0`, mode `operator_route_benchmark`, comparison class `gemma-optiq-operator-route-benchmark`, suite `gemma-optiq-route-benchmark-v1` revision `1`, profile `gemma-4-12b-optiq-4bit` revision `2`, seventy-two serial POSTs (twelve warm-ups excluded, sixty measured), `StageTwoBenchmarkEngine`, and non-authorizing template `manifests/stage-2-optiq-route-benchmark.json.template`. Gate B, Gate C (manifest authorization), Gate D (live benchmark), Coordinator prompt installation, and manager review remain separately gated and still require Jason's current-session authorization.
 - Prerequisite evidence: Stage 2B-1 cohort `stage2-20260721-005` sealed **PASS** (schema `3.3.0` / profile revision `2`). Do not derive Stage 2B-2 statistics from the eight-POST smoke cohort. Do not reuse consumed run IDs (`001`–`005` or any prior Stage 2 run).
 - Do not create additional run IDs or live manifests without Jason's separate current-session authorization. Do not operate OptiQ/Osaurus lifecycle from the harness. Do not install a Coordinator prompt into Osaurus or issue inference without the operator sequence in `docs/stage-2b2-gate-a.md`.
 - Stage 2B-2 is one bounded route benchmark cohort, not path smoke. It permits exactly seventy-two serial inference requests and seventy-two HTTP POSTs only after separately completed Gate B, Jason's explicit current-session authorization of one exact unused ID, and a short-lived `3.4.0` manifest for that exact ID.

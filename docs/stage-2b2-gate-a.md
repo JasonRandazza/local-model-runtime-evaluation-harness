@@ -2,11 +2,15 @@
 
 ## Current Decision
 
-`GATE_A_IMPLEMENTED_PENDING_REVIEW` (2026-07-21). Schema `3.4.0`, the 72-request
-benchmark suite, measurement module, `StageTwoBenchmarkEngine`, factory dispatch,
-policy branch, and non-authorizing manifest template are in tree with deterministic
-tests. This is **not** live-ready. Gate B, Gate C (manifest authorization), Gate D
-(72 POSTs), Coordinator prompt installation, and manager review remain blocked.
+`GATE_A_PASSED` (Jason, 2026-07-21). Gate A implementation and review are closed:
+schema `3.4.0`, the 72-request benchmark suite, measurement module,
+`StageTwoBenchmarkEngine`, factory dispatch, policy branch, artifact sealing,
+package template pin, and non-authorizing docs/prompt draft are in tree with
+deterministic tests green (100 focused Python tests; Swift plugin `0.3.0` 4/4;
+no live 2B-2 manifest). This is **not** live-ready. Gate B, Gate C (manifest
+authorization), Gate D (72 POSTs), Coordinator prompt installation, and manager
+review remain separately gated and still require Jason's current-session
+authorization.
 
 **Prerequisite evidence:** Stage 2B-1 cohort `stage2-20260721-005` sealed **PASS**
 (schema `3.3.0`, profile `gemma-4-12b-optiq-4bit` revision `2`, suite
@@ -57,8 +61,8 @@ generated output, request payloads, headers, credentials, or process details.
 
 | Gate | Scope | Status |
 |---|---|---|
-| **A** | Code, tests, schemas, suite, docs, non-installed prompt draft | Implemented; pending review |
-| **B** | Live read-only readiness (launcher, provider, identities, memory); no POST | Blocked |
+| **A** | Code, tests, schemas, suite, docs, non-installed prompt draft | **Passed** (review closed) |
+| **B** | Live read-only readiness (launcher, provider, identities, memory); no POST | Ready to authorize separately |
 | **C** | Jason authorizes one unused run ID + short-lived `3.4.0` manifest | Blocked |
 | **D** | 72 POSTs, manual shutdown, cleanup, manager review | Blocked |
 
@@ -70,8 +74,8 @@ Gate B reuses read-only checks against profile revision `2` while Jason owns the
 Gemma foreground OptiQ launcher and reconnects the existing provider without editing
 it. Only after Gate B passes may Jason explicitly authorize one exact unused run ID
 in the current session. That authorization permits one short-lived manifest for
-that ID only. Do not run Gate B against live services until Gate A review closes
-and Jason's current-session authorization.
+that ID only. Gate A review is closed. Do not run Gate B against live services until Jason
+gives current-session authorization for Gate B.
 
 The accepted Stage 2A revision-3 baseline remains rollback (`bin/lmre-stage2-operator-serve`
 + VibeThinker). Stage 2B-1 PASS on `stage2-20260721-005` remains smoke rollback

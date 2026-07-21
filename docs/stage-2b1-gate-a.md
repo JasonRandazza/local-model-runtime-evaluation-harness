@@ -13,7 +13,8 @@ sealed **PASS** (8/8 POSTs; inference_path_acceptance and
 behavioral_contract_acceptance `PASS`; checksum_validation `PASS`). That is
 the accepted Stage 2B-1 Gemma OptiQ inference-path evidence for schema
 `3.3.0` / profile revision `2` / suite `gemma-optiq-route-smoke-v1` revision
-`1`. Stage 2B-2 remains unauthorized. See
+`1`. Stage 2B-2 Gate A is closed (`GATE_A_PASSED`); see
+`docs/stage-2b2-gate-a.md`. Live 2B-2 Gate B–D remain separately gated. See
 `docs/superpowers/specs/2026-07-20-stage-2b1-gemma-retarget-design.md`.
 
 Historical note: the prior `GATE_A_STOPPED` decision and the five findings are
