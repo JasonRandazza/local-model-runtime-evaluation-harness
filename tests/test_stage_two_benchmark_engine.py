@@ -17,6 +17,7 @@ from local_model_runtime_evaluation.stage_two import (
     StageTwoError,
 )
 from local_model_runtime_evaluation.stage_two_benchmark import StageTwoBenchmarkEngine
+from local_model_runtime_evaluation.stage_two_factory import build_stage_two_engine
 from local_model_runtime_evaluation.stage_two_benchmark_suite import (
     BenchmarkRequest,
     StageTwoBenchmarkSuite,
@@ -263,6 +264,30 @@ class StageTwoBenchmarkEngineTest(unittest.TestCase):
                     lambda: self.validation, FakeController(), FakeTransport(),
                     lambda: altered.run_id,
                 )
+
+
+class StageTwoBenchmarkFactoryTest(unittest.TestCase):
+    def test_factory_builds_benchmark_engine_for_valid_3_4_0_fixture(self) -> None:
+        root = Path(__file__).parents[1]
+        manifest = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-benchmark-gemma.json",
+            now=datetime(2026, 7, 21, 12, tzinfo=timezone.utc),
+        )
+        with tempfile.TemporaryDirectory() as output_temp:
+            engine = build_stage_two_engine(root, manifest, Path(output_temp))
+        self.assertIsInstance(engine, StageTwoBenchmarkEngine)
+        self.assertEqual(engine.suite.suite_id, "gemma-optiq-route-benchmark-v1")
+        self.assertEqual(engine.manifest.schema_version, "3.4.0")
+
+    def test_factory_rejects_3_3_0_suite_id_on_3_4_0_mode(self) -> None:
+        root = Path(__file__).parents[1]
+        manifest = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-benchmark-gemma.json",
+            now=datetime(2026, 7, 21, 12, tzinfo=timezone.utc),
+        )
+        bad_manifest = replace(manifest, suite_id="gemma-optiq-route-smoke-v1")
+        with self.assertRaisesRegex(ValueError, "unsupported Stage 2 mode"):
+            build_stage_two_engine(root, bad_manifest, Path(tempfile.mkdtemp()))
 
 
 if __name__ == "__main__":

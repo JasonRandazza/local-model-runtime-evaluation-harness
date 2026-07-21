@@ -4,6 +4,13 @@ from pathlib import Path
 
 from .resources import HostResourceProbe, snapshot_from_health
 from .stage_two import StageTwoEngine
+from .stage_two_benchmark import (
+    _STAGE_2B_2_LIMITS,
+    _STAGE_2B_2_OPERATIONS,
+    _STAGE_2B_2_ROUTES,
+    StageTwoBenchmarkEngine,
+)
+from .stage_two_benchmark_suite import StageTwoBenchmarkSuite
 from .stage_two_inference import (
     _STAGE_2B_1_LIMITS,
     _STAGE_2B_1_OPERATIONS,
@@ -42,15 +49,59 @@ def _validate_stage_two_inference_manifest(manifest) -> None:
         raise ValueError("unsupported Stage 2 mode")
 
 
-def build_stage_two_engine(repository_root: Path, manifest, output_root: Path) -> StageTwoEngine | StageTwoInferenceEngine:
+def _validate_stage_two_benchmark_manifest(manifest) -> None:
+    fixed_contract = (
+        manifest.stage == 2
+        and manifest.schema_version == "3.4.0"
+        and manifest.mode == "operator_route_benchmark"
+        and manifest.comparison_class == "gemma-optiq-operator-route-benchmark"
+        and manifest.runtime_profile_id == "gemma-4-12b-optiq-4bit"
+        and manifest.runtime_profile_revision == "2"
+        and manifest.suite_id == "gemma-optiq-route-benchmark-v1"
+        and manifest.suite_revision == "1"
+        and manifest.repetitions == 1
+        and manifest.route_order == "counterbalanced"
+        and tuple(manifest.operations) == _STAGE_2B_2_OPERATIONS
+        and dict(manifest.routes or {}) == _STAGE_2B_2_ROUTES
+        and dict(manifest.limits or {}) == _STAGE_2B_2_LIMITS
+    )
+    if not fixed_contract:
+        raise ValueError("unsupported Stage 2 mode")
+
+
+def build_stage_two_engine(
+    repository_root: Path, manifest, output_root: Path,
+) -> StageTwoEngine | StageTwoInferenceEngine | StageTwoBenchmarkEngine:
     contract = (manifest.schema_version, manifest.mode)
     if contract == ("3.3.0", "operator_inference_probe"):
         _validate_stage_two_inference_manifest(manifest)
+    elif contract == ("3.4.0", "operator_route_benchmark"):
+        _validate_stage_two_benchmark_manifest(manifest)
     elif contract != ("3.1.0", "operator_route_probe"):
         raise ValueError("unsupported Stage 2 mode")
     profile = RuntimeProfileRegistry(repository_root / "config" / "runtime-profiles").get(
         manifest.runtime_profile_id, manifest.runtime_profile_revision
     )
+    if contract == ("3.4.0", "operator_route_benchmark"):
+        suite = StageTwoBenchmarkSuite.load(
+            repository_root / "suites" / "gemma-optiq-route-benchmark-v1.json"
+        )
+        transport = StageTwoInferenceTransport(set(manifest.routes.values()), timeout_seconds=120)
+        controller = OperatorOptiQController(
+            (str(profile.runtime_executable), *profile.serve_arguments),
+            MacProcessBackend(),
+            lambda: transport.health(profile.direct_base_url),
+        )
+        lock = RunLock(output_root)
+
+        def resources(health: dict[str, object]):
+            return snapshot_from_health(HostResourceProbe().free_memory_percent(), health, None)
+
+        return StageTwoBenchmarkEngine(
+            manifest, profile, suite, output_root, resources,
+            lambda: HostValidator(profile, PROVIDER_CONFIG).validate(),
+            controller, transport, lock.owner,
+        )
     if contract == ("3.3.0", "operator_inference_probe"):
         suite = StageTwoSmokeSuite.load(
             repository_root / "suites" / "gemma-optiq-route-smoke-v1.json"
