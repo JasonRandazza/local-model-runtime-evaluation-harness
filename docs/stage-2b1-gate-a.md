@@ -84,3 +84,10 @@ The accepted Stage 2A revision-3 baseline remains the rollback and service-owner
 12. Return the sanitized Coordinator report to the host agent for manager review.
 
 No tool may be approved persistently. The Coordinator has no ambient filesystem, Sandbox, Search, MCP, memory, provider-editing, service-lifecycle, or subagent authority.
+
+## Operator prep checklist
+
+Day-to-day manual steps (exact launcher, Osaurus reconnect, Coordinator
+copy-paste prompts, waiter, shutdown, cleanup) live in
+`docs/stage-2b1-operator-prep.md` and the vault note
+`[[Stage 2B-1 Manual Operator Prep]]`. Prefer that checklist for each live run.
