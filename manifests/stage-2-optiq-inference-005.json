@@ -1,0 +1,35 @@
+{
+  "schema_version": "3.3.0",
+  "run_id": "stage2-20260721-005",
+  "stage": 2,
+  "mode": "operator_inference_probe",
+  "operations": [
+    "inventory",
+    "preflight",
+    "run-scenario",
+    "status",
+    "cancel",
+    "cleanup"
+  ],
+  "output_root": "/Users/jrazz/.osaurus/container/output/benchmark-runs",
+  "approved_by": "Jason Randazza",
+  "approved_at": "2026-07-21T14:14:17-04:00",
+  "expires_at": "2026-07-21T23:59:59-04:00",
+  "comparison_class": "gemma-optiq-operator-route-smoke",
+  "runtime_profile_id": "gemma-4-12b-optiq-4bit",
+  "runtime_profile_revision": "2",
+  "suite_id": "gemma-optiq-route-smoke-v1",
+  "suite_revision": "1",
+  "repetitions": 1,
+  "route_order": "counterbalanced",
+  "routes": {
+    "direct": "http://127.0.0.1:8080/v1",
+    "routed": "http://127.0.0.1:1337/v1"
+  },
+  "limits": {
+    "request_timeout_seconds": 120,
+    "memory_stop_level": "warning",
+    "maximum_in_flight_requests": 1,
+    "total_request_limit": 8
+  }
+}
