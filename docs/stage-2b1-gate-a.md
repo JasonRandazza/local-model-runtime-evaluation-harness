@@ -10,6 +10,10 @@ during resealing. Gate B and all live work remain blocked until focused
 remediation and a clean independent review. See
 `docs/handoffs/2026-07-15-stage-2b1-cursor-continuation-prompt.md`.
 
+All five findings now have code-and-test remediation in-tree, pending an
+independent architecture review. This does not change the decision:
+`GATE_A_STOPPED` remains in effect and Gate B and live work remain blocked.
+
 Stage 2B-1 is a bounded inference-path acceptance check, not a benchmark. It exercises two fixed workloads once per route as four excluded warm-ups and four measured requests: eight total serial inference requests and eight HTTP POSTs. The cohort is intentionally too small for stable medians, throughput claims, quality rankings, or route-performance conclusions.
 
 ## Fixed Contract
