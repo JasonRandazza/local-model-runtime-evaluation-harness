@@ -548,20 +548,58 @@ class StageTwoInferenceEngine:
             sequence=sequence, phase=PostAttemptPhase.DISPATCHED,
             workload_id=workload_id, route=route,
         )
-        succeeded, result = self._external_call(
-            lambda: self.transport.chat(base_url, model_id, prompt, max_tokens, cancel)
-        )
-        if not succeeded or not isinstance(result, TransportResult):
+        failure: StageTwoError | None = None
+        result: TransportResult | None = None
+        try:
+            result = self.transport.chat(base_url, model_id, prompt, max_tokens, cancel)
+        except StageTwoError as error:
+            detail = (
+                "cancelled" if cancel.is_set() or error.reason == "cancelled"
+                else (error.reason or "transport_failed")
+            )
             self.post_attempt_journal.record(
                 sequence=sequence, phase=PostAttemptPhase.FAILED,
                 workload_id=workload_id, route=route,
-                detail="cancelled" if cancel.is_set() else "transport_failed",
+                detail=detail,
+                http_status=error.http_status,
+            )
+            self._post_attempt_evidence(
+                sequence, workload_id, route, model_id, max_tokens, error.http_status,
+            )
+            if cancel.is_set() or error.reason == "cancelled" or error.code == "cancelled":
+                failure = StageTwoError("cancelled", "Stage 2B-1 cancelled during request")
+            else:
+                failure = StageTwoError(
+                    error.code,
+                    "Stage 2B-1 chat transport failed",
+                    reason=error.reason or "transport_failed",
+                    http_status=error.http_status,
+                )
+        except Exception:
+            detail = "cancelled" if cancel.is_set() else "transport_failed"
+            self.post_attempt_journal.record(
+                sequence=sequence, phase=PostAttemptPhase.FAILED,
+                workload_id=workload_id, route=route,
+                detail=detail,
             )
             self._post_attempt_evidence(
                 sequence, workload_id, route, model_id, max_tokens, None,
             )
             if cancel.is_set():
-                raise StageTwoError("cancelled", "Stage 2B-1 cancelled during request")
+                failure = StageTwoError("cancelled", "Stage 2B-1 cancelled during request")
+            else:
+                failure = StageTwoError("transport_failed", "Stage 2B-1 chat transport failed")
+        if failure is not None:
+            raise failure
+        if not isinstance(result, TransportResult):
+            self.post_attempt_journal.record(
+                sequence=sequence, phase=PostAttemptPhase.FAILED,
+                workload_id=workload_id, route=route,
+                detail="transport_failed",
+            )
+            self._post_attempt_evidence(
+                sequence, workload_id, route, model_id, max_tokens, None,
+            )
             raise StageTwoError("transport_failed", "Stage 2B-1 chat transport failed")
         self.post_attempt_journal.record(
             sequence=sequence, phase=PostAttemptPhase.COMPLETED,

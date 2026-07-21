@@ -15,9 +15,18 @@ from .stage_two_profiles import RuntimeProfile
 
 
 class StageTwoError(RuntimeError):
-    def __init__(self, code: str, message: str) -> None:
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        *,
+        reason: str | None = None,
+        http_status: int | None = None,
+    ) -> None:
         super().__init__(message)
         self.code = code
+        self.reason = reason
+        self.http_status = http_status
 
 
 @dataclass(frozen=True)

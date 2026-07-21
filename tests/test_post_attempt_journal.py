@@ -91,6 +91,37 @@ class PostAttemptJournalTest(unittest.TestCase):
             self.assertEqual(record["detail"], "dispatched")
             self.assertNotIn("prompt", record)
 
+    def test_failed_detail_allowlist_and_http_status_are_sanitized(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp)
+            journal = self._journal(path)
+            journal.record(
+                sequence=1, phase=PostAttemptPhase.FAILED,
+                workload_id="short-chat", route="direct",
+                detail="incomplete_sse",
+            )
+            journal.record(
+                sequence=2, phase=PostAttemptPhase.FAILED,
+                workload_id="short-chat", route="direct",
+                detail="http_status", http_status=503,
+            )
+            journal.record(
+                sequence=3, phase=PostAttemptPhase.FAILED,
+                workload_id="short-chat", route="direct",
+                detail="Authorization=secret leaked body",
+                http_status=999,
+            )
+            rows = [
+                json.loads(line)
+                for line in (path / "post-attempts.jsonl").read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(rows[0]["detail"], "incomplete_sse")
+            self.assertEqual(rows[1]["detail"], "http_status")
+            self.assertEqual(rows[1]["http_status"], 503)
+            self.assertEqual(rows[2]["detail"], "transport_failed")
+            self.assertNotIn("http_status", rows[2])
+            self.assertNotIn("Authorization", json.dumps(rows))
+
 
 if __name__ == "__main__":
     unittest.main()

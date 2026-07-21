@@ -7,6 +7,25 @@ from .artifacts import ArtifactBundle
 
 _FILENAME = "post-attempts.jsonl"
 
+_ALLOWED_FAILURE_DETAILS = frozenset({
+    "cancelled",
+    "timeout",
+    "http_status",
+    "not_sse",
+    "stream_setup_failed",
+    "unsupported_sse",
+    "incomplete_sse",
+    "stream_failed",
+    "empty_content",
+    "content_timing_unavailable",
+    "invalid_token_accounting",
+    "endpoint_forbidden",
+    "inventory_failed",
+    "health_invalid",
+    "health_failed",
+    "transport_failed",
+})
+
 
 class PostAttemptPhase(str, Enum):
     PREPARED = "prepared"
@@ -40,6 +59,7 @@ class PostAttemptJournal:
         workload_id: str,
         route: str,
         detail: str | None = None,
+        http_status: int | None = None,
     ) -> None:
         record: dict[str, object] = {
             "sequence": sequence,
@@ -48,7 +68,15 @@ class PostAttemptJournal:
             "route": route,
         }
         if detail is not None:
+            if phase is PostAttemptPhase.FAILED and detail not in _ALLOWED_FAILURE_DETAILS:
+                detail = "transport_failed"
             record["detail"] = detail
+        if (
+            http_status is not None
+            and type(http_status) is int
+            and 100 <= http_status <= 599
+        ):
+            record["http_status"] = http_status
         self._bundle.append_jsonl(_FILENAME, record)
 
     def _read_records(self) -> list[dict[str, object]]:

@@ -16,6 +16,17 @@ from .credentials import Credential
 class TransportError(RuntimeError):
     code = "transport_failed"
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: str = "transport_failed",
+        http_status: int | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.reason = reason
+        self.http_status = http_status
+
 
 @dataclass(frozen=True)
 class TransportResult:
@@ -42,10 +53,10 @@ class LoopbackTransport:
     def _parts(self, base_url: str) -> tuple[str, int, str]:
         normalized = base_url.rstrip("/")
         if normalized not in self.allowed_base_urls:
-            raise TransportError("endpoint is not approved")
+            raise TransportError("endpoint is not approved", reason="endpoint_forbidden")
         parsed = urlparse(normalized)
         if parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or not parsed.port or parsed.path != "/v1":
-            raise TransportError("endpoint must be approved loopback HTTP")
+            raise TransportError("endpoint must be approved loopback HTTP", reason="endpoint_forbidden")
         return parsed.hostname, parsed.port, parsed.path
 
     def _connection(self, base_url: str) -> tuple[http.client.HTTPConnection, str]:
@@ -77,14 +88,14 @@ class LoopbackTransport:
         while not completed.wait(min(0.1, max(0.0, deadline - time.monotonic()))):
             if cancel is not None and cancel.is_set():
                 connection.close()
-                raise TransportError("request cancelled")
+                raise TransportError("request cancelled", reason="cancelled")
             if time.monotonic() >= deadline:
                 connection.close()
-                raise TransportError("request timed out")
+                raise TransportError("request timed out", reason="timeout")
         if cancel is not None and cancel.is_set():
-            raise TransportError("request cancelled")
+            raise TransportError("request cancelled", reason="cancelled")
         if time.monotonic() >= deadline:
-            raise TransportError("request timed out")
+            raise TransportError("request timed out", reason="timeout")
         if errors:
             raise errors[0]
         return result[0]
@@ -96,11 +107,11 @@ class LoopbackTransport:
             response = connection.getresponse()
             body = response.read()
             if response.status != 200:
-                raise TransportError(f"model inventory returned HTTP {response.status}")
+                raise TransportError(f"model inventory returned HTTP {response.status}", reason="http_status", http_status=response.status)
             payload = json.loads(body)
             return tuple(str(item["id"]) for item in payload["data"])
         except (OSError, TimeoutError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
-            raise TransportError("model inventory failed") from error
+            raise TransportError("model inventory failed", reason="inventory_failed") from error
         finally:
             connection.close()
 
@@ -111,15 +122,15 @@ class LoopbackTransport:
             response = connection.getresponse()
             body = response.read()
             if response.status != 200:
-                raise TransportError(f"health returned HTTP {response.status}")
+                raise TransportError(f"health returned HTTP {response.status}", reason="http_status", http_status=response.status)
             payload = json.loads(body)
             if not isinstance(payload, dict):
-                raise TransportError("health payload is not an object")
+                raise TransportError("health payload is not an object", reason="health_invalid")
             return payload
         except TransportError:
             raise
         except (OSError, TimeoutError, ValueError, json.JSONDecodeError) as error:
-            raise TransportError("health probe failed") from error
+            raise TransportError("health probe failed", reason="health_failed") from error
         finally:
             connection.close()
 
@@ -146,10 +157,10 @@ class LoopbackTransport:
             headers = self._headers(credential)
             headers["Content-Type"] = "application/json"
             if cancel is not None and cancel.is_set():
-                raise TransportError("request cancelled")
+                raise TransportError("request cancelled", reason="cancelled")
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                raise TransportError("request timed out")
+                raise TransportError("request timed out", reason="timeout")
             connection.timeout = remaining
             self._call_before_deadline(
                 lambda: connection.request(
@@ -160,10 +171,10 @@ class LoopbackTransport:
                 cancel,
             )
             if cancel is not None and cancel.is_set():
-                raise TransportError("request cancelled")
+                raise TransportError("request cancelled", reason="cancelled")
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                raise TransportError("request timed out")
+                raise TransportError("request timed out", reason="timeout")
             request_socket = getattr(connection, "sock", None)
             if request_socket is not None:
                 request_socket.settimeout(remaining)
@@ -172,25 +183,25 @@ class LoopbackTransport:
             )
             if response.status != 200:
                 self._call_before_deadline(response.read, connection, deadline, cancel)
-                raise TransportError(f"chat request returned HTTP {response.status}")
+                raise TransportError(f"chat request returned HTTP {response.status}", reason="http_status", http_status=response.status)
             if "text/event-stream" not in response.getheader("Content-Type", ""):
-                raise TransportError("chat response is not an SSE stream")
+                raise TransportError("chat response is not an SSE stream", reason="not_sse")
             stream_socket = connection.sock
             if stream_socket is None:
                 stream_socket = getattr(getattr(getattr(response, "fp", None), "raw", None), "_sock", None)
             if stream_socket is None:
-                raise TransportError("chat stream failed")
+                raise TransportError("chat stream failed", reason="stream_setup_failed")
             stream_reader = getattr(response, "fp", None)
             if stream_reader is None or not hasattr(stream_reader, "read1"):
-                raise TransportError("chat stream failed")
+                raise TransportError("chat stream failed", reason="stream_setup_failed")
             pending = bytearray()
             stream_done = False
             while True:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    raise TransportError("request timed out")
+                    raise TransportError("request timed out", reason="timeout")
                 if cancel is not None and cancel.is_set():
-                    raise TransportError("request cancelled")
+                    raise TransportError("request cancelled", reason="cancelled")
                 stream_socket.settimeout(min(1.0, remaining))
                 try:
                     buffered = stream_reader.peek(1)
@@ -215,7 +226,7 @@ class LoopbackTransport:
                     if decoded in ("", "\r") or decoded.startswith(":"):
                         continue
                     if not decoded.startswith("data: "):
-                        raise TransportError("unsupported SSE framing")
+                        raise TransportError("unsupported SSE framing", reason="unsupported_sse")
                     data = decoded[6:].rstrip()
                     if data == "[DONE]":
                         stream_done = True
@@ -241,7 +252,7 @@ class LoopbackTransport:
                                 or isinstance(completion_value, bool)
                                 or completion_value < 0
                             ):
-                                raise TransportError("completion-token accounting is invalid")
+                                raise TransportError("completion-token accounting is invalid", reason="invalid_token_accounting")
                             completion_tokens = completion_value
                         details = usage.get("completion_tokens_details")
                         if isinstance(details, dict) and "reasoning_tokens" in details:
@@ -251,35 +262,35 @@ class LoopbackTransport:
                                 or isinstance(reasoning_value, bool)
                                 or reasoning_value < 0
                             ):
-                                raise TransportError("reasoning-token accounting is invalid")
+                                raise TransportError("reasoning-token accounting is invalid", reason="invalid_token_accounting")
                             reasoning_tokens = reasoning_value
                 if stream_done:
                     break
             if not stream_done:
-                raise TransportError("incomplete SSE stream")
+                raise TransportError("incomplete SSE stream", reason="incomplete_sse")
         except TransportError:
             raise
         except TimeoutError as error:
             if cancel is not None and cancel.is_set():
-                raise TransportError("request cancelled") from error
-            raise TransportError("request timed out") from error
+                raise TransportError("request cancelled", reason="cancelled") from error
+            raise TransportError("request timed out", reason="timeout") from error
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
-            raise TransportError("chat stream failed") from error
+            raise TransportError("chat stream failed", reason="stream_failed") from error
         finally:
             connection.close()
         ended = time.monotonic()
         if first_token is None:
-            raise TransportError("chat stream produced no content")
+            raise TransportError("chat stream produced no content", reason="empty_content")
         if last_content is None:
-            raise TransportError("chat stream content timing is unavailable")
+            raise TransportError("chat stream content timing is unavailable", reason="content_timing_unavailable")
         visible_output_tokens: int | None = None
         token_accounting_status = "INCOMPARABLE_TOKEN_ACCOUNTING"
         if completion_tokens is not None and reasoning_tokens is not None:
             if reasoning_tokens > completion_tokens:
-                raise TransportError("reasoning tokens exceed total completion tokens")
+                raise TransportError("reasoning tokens exceed total completion tokens", reason="invalid_token_accounting")
             visible_output_tokens = completion_tokens - reasoning_tokens
             if visible_output_tokens <= 0:
-                raise TransportError("visible output token count is invalid")
+                raise TransportError("visible output token count is invalid", reason="invalid_token_accounting")
             token_accounting_status = "EXACT_VISIBLE"
         joined = "".join(content)
         return TransportResult(

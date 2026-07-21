@@ -126,7 +126,11 @@ class FakeTransport:
                 cancel.set()
                 raise RuntimeError("prompt=private prompt Authorization=secret")
             if self.fail_chat_at == attempt:
-                raise RuntimeError("response body includes private prompt and Authorization=secret")
+                raise StageTwoError(
+                    "transport_failed",
+                    "Stage 2B inference transport failed",
+                    reason="timeout",
+                )
             if "Return exactly" in prompt:
                 content = (
                     "not-json" if self.invalid_structured else
@@ -961,11 +965,21 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
                 engine.run(threading.Event())
             self._assert_sanitized(context)
             self.assertEqual(context.exception.code, "transport_failed")
+            self.assertEqual(context.exception.reason, "timeout")
             self.assertEqual(len(transport.chat_calls), 1)
             self.assertEqual(engine.inference_request_attempts, 1)
             evidence = self._post_evidence(output)
             self.assertEqual(len(evidence), 1)
             self.assertNotIn("status", evidence[0])
+            attempts = [
+                json.loads(line)
+                for line in (output / self.manifest.run_id / "post-attempts.jsonl")
+                .read_text(encoding="utf-8").splitlines()
+            ]
+            failed = [row for row in attempts if row.get("phase") == "failed"]
+            self.assertEqual(len(failed), 1)
+            self.assertEqual(failed[0]["detail"], "timeout")
+            self.assertNotIn("prompt", json.dumps(failed[0]))
 
     def test_malformed_sse_prevents_next_post(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

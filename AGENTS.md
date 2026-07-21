@@ -45,8 +45,11 @@ Run the Python and Swift test suites after relevant changes. Preserve the legacy
   tree as schema `3.3.0` with authorizing profile revision `2`. On 2026-07-21
   Gate B reported `READY_FOR_MANIFEST_AUTHORIZATION` and Jason authorized
   unused run `stage2-20260721-001` (short-lived manifest; expires end of day
-  Eastern). Live eight-POST cohort still requires Coordinator prompt install
-  and one-time tool approvals. Stage 2B-2 remains unauthorized.
+  Eastern). That cohort cleaned as `STOPPED` after a first-POST transport
+  failure (`inference_path_acceptance: FAIL`). Jason authorized unused follow-up
+  run `stage2-20260721-002`. Live eight-POST retry still requires Coordinator
+  prompt + one-time tool approvals and a fresh Gate B if OptiQ was restarted.
+  Stage 2B-2 remains unauthorized.
 - Do not create additional run IDs or manifests without Jason's separate
   current-session authorization. Do not operate OptiQ/Osaurus lifecycle from
   the harness. Do not install a Coordinator prompt or issue inference without
