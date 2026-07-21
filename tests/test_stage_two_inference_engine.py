@@ -42,6 +42,28 @@ class FakeController:
             raise StageTwoError("operator_shutdown_pending", "still running")
 
 
+class RestartingController(FakeController):
+    """Reports stopped once, then reports the operator service as restarted."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.assert_stopped_calls = 0
+
+    def assert_stopped(self, identity: ProcessOwnership) -> None:
+        self.assert_stopped_calls += 1
+        if self.assert_stopped_calls == 1:
+            return
+        raise StageTwoError("operator_shutdown_pending", "operator service restarted")
+
+
+class MutableLockOwner:
+    def __init__(self, run_id: str) -> None:
+        self.value: str | None = run_id
+
+    def __call__(self) -> str | None:
+        return self.value
+
+
 class FakeTransport:
     def __init__(
         self,
@@ -259,6 +281,63 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
                 engine.cleanup()
             self._assert_sanitized(context)
             self.assertEqual(context.exception.code, "cleanup_failed")
+            self.assertFalse((output / self.manifest.run_id / "checksums.txt").exists())
+
+    def test_cleanup_fails_if_lock_disappears_before_seal(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            controller = FakeController()
+            lock_owner = MutableLockOwner(self.manifest.run_id)
+            engine = self._engine(output, FakeTransport(), controller, lock_owner=lock_owner)
+            engine.preflight()
+            engine.run(threading.Event())
+            controller.running = False
+
+            original_reconcile_memory = engine._reconcile_memory
+
+            def drop_lock_then_reconcile() -> None:
+                original_reconcile_memory()
+                lock_owner.value = None
+
+            engine._reconcile_memory = drop_lock_then_reconcile
+            with self.assertRaises(StageTwoError) as context:
+                engine.cleanup()
+            self.assertEqual(context.exception.code, "lock_identity_failed")
+            self.assertFalse((output / self.manifest.run_id / "checksums.txt").exists())
+
+    def test_cleanup_fails_if_lock_owner_is_replaced_before_seal(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            controller = FakeController()
+            lock_owner = MutableLockOwner(self.manifest.run_id)
+            engine = self._engine(output, FakeTransport(), controller, lock_owner=lock_owner)
+            engine.preflight()
+            engine.run(threading.Event())
+            controller.running = False
+
+            original_reconcile_memory = engine._reconcile_memory
+
+            def replace_lock_then_reconcile() -> None:
+                original_reconcile_memory()
+                lock_owner.value = "stage2-other"
+
+            engine._reconcile_memory = replace_lock_then_reconcile
+            with self.assertRaises(StageTwoError) as context:
+                engine.cleanup()
+            self.assertEqual(context.exception.code, "lock_identity_failed")
+            self.assertFalse((output / self.manifest.run_id / "checksums.txt").exists())
+
+    def test_cleanup_rechecks_shutdown_immediately_before_final_seal(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            controller = RestartingController()
+            engine = self._engine(output, FakeTransport(), controller)
+            engine.preflight()
+            engine.run(threading.Event())
+            with self.assertRaises(StageTwoError) as context:
+                engine.cleanup()
+            self.assertEqual(context.exception.code, "cleanup_failed")
+            self.assertEqual(controller.assert_stopped_calls, 2)
             self.assertFalse((output / self.manifest.run_id / "checksums.txt").exists())
 
     def test_cleanup_seals_complete_redacted_pass_bundle(self) -> None:

@@ -56,6 +56,36 @@ class LockingTest(unittest.TestCase):
                 lock.release("stage0-20260713-002")
             lock.release("stage0-20260713-001")
 
+    def test_release_fails_when_lock_file_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            lock = RunLock(Path(temp))
+            lock.acquire("run-a")
+            lock.path.unlink()
+            with self.assertRaises(LockError):
+                lock.release("run-a")
+
+    def test_assert_owner_fails_when_lock_file_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            lock = RunLock(Path(temp))
+            with self.assertRaises(LockError):
+                lock.assert_owner("run-a")
+
+    def test_assert_owner_fails_when_lock_owner_is_replaced(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            lock = RunLock(Path(temp))
+            lock.acquire("run-a")
+            lock.path.write_text("run-b\n", encoding="utf-8")
+            with self.assertRaises(LockError):
+                lock.assert_owner("run-a")
+
+    def test_assert_owner_succeeds_without_modifying_lock(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            lock = RunLock(Path(temp))
+            lock.acquire("run-a")
+            before = lock.path.read_bytes()
+            lock.assert_owner("run-a")
+            self.assertEqual(lock.path.read_bytes(), before)
+
 
 if __name__ == "__main__":
     unittest.main()

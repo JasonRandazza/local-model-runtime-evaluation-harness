@@ -933,6 +933,17 @@ class StageTwoInferenceEngine:
         }
 
     def _finalize_and_validate(self, summary: dict[str, object], *, partial: bool) -> dict[str, object]:
+        self._assert_current_lock()
+        identity = self._load_operator_identity()
+        shutdown_recheck_failed = False
+        try:
+            self.controller.assert_stopped(identity)
+        except Exception:
+            shutdown_recheck_failed = True
+        if shutdown_recheck_failed:
+            raise StageTwoError(
+                "cleanup_failed", "Stage 2B-1 cleanup could not be completed",
+            )
         if partial:
             self.bundle.finalize_partial(summary)
         else:
@@ -998,6 +1009,7 @@ class StageTwoInferenceEngine:
                 raise StageTwoError(
                     "evidence_incomplete", "review-ready or stopped Stage 2B-1 evidence is required",
                 )
+            self._assert_current_lock()
             identity = self._load_operator_identity()
             shutdown_verification_failed = False
             try:
