@@ -40,6 +40,14 @@ STAGE_TWO_INFERENCE_REQUIRED_FILES = {
     "inference-suite.json", "raw-runs.jsonl", "smoke-summary.json",
     "direct-observations.json", "routed-observations.json", "summary.json",
 }
+STAGE_TWO_BENCHMARK_REQUIRED_FILES = {
+    "manifest.json", "preflight.json", "runtime-identity.json",
+    "artifact-identity.json", "operator-service-identity.json",
+    "service-events.jsonl", "request-evidence.jsonl", "post-attempts.jsonl",
+    "endpoint-inventory.json", "memory-samples.jsonl", "lifecycle.jsonl",
+    "benchmark-suite.json", "raw-runs.jsonl", "benchmark-summary.json",
+    "direct-observations.json", "routed-observations.json", "summary.json",
+}
 
 
 class ArtifactError(RuntimeError):
@@ -106,6 +114,12 @@ class ArtifactBundle:
         except (OSError, json.JSONDecodeError) as error:
             raise ArtifactError("manifest artifact is unavailable") from error
         if manifest.get("stage") == 2:
+            if (
+                manifest.get("mode") == "operator_route_benchmark"
+                and manifest.get("schema_version") == "3.4.0"
+                and manifest.get("runtime_profile_revision") == "2"
+            ):
+                return STAGE_TWO_BENCHMARK_REQUIRED_FILES
             if (
                 manifest.get("mode") == "operator_inference_probe"
                 and (

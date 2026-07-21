@@ -8,7 +8,7 @@ import threading
 from types import MappingProxyType
 from typing import Callable, Mapping, Protocol
 
-from .artifacts import ArtifactBundle
+from .artifacts import ArtifactBundle, ArtifactError
 from .lifecycle import LifecycleStore
 from .models import BenchmarkManifest, Operation, RunStatus
 from .post_attempt_journal import PostAttemptJournal, PostAttemptPhase
@@ -1133,6 +1133,11 @@ class StageTwoBenchmarkEngine:
             return self._finalize_and_validate(self._complete_summary(benchmark), partial=False)
         except StageTwoError as error:
             failure = error
+        except ArtifactError as error:
+            failure = StageTwoError(
+                "evidence_incomplete",
+                f"Stage 2B-2 cleanup evidence could not be sealed: {error}",
+            )
         except Exception:
             failure = StageTwoError(
                 "evidence_incomplete", "Stage 2B-2 cleanup evidence could not be sealed",

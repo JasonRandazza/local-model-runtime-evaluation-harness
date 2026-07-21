@@ -138,6 +138,17 @@ class StageTwoBenchmarkEngineTest(unittest.TestCase):
             lambda: self.manifest.run_id,
         )
 
+    def _complete_and_shutdown(
+        self, output: Path, transport: FakeTransport | None = None,
+    ) -> tuple[StageTwoBenchmarkEngine, FakeController, FakeTransport]:
+        controller = FakeController()
+        actual_transport = transport or FakeTransport()
+        engine = self._engine(output, actual_transport, controller)
+        engine.preflight()
+        engine.run(threading.Event())
+        controller.running = False
+        return engine, controller, actual_transport
+
     def test_happy_path_runs_seventy_two_posts_with_pass_acceptance(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             output = Path(temp)
@@ -217,6 +228,30 @@ class StageTwoBenchmarkEngineTest(unittest.TestCase):
                 engine.cleanup()
             self.assertEqual(context.exception.code, "cleanup_failed")
             self.assertFalse((output / self.manifest.run_id / "checksums.txt").exists())
+
+    def test_cleanup_seals_complete_redacted_pass_bundle(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            engine, _, _ = self._complete_and_shutdown(output)
+            result = engine.cleanup()
+            self.assertEqual(result["disposition"], "PASS")
+            self.assertEqual(result["inference_path_acceptance"], "PASS")
+            self.assertEqual(result["behavioral_contract_acceptance"], "PASS")
+            self.assertEqual(result["checksum_validation"], "PASS")
+            run_dir = output / self.manifest.run_id
+            artifact_bytes = b"".join(
+                path.read_bytes() for path in run_dir.iterdir() if path.is_file()
+            )
+            for forbidden in (
+                b"In two sentences, explain why reproducible measurements matter.",
+                b"Return exactly this JSON object with no markdown or extra text:",
+                b"Reproducible measurements make comparisons reliable.",
+                b"Authorization", b"Bearer", b"fake-secret",
+            ):
+                self.assertNotIn(forbidden, artifact_bytes)
+            self.assertFalse((run_dir / "draft-report.md").exists())
+            self.assertFalse((run_dir / "route-comparison.json").exists())
+            self.assertNotIn(b"stable_median", artifact_bytes)
 
     def test_rejects_wrong_manifest_mode(self) -> None:
         altered = replace(self.manifest, mode="operator_inference_probe")
