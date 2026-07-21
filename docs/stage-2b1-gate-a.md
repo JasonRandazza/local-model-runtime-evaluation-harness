@@ -2,29 +2,43 @@
 
 ## Current Decision
 
-`GATE_A_STOPPED`. The deterministic implementation passed its automated test
-baseline, but final architecture review found five blocking safety gaps: hard
-wall-clock deadline enforcement, strict SSE framing, cleanup lock/shutdown
-rechecks, durable POST-attempt evidence, and exact lifecycle reconciliation
-during resealing. Gate B and all live work remain blocked until focused
-remediation and a clean independent review. See
-`docs/handoffs/2026-07-15-stage-2b1-cursor-continuation-prompt.md`.
+`GATE_A_FINDINGS_CLOSED` (Jason, 2026-07-20). The five architecture-review
+findings have in-tree code-and-test remediation on `main`, and Jason accepted
+Gate A as complete for moving to Slice 2 (Gemma schema `3.3.0` retarget).
 
-All five findings now have code-and-test remediation in-tree, pending an
-independent architecture review. This does not change the decision:
-`GATE_A_STOPPED` remains in effect and Gate B and live work remain blocked.
+Gate B, usable run IDs, live manifests, provider reconnect for a Stage 2B run,
+and eight-POST smoke remain blocked until Slice 2 lands, is reviewed, and Jason
+separately authorizes Gate B for the Gemma profile. See
+`docs/superpowers/specs/2026-07-20-stage-2b1-gemma-retarget-design.md`.
+
+Historical note: the prior `GATE_A_STOPPED` decision and the five findings are
+documented in `docs/handoffs/2026-07-15-stage-2b1-cursor-continuation-prompt.md`
+and `docs/superpowers/verification/2026-07-20-stage-2b1-gate-a-findings.md`.
 
 Stage 2B-1 is a bounded inference-path acceptance check, not a benchmark. It exercises two fixed workloads once per route as four excluded warm-ups and four measured requests: eight total serial inference requests and eight HTTP POSTs. The cohort is intentionally too small for stable medians, throughput claims, quality rankings, or route-performance conclusions.
 
 ## Fixed Contract
 
-| Item | Required value |
+Historical Gate A / VibeThinker authorizing shape (parseable evidence only after
+Slice 2; not for new live authorization):
+
+| Item | Historical value |
 |---|---|
 | Manifest schema | `3.2.0` |
 | Mode | `operator_inference_probe` |
 | Comparison class | `optiq-operator-route-smoke` |
 | Runtime profile | `vibethinker-3b-optiq-4bit` revision `3` |
 | Suite | `optiq-route-smoke-v1` revision `1` |
+
+Upcoming live authorizing shape (Slice 2 — see Gemma retarget design):
+
+| Item | Required value |
+|---|---|
+| Manifest schema | `3.3.0` |
+| Mode | `operator_inference_probe` |
+| Comparison class | `gemma-optiq-operator-route-smoke` |
+| Runtime profile | `gemma-4-12b-optiq-4bit` revision `1` |
+| Suite | `gemma-optiq-route-smoke-v1` revision `1` |
 | Direct route | `http://127.0.0.1:8080/v1` |
 | Routed route | `http://127.0.0.1:1337/v1` |
 | Route order | one counterbalanced repetition |
@@ -34,6 +48,7 @@ Stage 2B-1 is a bounded inference-path acceptance check, not a benchmark. It exe
 | Total request limit | `8` |
 | Coordinator model | `gemma-4-12b-it-qat-jang_4m` |
 | Plugin | `local.jrazz.model-runtime-evaluation-harness` `0.3.0` |
+| Expected routed ID | `optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit` (exact inventory match) |
 
 The only acceptance decisions are `inference_path_acceptance` and `behavioral_contract_acceptance`. Evidence remains sanitized: it excludes prompts, generated output, request payloads, headers, credentials, and process details.
 
