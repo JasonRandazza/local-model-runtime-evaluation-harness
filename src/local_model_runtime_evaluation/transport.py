@@ -7,6 +7,7 @@ import select
 import threading
 import time
 from dataclasses import dataclass
+from typing import Callable
 from urllib.parse import urlparse
 
 from .credentials import Credential
@@ -54,6 +55,39 @@ class LoopbackTransport:
     @staticmethod
     def _headers(credential: Credential | None) -> dict[str, str]:
         return {} if credential is None else {"Authorization": credential.authorization_header()}
+
+    @staticmethod
+    def _call_before_deadline(
+        call: Callable[[], object], connection: http.client.HTTPConnection, deadline: float,
+        cancel: threading.Event | None,
+    ) -> object:
+        result: list[object] = []
+        errors: list[BaseException] = []
+        completed = threading.Event()
+
+        def run() -> None:
+            try:
+                result.append(call())
+            except BaseException as error:
+                errors.append(error)
+            finally:
+                completed.set()
+
+        threading.Thread(target=run, daemon=True).start()
+        while not completed.wait(min(0.1, max(0.0, deadline - time.monotonic()))):
+            if cancel is not None and cancel.is_set():
+                connection.close()
+                raise TransportError("request cancelled")
+            if time.monotonic() >= deadline:
+                connection.close()
+                raise TransportError("request timed out")
+        if cancel is not None and cancel.is_set():
+            raise TransportError("request cancelled")
+        if time.monotonic() >= deadline:
+            raise TransportError("request timed out")
+        if errors:
+            raise errors[0]
+        return result[0]
 
     def list_models(self, base_url: str, credential: Credential | None) -> tuple[str, ...]:
         connection, path = self._connection(base_url)
@@ -117,7 +151,14 @@ class LoopbackTransport:
             if remaining <= 0:
                 raise TransportError("request timed out")
             connection.timeout = remaining
-            connection.request("POST", f"{path}/chat/completions", body=payload, headers=headers)
+            self._call_before_deadline(
+                lambda: connection.request(
+                    "POST", f"{path}/chat/completions", body=payload, headers=headers
+                ),
+                connection,
+                deadline,
+                cancel,
+            )
             if cancel is not None and cancel.is_set():
                 raise TransportError("request cancelled")
             remaining = deadline - time.monotonic()
@@ -126,9 +167,11 @@ class LoopbackTransport:
             request_socket = getattr(connection, "sock", None)
             if request_socket is not None:
                 request_socket.settimeout(remaining)
-            response = connection.getresponse()
+            response = self._call_before_deadline(
+                connection.getresponse, connection, deadline, cancel
+            )
             if response.status != 200:
-                response.read()
+                self._call_before_deadline(response.read, connection, deadline, cancel)
                 raise TransportError(f"chat request returned HTTP {response.status}")
             if "text/event-stream" not in response.getheader("Content-Type", ""):
                 raise TransportError("chat response is not an SSE stream")

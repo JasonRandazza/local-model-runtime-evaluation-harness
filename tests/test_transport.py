@@ -18,8 +18,11 @@ class Handler(BaseHTTPRequestHandler):
     stream_stall_seconds = 0.0
     stream_fragmented = False
     stream_trickle_interval = 0.0
+    response_header_trickle_interval = 0.0
+    error_body_trickle_interval = 0.0
     first_event_sent = threading.Event()
     stream_release = threading.Event()
+    response_release = threading.Event()
 
     def log_message(self, format: str, *args: object) -> None:
         return
@@ -45,6 +48,38 @@ class Handler(BaseHTTPRequestHandler):
         Handler.authorization = self.headers.get("Authorization", "")
         length = int(self.headers.get("Content-Length", "0"))
         json.loads(self.rfile.read(length))
+        if Handler.response_header_trickle_interval:
+            raw_headers = (
+                b"HTTP/1.1 200 OK\r\n"
+                b"Content-Type: text/event-stream\r\n"
+                b"Content-Length: 14\r\n"
+                b"\r\n"
+            )
+            try:
+                for byte in raw_headers:
+                    if Handler.response_release.wait(Handler.response_header_trickle_interval):
+                        return
+                    self.wfile.write(bytes((byte,)))
+                    self.wfile.flush()
+                self.wfile.write(b"data: [DONE]\n\n")
+            except BrokenPipeError:
+                return
+            return
+        if Handler.error_body_trickle_interval:
+            body = b'{"error":"trickled response body past deadline"}'
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            try:
+                for byte in body:
+                    if Handler.response_release.wait(Handler.error_body_trickle_interval):
+                        return
+                    self.wfile.write(bytes((byte,)))
+                    self.wfile.flush()
+            except BrokenPipeError:
+                return
+            return
         usage = {"completion_tokens": 4}
         if Handler.include_reasoning_details:
             usage["completion_tokens_details"] = {
@@ -109,8 +144,11 @@ class TransportTest(unittest.TestCase):
         Handler.stream_stall_seconds = 0.0
         Handler.stream_fragmented = False
         Handler.stream_trickle_interval = 0.0
+        Handler.response_header_trickle_interval = 0.0
+        Handler.error_body_trickle_interval = 0.0
         Handler.first_event_sent = threading.Event()
         Handler.stream_release = threading.Event()
+        Handler.response_release = threading.Event()
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -118,6 +156,7 @@ class TransportTest(unittest.TestCase):
 
     def tearDown(self) -> None:
         Handler.stream_release.set()
+        Handler.response_release.set()
         self.server.shutdown()
         self.server.server_close()
         self.thread.join()
@@ -183,6 +222,26 @@ class TransportTest(unittest.TestCase):
         self.assertLess(elapsed, 4.0)
         self.assertIn("timed out", str(ctx.exception).lower())
         self.assertNotIn("secret-prompt", str(ctx.exception))
+
+    def test_chat_enforces_deadline_while_receiving_trickled_response_headers(self) -> None:
+        Handler.response_header_trickle_interval = 0.1
+        transport = LoopbackTransport({self.base_url}, timeout_seconds=1)
+        started = time.monotonic()
+
+        with self.assertRaisesRegex(TransportError, "^request timed out$"):
+            transport.chat(self.base_url, "model", "secret-prompt", 16, None)
+
+        self.assertLess(time.monotonic() - started, 3.0)
+
+    def test_chat_enforces_deadline_while_draining_trickled_error_body(self) -> None:
+        Handler.error_body_trickle_interval = 0.1
+        transport = LoopbackTransport({self.base_url}, timeout_seconds=1)
+        started = time.monotonic()
+
+        with self.assertRaisesRegex(TransportError, "^request timed out$"):
+            transport.chat(self.base_url, "model", "secret-prompt", 16, None)
+
+        self.assertLess(time.monotonic() - started, 3.0)
 
     def test_chat_observes_cancellation_during_blocked_stream_read(self) -> None:
         Handler.stream_stall_seconds = 10.0
