@@ -211,12 +211,12 @@ class LoopbackTransport:
                     newline = pending.index(b"\n")
                     line = bytes(pending[:newline])
                     del pending[:newline + 1]
-                    decoded = line.decode("utf-8").strip()
-                    if not decoded or decoded.startswith(":"):
+                    decoded = line.decode("utf-8")
+                    if decoded in ("", "\r") or decoded.startswith(":"):
                         continue
                     if not decoded.startswith("data: "):
                         raise TransportError("unsupported SSE framing")
-                    data = decoded[6:]
+                    data = decoded[6:].rstrip()
                     if data == "[DONE]":
                         stream_done = True
                         break

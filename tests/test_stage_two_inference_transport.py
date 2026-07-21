@@ -198,6 +198,24 @@ class StageTwoInferenceTransportTest(unittest.TestCase):
         self.assertEqual(raised.exception.code, "transport_failed")
         self.assertNotIn("prompt secret", str(raised.exception))
 
+    def test_rejects_leading_whitespace_sse_framing_without_prompt_leakage(self) -> None:
+        for invalid_line in (
+            b' data: {"choices":[{"delta":{"content":"ignored"},"finish_reason":null}]}\n\n',
+            b" : keepalive\n\n",
+        ):
+            with self.subTest(invalid_line=invalid_line):
+                CaptureHandler.post_body = (
+                    invalid_line
+                    + b'data: {"choices":[{"delta":{"content":"reply"},"finish_reason":"stop"}]}\n\n'
+                    + b"data: [DONE]\n\n"
+                )
+                with self.assertRaises(StageTwoError) as raised:
+                    self.transport.chat(
+                        self.base_url, "model-id", "prompt secret", 128, threading.Event()
+                    )
+                self.assertEqual(raised.exception.code, "transport_failed")
+                self.assertNotIn("prompt secret", str(raised.exception))
+
     def test_translates_cancellation_without_exposing_prompt(self) -> None:
         cancel = threading.Event()
         cancel.set()

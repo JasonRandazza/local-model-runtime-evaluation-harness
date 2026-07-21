@@ -358,6 +358,23 @@ class TransportTest(unittest.TestCase):
 
         self.assertEqual(result.content, "reply")
 
+    def test_chat_rejects_leading_whitespace_sse_framing(self) -> None:
+        for invalid_line in (
+            b' data: {"choices":[{"delta":{"content":"ignored"},"finish_reason":null}]}\n\n',
+            b" : keepalive\n\n",
+        ):
+            with self.subTest(invalid_line=invalid_line):
+                Handler.stream_body_override = (
+                    invalid_line
+                    + b'data: {"choices":[{"delta":{"content":"reply"},"finish_reason":"stop"}]}\n\n'
+                    + b"data: [DONE]\n\n"
+                )
+
+                with self.assertRaisesRegex(TransportError, "framing"):
+                    LoopbackTransport({self.base_url}).chat(
+                        self.base_url, "model", "prompt", 16, None
+                    )
+
     def test_chat_rejects_malformed_data_payload(self) -> None:
         Handler.stream_body_override = b"data: {not-json}\n\ndata: [DONE]\n\n"
 
