@@ -72,14 +72,14 @@ The accepted Stage 2A revision-3 baseline remains the rollback and service-owner
 1. Keep OptiQ Lab closed.
 2. Start the Stage 2B-1 foreground launcher `bin/lmre-stage2-operator-serve-gemma` and leave it open. (Leave `bin/lmre-stage2-operator-serve` untouched as Stage 2A historical rollback.)
 3. Reconnect the existing `Optiq` provider without editing it.
-4. Ask Codex to run read-only Gate B (`bin/lmre-stage2-gate-b-check`), which pins `gemma-4-12b-optiq-4bit` revision `2` and the exact path-based `:no-think` routed ID.
+4. Ask the host agent (Cursor or Codex) to run read-only Gate B (`bin/lmre-stage2-gate-b-check`), which pins `gemma-4-12b-optiq-4bit` revision `2` and the exact path-based `:no-think` routed ID.
 5. Authorize one exact unused ID only after Gate B reports ready.
-6. Materialize a short-lived manifest from `manifests/stage-2-optiq-inference-smoke.json.template` for that ID only (placeholder approval fields are never live authority).
+6. Have the host agent materialize a short-lived manifest from `manifests/stage-2-optiq-inference-smoke.json.template` for that ID only (`approved_by` remains Jason; placeholder approval fields are never live authority).
 7. Install the Stage 2B-1 Coordinator prompt and use a fresh Coordinator chat.
 8. Approve `inventory`, `preflight`, and `run_scenario` individually with one-time approval.
 9. Run `bin/lmre-stage2-wait <run-id>` and wait for the operator shutdown result.
 10. Stop the foreground OptiQ launcher with `Control-C`.
 11. Return to the Coordinator for one `status` call and one `cleanup` call.
-12. Return the sanitized Coordinator report to Codex for manager review.
+12. Return the sanitized Coordinator report to the host agent for manager review.
 
 No tool may be approved persistently. The Coordinator has no ambient filesystem, Sandbox, Search, MCP, memory, provider-editing, service-lifecycle, or subagent authority.
