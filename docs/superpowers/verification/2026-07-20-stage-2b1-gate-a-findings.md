@@ -20,10 +20,43 @@ port are environment dependencies outside the deterministic Gate A cohort.
 
 | Check | Command | Result |
 |---|---|---|
-| Active usable Stage 2B-1 manifest | `rg -n '"schema_version"\s*:\s*"3\.2\.0"|"mode"\s*:\s*"operator_inference_probe"' manifests --glob '*.json'` | PASS: no active Stage 2B-1 manifest. The directory retains only historical Stage 2A schemas `3.0.0`/`3.1.0` with expired run IDs. |
+| Manifest directory and template exclusion | `rg --files manifests tests/fixtures | sort` followed by `rg -n '"schema_version"\s*:\s*"3\.2\.0"|"mode"\s*:\s*"operator_inference_probe"' manifests --glob '*.json' --glob '!*.json.template'` | PASS: `manifests/` exists and contains only live JSON records for schemas `1.0.0`–`3.1.0`; the Stage 2B-1 template is `manifests/stage-2-optiq-inference-smoke.json.template`, and the excluded live-JSON scan returned no matches. |
+| Stage 2B-1 usable-ID separation | The explicit Python check below scans `manifests/*.json`, `manifests/*.json.template`, and `tests/fixtures/*.json` for schema `3.2.0` plus mode `operator_inference_probe`, then asserts no matching live manifest and no matching live run ID. | PASS: live manifests `[]`; template `['stage-2-optiq-inference-smoke.json.template']`; fixtures `['valid-stage-2-inference.json']`. The concrete fixture ID `stage2-20260715-901` is test data, not a live manifest or authorization. |
 | Provider mutation | `rg -n -i '(create|update|delete|mutate|configure|reconnect).*provider|provider.*(create|update|delete|mutate|configure|reconnect)' src/local_model_runtime_evaluation --glob '*.py'` | PASS: no provider mutation helper; matches only declare the operator-required reconnect policy. |
 | Credential serialization | `rg -n -i '(write|dump|serialize|persist|record).*(credential|api[_-]?key|authorization|token|secret)|(credential|api[_-]?key|authorization|token|secret).*(write|dump|serialize|persist|record)' src/local_model_runtime_evaluation --glob '*.py'` | PASS: no credential serialization match. |
 | Stage 2B-2 authority | `rg -n -i '(stage.?2b.?2|stage_two_b_two|StageTwoB2)' src/local_model_runtime_evaluation --glob '*.py'` | PASS: no executable authority symbols found. |
+
+The usable-ID validation was run from the repository root:
+
+```sh
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+def stage_2b1(paths):
+    matches = []
+    for path in paths:
+        data = json.loads(path.read_text())
+        if (data.get("schema_version") == "3.2.0"
+                and data.get("mode") == "operator_inference_probe"):
+            matches.append((path.name, data.get("run_id")))
+    return matches
+
+live = stage_2b1(Path("manifests").glob("*.json"))
+templates = stage_2b1(Path("manifests").glob("*.json.template"))
+fixtures = stage_2b1(Path("tests/fixtures").glob("*.json"))
+assert not live
+assert not any(run_id and "YYYYMMDD" not in run_id for _, run_id in live)
+print("live:", live)
+print("templates:", templates)
+print("fixtures:", fixtures)
+PY
+```
+
+It printed `live: []`, `templates: [('stage-2-optiq-inference-smoke.json.template',
+'stage2-YYYYMMDD-NNN')]`, and `fixtures: [('valid-stage-2-inference.json',
+'stage2-20260715-901')]`. The fixture's concrete ID is therefore proven to be
+outside the live-manifest directory; it is not a usable authorized run.
 
 ## Residual live-only risks
 
