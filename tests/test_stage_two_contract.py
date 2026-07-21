@@ -26,7 +26,7 @@ class StageTwoContractTest(unittest.TestCase):
             bundle = ArtifactBundle.create(manifest, Path(temp))
             jsonl = {
                 "lifecycle.jsonl", "service-events.jsonl", "memory-samples.jsonl",
-                "request-evidence.jsonl", "raw-runs.jsonl",
+                "request-evidence.jsonl", "raw-runs.jsonl", "post-attempts.jsonl",
             }
             for name in STAGE_TWO_INFERENCE_REQUIRED_FILES - {"manifest.json", "summary.json"} - jsonl:
                 bundle.write_json(name, {"ok": True})

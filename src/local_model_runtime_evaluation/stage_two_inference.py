@@ -11,6 +11,7 @@ from typing import Callable, Mapping, Protocol
 from .artifacts import ArtifactBundle
 from .lifecycle import LifecycleStore
 from .models import BenchmarkManifest, Operation, RunStatus
+from .post_attempt_journal import PostAttemptJournal, PostAttemptPhase
 from .resources import MemoryPressure, ResourcePolicy, ResourceSnapshot
 from .stage_two import (
     HostValidation,
@@ -159,6 +160,7 @@ class StageTwoInferenceEngine:
         self.lock_owner = lock_owner
         self.lifecycle = LifecycleStore(output_root)
         self.bundle = ArtifactBundle.create(manifest, output_root)
+        self.post_attempt_journal = PostAttemptJournal(self.bundle)
         self.inference_request_attempts = 0
         self.http_post_attempts = 0
         self.observations: list[SmokeObservation] = []
@@ -533,16 +535,33 @@ class StageTwoInferenceEngine:
         workload_id: str,
         route: str,
     ) -> TransportResult:
+        self.post_attempt_journal.record(
+            sequence=sequence, phase=PostAttemptPhase.PREPARED,
+            workload_id=workload_id, route=route,
+        )
+        self.post_attempt_journal.record(
+            sequence=sequence, phase=PostAttemptPhase.DISPATCHED,
+            workload_id=workload_id, route=route,
+        )
         succeeded, result = self._external_call(
             lambda: self.transport.chat(base_url, model_id, prompt, max_tokens, cancel)
         )
         if not succeeded or not isinstance(result, TransportResult):
+            self.post_attempt_journal.record(
+                sequence=sequence, phase=PostAttemptPhase.FAILED,
+                workload_id=workload_id, route=route,
+                detail="cancelled" if cancel.is_set() else "transport_failed",
+            )
             self._post_attempt_evidence(
                 sequence, workload_id, route, model_id, max_tokens, None,
             )
             if cancel.is_set():
                 raise StageTwoError("cancelled", "Stage 2B-1 cancelled during request")
             raise StageTwoError("transport_failed", "Stage 2B-1 chat transport failed")
+        self.post_attempt_journal.record(
+            sequence=sequence, phase=PostAttemptPhase.COMPLETED,
+            workload_id=workload_id, route=route,
+        )
         status = result.http_status if type(result.http_status) is int else None
         self._post_attempt_evidence(
             sequence, workload_id, route, model_id, max_tokens, status,
@@ -806,6 +825,15 @@ class StageTwoInferenceEngine:
                 raise StageTwoError("evidence_incomplete", "Stage 2B-1 observation evidence is invalid") from None
         return observations
 
+    def _conservative_post_attempts(self, posts: list[Mapping[str, object]]) -> int:
+        """Never claim fewer POSTs than the durable journal recorded as dispatched.
+
+        `request-evidence.jsonl` and the journal are independently appended;
+        when they disagree, the journal is the crash-consistent authority and
+        the higher (more conservative) count wins.
+        """
+        return max(len(posts), self.post_attempt_journal.conservative_post_count())
+
     def _reconcile_partial_observations(
         self, posts: list[Mapping[str, object]],
     ) -> list[SmokeObservation]:
@@ -980,8 +1008,9 @@ class StageTwoInferenceEngine:
             )
             posts = self._reconcile_request_evidence(complete=False)
             observations = self._reconcile_partial_observations(posts)
+            post_attempts = self._conservative_post_attempts(posts)
             if summary != self._partial_summary(
-                terminal, post_attempts=len(posts), observations=len(observations),
+                terminal, post_attempts=post_attempts, observations=len(observations),
             ):
                 raise StageTwoError("evidence_incomplete", "cleaned Stage 2B-1 summary is invalid")
             partial = True
@@ -1038,9 +1067,10 @@ class StageTwoInferenceEngine:
                 self._assert_redacted_artifacts()
                 posts = self._reconcile_request_evidence(complete=False)
                 observations = self._reconcile_partial_observations(posts)
+                post_attempts = self._conservative_post_attempts(posts)
                 return self._finalize_and_validate(
                     self._partial_summary(
-                        state.status, post_attempts=len(posts), observations=len(observations),
+                        state.status, post_attempts=post_attempts, observations=len(observations),
                     ), partial=True,
                 )
             self._reconcile_endpoint_identity()

@@ -35,7 +35,7 @@ STAGE_TWO_REVISION_THREE_REQUIRED_FILES = {
 STAGE_TWO_INFERENCE_REQUIRED_FILES = {
     "manifest.json", "preflight.json", "runtime-identity.json",
     "artifact-identity.json", "operator-service-identity.json",
-    "service-events.jsonl", "request-evidence.jsonl",
+    "service-events.jsonl", "request-evidence.jsonl", "post-attempts.jsonl",
     "endpoint-inventory.json", "memory-samples.jsonl", "lifecycle.jsonl",
     "inference-suite.json", "raw-runs.jsonl", "smoke-summary.json",
     "direct-observations.json", "routed-observations.json", "summary.json",

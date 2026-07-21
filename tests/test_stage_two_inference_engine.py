@@ -933,6 +933,46 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
             evidence = self._post_evidence(output)
             self.assertEqual(evidence[0]["status"], 500)
 
+    def test_dispatch_journal_survives_when_post_evidence_append_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            controller = FakeController()
+            transport = FakeTransport()
+            engine = self._engine(output, transport, controller)
+            engine.preflight()
+            append = engine.bundle.append_jsonl
+
+            def fail_post_evidence(name, payload):
+                if name == "request-evidence.jsonl" and payload.get("method") == "POST":
+                    raise RuntimeError("response private prompt Authorization=secret")
+                append(name, payload)
+
+            engine.bundle.append_jsonl = fail_post_evidence
+            with self.assertRaises(StageTwoError) as context:
+                engine.run(threading.Event())
+            self._assert_sanitized(context)
+            self.assertEqual(len(transport.chat_calls), 1)
+            self.assertEqual(engine.lifecycle.read(self.manifest.run_id).status.value, "failed")
+
+            journal_path = output / self.manifest.run_id / "post-attempts.jsonl"
+            self.assertTrue(journal_path.is_file())
+            phases = [
+                json.loads(line)["phase"]
+                for line in journal_path.read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertIn("dispatched", phases)
+
+            controller.running = False
+            result = engine.cleanup()
+            self.assertEqual(result["disposition"], "STOPPED")
+            self.assertGreaterEqual(result["http_post_attempts"], 1)
+            self.assertGreaterEqual(result["inference_request_attempts"], 1)
+            self.assertEqual(len(self._post_evidence(output)), 0)
+
+            recovered = self._engine(output, transport, controller).cleanup()
+            self.assertEqual(recovered["disposition"], "STOPPED")
+            self.assertGreaterEqual(recovered["http_post_attempts"], 1)
+
     def test_artifact_append_failure_prevents_next_post_and_is_sanitized(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             transport = FakeTransport()
