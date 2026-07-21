@@ -152,10 +152,48 @@ class ArtifactBundle:
         self._write_checksums()
 
     def reseal_after_state_transition(
-        self, *, expected_lifecycle_lines: tuple[str, ...],
+        self,
+        *,
+        expected_lifecycle_lines: tuple[str, ...],
+        prior_lifecycle_lines: tuple[str, ...] | None = None,
     ) -> None:
+        """Rewrite checksums.txt after a lifecycle-only artifact change.
+
+        ``expected_lifecycle_lines`` must equal the actual on-disk
+        ``lifecycle.jsonl`` content, exactly as before. That alone is not
+        sufficient: both values can be derived from the same (possibly
+        tampered) current file, so a legal-looking chain prefix — e.g. a
+        truncated trailing row — would trivially satisfy it. To anchor
+        against tampering that predates this call and cannot be detected by
+        re-reading the current file, the caller's expected history is also
+        required to reconcile with the digest already sealed in
+        ``checksums.txt`` for ``lifecycle.jsonl``:
+
+        - If no new transition was written during this call
+          (``prior_lifecycle_lines`` is ``None``), the current file must be
+          byte-identical to what was already sealed: hashing
+          ``expected_lifecycle_lines`` must reproduce the sealed digest.
+          Recovery/reseal paths that perform no new transition use this
+          branch, so a truncated, appended, or otherwise altered
+          ``lifecycle.jsonl`` cannot be re-checksummed as authentic evidence.
+        - If a new transition was written during this call, the caller
+          supplies the in-memory snapshot of ``lifecycle.jsonl`` captured
+          immediately before that transition was written
+          (``prior_lifecycle_lines``). That snapshot, not the current file,
+          must reproduce the sealed digest, proving no tampering occurred
+          before this transition began.
+        """
         if not (self.path / "checksums.txt").is_file():
             raise ArtifactError("artifact bundle must be finalized before resealing")
+        anchor_lines = (
+            expected_lifecycle_lines if prior_lifecycle_lines is None else prior_lifecycle_lines
+        )
+        sealed_digest = self._sealed_digest("lifecycle.jsonl")
+        if sealed_digest != self._lifecycle_digest(anchor_lines):
+            raise ArtifactError(
+                "lifecycle history does not match the checksum already sealed "
+                "for lifecycle.jsonl"
+            )
         actual_lines = tuple(
             (self.path / "lifecycle.jsonl").read_text(encoding="utf-8").splitlines()
         )
@@ -165,6 +203,19 @@ class ArtifactBundle:
             )
         self._validate_checksums(allowed_changes={"lifecycle.jsonl"})
         self._write_checksums()
+
+    def _sealed_digest(self, name: str) -> str:
+        checksum_path = self.path / "checksums.txt"
+        for line in checksum_path.read_text(encoding="utf-8").splitlines():
+            digest, entry_name = line.split("  ", 1)
+            if entry_name == name:
+                return digest
+        raise ArtifactError(f"checksums.txt has no sealed entry for {name}")
+
+    @staticmethod
+    def _lifecycle_digest(lines: tuple[str, ...]) -> str:
+        content = ("\n".join(lines) + "\n").encode("utf-8") if lines else b""
+        return hashlib.sha256(content).hexdigest()
 
     def validate(self) -> BundleValidation:
         validation = self.validate_partial()

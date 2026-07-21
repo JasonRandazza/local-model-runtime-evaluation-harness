@@ -73,12 +73,15 @@ class ArtifactTest(unittest.TestCase):
             bundle.write_json("inventory.json", {"commands": {}})
             bundle.append_event({"state": "queued"})
             bundle.finalize({"disposition": "STOPPED"})
+            prior = self._lifecycle_lines(bundle)
             with (bundle.path / "lifecycle.jsonl").open("a", encoding="utf-8") as handle:
                 handle.write('{"state":"cleaned"}\n')
             (bundle.path / "checksums.txt.tmp").write_text("interrupted replacement\n")
             expected = self._lifecycle_lines(bundle)
 
-            bundle.reseal_after_state_transition(expected_lifecycle_lines=expected)
+            bundle.reseal_after_state_transition(
+                expected_lifecycle_lines=expected, prior_lifecycle_lines=prior,
+            )
 
             self.assertFalse((bundle.path / "checksums.txt.tmp").exists())
             self.assertTrue(bundle.validate().valid)
@@ -140,6 +143,57 @@ class ArtifactTest(unittest.TestCase):
         (bundle.path / "lifecycle.jsonl").write_text(modified, encoding="utf-8")
         with self.assertRaisesRegex(ArtifactError, "lifecycle history"):
             bundle.reseal_after_state_transition(expected_lifecycle_lines=expected)
+
+    def test_reseal_rejects_a_trailing_row_truncated_after_sealing(self) -> None:
+        """Reproduces the reported gap: a caller that (re)derives its
+        ``expected_lifecycle_lines`` from the *current*, already-truncated
+        file (as ``LifecycleStore.verified_history`` does) still cannot
+        trick reseal into re-checksumming the truncated file, because a
+        truncated chain prefix is still a legal chain and so was previously
+        indistinguishable from an untampered recovery. The fix anchors
+        against the digest already sealed in checksums.txt, which reflects
+        the full untruncated file and cannot be regenerated from the
+        truncated file alone.
+        """
+        bundle = self._sealed_bundle_with_two_events()
+        full = self._lifecycle_lines(bundle)
+        truncated = full[:-1]
+        (bundle.path / "lifecycle.jsonl").write_text("\n".join(truncated) + "\n", encoding="utf-8")
+
+        checksums_before = (bundle.path / "checksums.txt").read_text(encoding="utf-8")
+        with self.assertRaisesRegex(ArtifactError, "checksum already sealed"):
+            bundle.reseal_after_state_transition(expected_lifecycle_lines=truncated)
+
+        self.assertEqual(
+            (bundle.path / "checksums.txt").read_text(encoding="utf-8"), checksums_before,
+        )
+        self.assertFalse((bundle.path / "checksums.txt.tmp").exists())
+
+    def test_reseal_accepts_a_new_transition_anchored_to_a_verified_prior_snapshot(self) -> None:
+        bundle = self._sealed_bundle_with_two_events()
+        prior = self._lifecycle_lines(bundle)
+        with (bundle.path / "lifecycle.jsonl").open("a", encoding="utf-8") as handle:
+            handle.write('{"state":"cleaned","sequence":2}\n')
+        expected = self._lifecycle_lines(bundle)
+
+        bundle.reseal_after_state_transition(
+            expected_lifecycle_lines=expected, prior_lifecycle_lines=prior,
+        )
+
+        self.assertTrue(bundle.validate().valid)
+
+    def test_reseal_rejects_a_prior_snapshot_that_does_not_match_the_sealed_checksum(self) -> None:
+        bundle = self._sealed_bundle_with_two_events()
+        real_prior = self._lifecycle_lines(bundle)
+        forged_prior = real_prior[:-1]
+        with (bundle.path / "lifecycle.jsonl").open("a", encoding="utf-8") as handle:
+            handle.write('{"state":"cleaned","sequence":2}\n')
+        expected = self._lifecycle_lines(bundle)
+
+        with self.assertRaisesRegex(ArtifactError, "checksum already sealed"):
+            bundle.reseal_after_state_transition(
+                expected_lifecycle_lines=expected, prior_lifecycle_lines=forged_prior,
+            )
 
     def test_reseal_without_expected_lifecycle_lines_is_rejected(self) -> None:
         bundle = self._sealed_bundle_with_two_events()

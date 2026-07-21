@@ -363,10 +363,12 @@ class StageTwoEngine:
                 "model_load_attempts": 0, "inference_request_attempts": 0,
                 "http_post_attempts": 0, "manager_review_required": True,
             }
+            prior_lifecycle_lines = self.lifecycle.verified_history(run_id)
             self.bundle.finalize_partial(summary)
             self.lifecycle.transition(run_id, RunStatus.CLEANED, "stopped Stage 2A evidence cleaned")
             self.bundle.reseal_after_state_transition(
                 expected_lifecycle_lines=self.lifecycle.verified_history(run_id),
+                prior_lifecycle_lines=prior_lifecycle_lines,
             )
             validation = self.bundle.validate_partial()
             return {
@@ -410,10 +412,12 @@ class StageTwoEngine:
             "service_lifecycle_actions": 0,
             "manager_review_required": True,
         }
+        prior_lifecycle_lines = self.lifecycle.verified_history(run_id)
         self.bundle.finalize(summary)
         self.lifecycle.transition(run_id, RunStatus.CLEANED, "Stage 2A operator evidence cleaned")
         self.bundle.reseal_after_state_transition(
             expected_lifecycle_lines=self.lifecycle.verified_history(run_id),
+            prior_lifecycle_lines=prior_lifecycle_lines,
         )
         validation = self.bundle.validate()
         return {

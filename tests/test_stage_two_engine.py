@@ -225,7 +225,14 @@ class StageTwoEngineTest(unittest.TestCase):
             self.assertEqual(engine.lifecycle.read(self.manifest.run_id).status.value, "awaiting_review")
             self.assertFalse((root / self.manifest.run_id / "checksums.txt").exists())
 
-    def test_cleaned_state_recovers_from_one_reseal_failure(self) -> None:
+    def test_cleaned_state_fails_closed_after_one_reseal_failure_on_recovery(self) -> None:
+        """A crash between the CLEANED transition write and its reseal leaves
+        lifecycle.jsonl one legitimate row ahead of the sealed checksum. A
+        fresh recovery process has no in-memory record of that prior,
+        checksum-anchored snapshot, so it cannot distinguish the genuine
+        unsealed row from an attacker-appended one. Recovery must therefore
+        fail closed rather than silently re-checksum the unsealed content.
+        """
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             controller = FakeOperatorController()
@@ -244,11 +251,11 @@ class StageTwoEngineTest(unittest.TestCase):
                 engine.cleanup()
             self.assertEqual(engine.lifecycle.read(self.manifest.run_id).status.value, "cleaned")
 
-            recovered = self._engine(root, controller, FakeTransport()).cleanup()
-            self.assertEqual(recovered["disposition"], "PASS")
-            self.assertEqual(recovered["checksum_validation"], "PASS")
+            with self.assertRaisesRegex(ArtifactError, "checksum already sealed"):
+                self._engine(root, controller, FakeTransport()).cleanup()
+            self.assertFalse((root / self.manifest.run_id / "checksums.txt.tmp").exists())
 
-    def test_partial_cleaned_state_recovers_from_one_reseal_failure(self) -> None:
+    def test_partial_cleaned_state_fails_closed_after_one_reseal_failure_on_recovery(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             controller = FakeOperatorController()
@@ -271,9 +278,37 @@ class StageTwoEngineTest(unittest.TestCase):
                 engine.cleanup()
             self.assertEqual(engine.lifecycle.read(self.manifest.run_id).status.value, "cleaned")
 
-            recovered = self._engine(root, controller, FakeTransport()).cleanup()
-            self.assertEqual(recovered["disposition"], "STOPPED")
-            self.assertEqual(recovered["checksum_validation"], "PASS")
+            with self.assertRaisesRegex(ArtifactError, "checksum already sealed"):
+                self._engine(root, controller, FakeTransport()).cleanup()
+            self.assertFalse((root / self.manifest.run_id / "checksums.txt.tmp").exists())
+
+    def test_recovery_cleanup_rejects_a_truncated_trailing_lifecycle_row(self) -> None:
+        """Reproduces the reported gap: deleting the CLEANED bundle's last
+        lifecycle row still leaves a legal chain prefix, so
+        ``LifecycleStore.verified_history`` alone cannot detect it. Recovery
+        must fail closed instead of rewriting checksums.txt to legitimize
+        the truncated file.
+        """
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            controller = FakeOperatorController()
+            engine = self._engine(root, controller, FakeTransport())
+            engine.preflight()
+            engine.run(threading.Event())
+            controller.running = False
+            result = engine.cleanup()
+            self.assertEqual(result["checksum_validation"], "PASS")
+
+            lifecycle_path = root / self.manifest.run_id / "lifecycle.jsonl"
+            checksums_path = root / self.manifest.run_id / "checksums.txt"
+            lines = lifecycle_path.read_text(encoding="utf-8").splitlines()
+            checksums_before = checksums_path.read_text(encoding="utf-8")
+            lifecycle_path.write_text("\n".join(lines[:-1]) + "\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ArtifactError, "checksum already sealed"):
+                self._engine(root, controller, FakeTransport()).cleanup()
+            self.assertEqual(checksums_path.read_text(encoding="utf-8"), checksums_before)
+            self.assertFalse((root / self.manifest.run_id / "checksums.txt.tmp").exists())
 
     def test_identity_mismatch_fails_without_lifecycle_action(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

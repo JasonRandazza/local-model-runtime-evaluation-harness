@@ -972,6 +972,7 @@ class StageTwoInferenceEngine:
             raise StageTwoError(
                 "cleanup_failed", "Stage 2B-1 cleanup could not be completed",
             )
+        prior_lifecycle_lines = self.lifecycle.verified_history(self.manifest.run_id)
         if partial:
             self.bundle.finalize_partial(summary)
         else:
@@ -981,6 +982,7 @@ class StageTwoInferenceEngine:
         )
         self.bundle.reseal_after_state_transition(
             expected_lifecycle_lines=self.lifecycle.verified_history(self.manifest.run_id),
+            prior_lifecycle_lines=prior_lifecycle_lines,
         )
         validation = self.bundle.validate_partial() if partial else self.bundle.validate()
         return {

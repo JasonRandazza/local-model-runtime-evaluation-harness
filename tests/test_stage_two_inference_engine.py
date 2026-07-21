@@ -571,7 +571,14 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
                 engine.cleanup()
             self.assertFalse((output / self.manifest.run_id / "checksums.txt").exists())
 
-    def test_cleanup_recovers_once_after_reseal_failure_and_revalidates_cleaned_bundles(self) -> None:
+    def test_cleanup_fails_closed_after_reseal_failure_instead_of_recovering(self) -> None:
+        """A crash between the CLEANED transition write and its reseal leaves
+        lifecycle.jsonl one legitimate row ahead of the sealed checksum. A
+        fresh recovery process has no in-memory record of that prior,
+        checksum-anchored snapshot, so it cannot distinguish the genuine
+        unsealed row from an attacker-appended one. Recovery must therefore
+        fail closed rather than silently re-checksum the unsealed content.
+        """
         with tempfile.TemporaryDirectory() as temp:
             output = Path(temp)
             engine, controller, transport = self._complete_and_shutdown(output)
@@ -586,12 +593,10 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
                 engine.cleanup()
             self._assert_sanitized(context)
             self.assertEqual(engine.lifecycle.read(self.manifest.run_id).status, RunStatus.CLEANED)
-            recovered = self._engine(output, transport, controller).cleanup()
-            self.assertEqual(recovered["disposition"], "PASS")
-            self.assertEqual(recovered["checksum_validation"], "PASS")
-            repeated = self._engine(output, transport, controller).cleanup()
-            self.assertEqual(repeated["disposition"], "PASS")
-            self.assertEqual(repeated["checksum_validation"], "PASS")
+            with self.assertRaises(StageTwoError) as recovery_context:
+                self._engine(output, transport, controller).cleanup()
+            self.assertEqual(recovery_context.exception.code, "evidence_incomplete")
+            self.assertFalse((output / self.manifest.run_id / "checksums.txt.tmp").exists())
 
     def test_recovery_cleanup_rejects_a_tampered_lifecycle_history(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -613,6 +618,32 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
             self.assertFalse(
                 (output / self.manifest.run_id / "checksums.txt.tmp").exists()
             )
+
+    def test_recovery_cleanup_rejects_a_truncated_trailing_lifecycle_row(self) -> None:
+        """Reproduces the reported gap: deleting the CLEANED bundle's last
+        lifecycle row still leaves a legal chain prefix, so
+        ``LifecycleStore.verified_history`` alone cannot detect it. Recovery
+        must fail closed instead of rewriting checksums.txt to legitimize
+        the truncated file.
+        """
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            engine, controller, transport = self._complete_and_shutdown(output)
+            result = engine.cleanup()
+            self.assertEqual(result["checksum_validation"], "PASS")
+
+            lifecycle_path = output / self.manifest.run_id / "lifecycle.jsonl"
+            checksums_path = output / self.manifest.run_id / "checksums.txt"
+            lines = lifecycle_path.read_text(encoding="utf-8").splitlines()
+            checksums_before = checksums_path.read_text(encoding="utf-8")
+            lifecycle_path.write_text("\n".join(lines[:-1]) + "\n", encoding="utf-8")
+
+            recovery_engine = self._engine(output, transport, controller)
+            with self.assertRaises(StageTwoError) as context:
+                recovery_engine.cleanup()
+            self.assertEqual(context.exception.code, "evidence_incomplete")
+            self.assertEqual(checksums_path.read_text(encoding="utf-8"), checksums_before)
+            self.assertFalse((output / self.manifest.run_id / "checksums.txt.tmp").exists())
 
     def test_recovery_cleanup_fails_if_lock_disappears_before_reseal(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

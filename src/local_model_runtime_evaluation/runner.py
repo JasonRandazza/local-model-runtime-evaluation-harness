@@ -263,6 +263,7 @@ class StageZeroRunner:
         run_id = manifest.run_id
         bundle = ArtifactBundle(output_root / run_id)
         current = lifecycle.read(run_id)
+        prior_lifecycle_lines: tuple[str, ...] | None = None
         if current.status is RunStatus.CLEANED:
             try:
                 summary = json.loads((bundle.path / "summary.json").read_text(encoding="utf-8"))
@@ -270,6 +271,7 @@ class StageZeroRunner:
                 raise RunnerError("cleanup_failed", "cleaned preflight evidence is unavailable") from error
             state = current
         else:
+            prior_lifecycle_lines = lifecycle.verified_history(run_id)
             summary = {
                 "run_id": run_id,
                 "stage": 2,
@@ -289,6 +291,7 @@ class StageZeroRunner:
             state = lifecycle.transition(run_id, RunStatus.CLEANED, "failed Stage 2 preflight evidence cleaned")
         bundle.reseal_after_state_transition(
             expected_lifecycle_lines=lifecycle.verified_history(run_id),
+            prior_lifecycle_lines=prior_lifecycle_lines,
         )
         validation = bundle.validate_partial()
         return {
