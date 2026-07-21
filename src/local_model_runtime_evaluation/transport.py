@@ -192,9 +192,14 @@ class LoopbackTransport:
                 if cancel is not None and cancel.is_set():
                     raise TransportError("request cancelled")
                 stream_socket.settimeout(min(1.0, remaining))
-                readable, _, _ = select.select([stream_socket], [], [], min(1.0, remaining))
-                if not readable:
+                try:
+                    buffered = stream_reader.peek(1)
+                except TimeoutError:
                     continue
+                if not buffered:
+                    readable, _, _ = select.select([stream_socket], [], [], min(1.0, remaining))
+                    if not readable:
+                        continue
                 try:
                     chunk = stream_reader.read1(4096)
                 except TimeoutError:

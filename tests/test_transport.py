@@ -263,6 +263,63 @@ class TransportTest(unittest.TestCase):
         self.assertIn("cancelled", str(ctx.exception).lower())
         self.assertNotIn("secret-prompt", str(ctx.exception))
 
+    def test_chat_consumes_sse_bytes_buffered_before_socket_readiness(self) -> None:
+        buffered_stream = (
+            b'data: {"choices":[{"delta":{"content":"reply"},"finish_reason":"stop"}],'
+            b'"usage":{"completion_tokens":1}}\n\n'
+            b"data: [DONE]\n\n"
+        )
+
+        class FakeSocket:
+            def settimeout(self, _timeout: float) -> None:
+                return
+
+        class FakeReader:
+            raw = type("Raw", (), {"_sock": FakeSocket()})()
+
+            def peek(self, _size: int) -> bytes:
+                return buffered_stream
+
+            def read1(self, _size: int) -> bytes:
+                nonlocal buffered_stream
+                chunk = buffered_stream
+                buffered_stream = b""
+                return chunk
+
+        class FakeResponse:
+            status = 200
+            fp = FakeReader()
+
+            @staticmethod
+            def getheader(name: str, default: str = "") -> str:
+                return "text/event-stream" if name == "Content-Type" else default
+
+        class FakeConnection:
+            sock = None
+
+            def __init__(self, *_args: object, **_kwargs: object) -> None:
+                return
+
+            def request(self, *_args: object, **_kwargs: object) -> None:
+                return
+
+            @staticmethod
+            def getresponse() -> FakeResponse:
+                return FakeResponse()
+
+            def close(self) -> None:
+                return
+
+        with (
+            patch("local_model_runtime_evaluation.transport.http.client.HTTPConnection", FakeConnection),
+            patch("local_model_runtime_evaluation.transport.select.select", return_value=([], [], [])),
+        ):
+            result = LoopbackTransport({self.base_url}, timeout_seconds=1).chat(
+                self.base_url, "model", "prompt", 16, None
+            )
+
+        self.assertEqual(result.content, "reply")
+
     def test_chat_sanitizes_pre_stream_timeouts_and_cancellation(self) -> None:
         class FakeConnection:
             failure_site = "request"
