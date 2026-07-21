@@ -10,6 +10,7 @@ from local_model_runtime_evaluation.manifest import ManifestError, validate_mani
 
 FIXTURE = Path(__file__).parent / "fixtures" / "valid-stage-2.json"
 INFERENCE_FIXTURE = Path(__file__).parent / "fixtures" / "valid-stage-2-inference.json"
+GEMMA_INFERENCE_FIXTURE = Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json"
 
 
 class StageTwoManifestTest(unittest.TestCase):
@@ -50,6 +51,44 @@ class StageTwoManifestTest(unittest.TestCase):
                 "total_request_limit": 8,
             },
         )
+
+    def test_valid_stage_two_inference_gemma_manifest_loads(self) -> None:
+        data = json.loads(GEMMA_INFERENCE_FIXTURE.read_text())
+        now = datetime(2026, 7, 20, tzinfo=timezone.utc)
+        manifest = validate_manifest(data, now=now)
+        self.assertEqual(manifest.schema_version, "3.3.0")
+        self.assertEqual(manifest.mode, "operator_inference_probe")
+        self.assertEqual(manifest.comparison_class, "gemma-optiq-operator-route-smoke")
+        self.assertEqual(manifest.runtime_profile_id, "gemma-4-12b-optiq-4bit")
+        self.assertEqual(manifest.runtime_profile_revision, "1")
+        self.assertEqual(manifest.suite_id, "gemma-optiq-route-smoke-v1")
+        self.assertEqual(manifest.suite_revision, "1")
+        self.assertEqual(manifest.repetitions, 1)
+        self.assertEqual(manifest.route_order, "counterbalanced")
+        self.assertEqual(
+            manifest.limits,
+            {
+                "request_timeout_seconds": 120,
+                "memory_stop_level": "warning",
+                "maximum_in_flight_requests": 1,
+                "total_request_limit": 8,
+            },
+        )
+
+    def test_schema_330_rejects_vibethinker_pins(self) -> None:
+        data = json.loads(INFERENCE_FIXTURE.read_text())
+        data["schema_version"] = "3.3.0"
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=self.now)
+
+    def test_schema_320_still_parses_historical_fixture(self) -> None:
+        data = json.loads(INFERENCE_FIXTURE.read_text())
+        manifest = validate_manifest(data, now=self.now)
+        self.assertEqual(manifest.schema_version, "3.2.0")
+        self.assertEqual(manifest.comparison_class, "optiq-operator-route-smoke")
+        self.assertEqual(manifest.runtime_profile_id, "vibethinker-3b-optiq-4bit")
+        self.assertEqual(manifest.runtime_profile_revision, "3")
+        self.assertEqual(manifest.suite_id, "optiq-route-smoke-v1")
 
     def test_rejects_inference_contract_drift(self) -> None:
         cases = {

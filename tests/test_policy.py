@@ -37,12 +37,18 @@ class PolicyTest(unittest.TestCase):
         for operation in Operation:
             policy.authorize(manifest, operation)
 
-    def test_inference_manifest_authorizes_all_six_operations(self) -> None:
-        fixture = Path(__file__).parent / "fixtures" / "valid-stage-2-inference.json"
-        manifest = load_manifest(fixture, now=datetime(2026, 7, 15, tzinfo=timezone.utc))
+    def test_gemma_inference_manifest_authorizes_all_six_operations(self) -> None:
+        fixture = Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json"
+        manifest = load_manifest(fixture, now=datetime(2026, 7, 20, tzinfo=timezone.utc))
         policy = StageTwoPolicy()
         for operation in Operation:
             policy.authorize(manifest, operation)
+
+    def test_historical_inference_manifest_is_not_authorized(self) -> None:
+        fixture = Path(__file__).parent / "fixtures" / "valid-stage-2-inference.json"
+        manifest = load_manifest(fixture, now=datetime(2026, 7, 15, tzinfo=timezone.utc))
+        with self.assertRaises(PolicyError):
+            StageTwoPolicy().authorize(manifest, Operation.INVENTORY)
 
     def test_revision_two_lifecycle_contract_is_not_authorized(self) -> None:
         fixture = Path(__file__).parent / "fixtures" / "valid-stage-2.json"

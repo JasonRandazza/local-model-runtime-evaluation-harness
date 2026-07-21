@@ -62,7 +62,7 @@ def validate_manifest(
     if stage not in {0, 1, 2}:
         raise ManifestError("stage_forbidden", "stage must be 0, 1, or 2")
     schema_version = data.get("schema_version")
-    if stage == 2 and schema_version == "3.2.0":
+    if stage == 2 and schema_version in {"3.2.0", "3.3.0"}:
         required_keys = STAGE_TWO_INFERENCE_KEYS
     else:
         required_keys = (
@@ -81,7 +81,7 @@ def validate_manifest(
     elif stage == 1:
         allowed_schemas = {"2.0.0"}
     else:
-        allowed_schemas = {"3.0.0", "3.1.0", "3.2.0"}
+        allowed_schemas = {"3.0.0", "3.1.0", "3.2.0", "3.3.0"}
     if data["schema_version"] not in allowed_schemas:
         raise ManifestError("unsupported_schema", "schema_version does not match stage")
     if stage == 0:
@@ -173,15 +173,25 @@ def validate_manifest(
             "limits": dict(limits),
         }
     else:
-        if data["schema_version"] == "3.2.0":
-            if data["comparison_class"] != "optiq-operator-route-smoke":
-                raise ManifestError("comparison_forbidden", "Stage 2B comparison contract is not approved")
-            if data["runtime_profile_id"] != "vibethinker-3b-optiq-4bit":
-                raise ManifestError("profile_forbidden", "Stage 2B requires the approved runtime profile")
-            if data["runtime_profile_revision"] != "3":
-                raise ManifestError("profile_revision_forbidden", "Stage 2B requires runtime profile revision 3")
-            if data["suite_id"] != "optiq-route-smoke-v1" or data["suite_revision"] != "1":
-                raise ManifestError("suite_forbidden", "Stage 2B requires the approved smoke suite")
+        if data["schema_version"] in {"3.2.0", "3.3.0"}:
+            if data["schema_version"] == "3.3.0":
+                if data["comparison_class"] != "gemma-optiq-operator-route-smoke":
+                    raise ManifestError("comparison_forbidden", "Stage 2B comparison contract is not approved")
+                if data["runtime_profile_id"] != "gemma-4-12b-optiq-4bit":
+                    raise ManifestError("profile_forbidden", "Stage 2B requires the approved runtime profile")
+                if data["runtime_profile_revision"] != "1":
+                    raise ManifestError("profile_revision_forbidden", "Stage 2B requires runtime profile revision 1")
+                if data["suite_id"] != "gemma-optiq-route-smoke-v1" or data["suite_revision"] != "1":
+                    raise ManifestError("suite_forbidden", "Stage 2B requires the approved smoke suite")
+            else:
+                if data["comparison_class"] != "optiq-operator-route-smoke":
+                    raise ManifestError("comparison_forbidden", "Stage 2B comparison contract is not approved")
+                if data["runtime_profile_id"] != "vibethinker-3b-optiq-4bit":
+                    raise ManifestError("profile_forbidden", "Stage 2B requires the approved runtime profile")
+                if data["runtime_profile_revision"] != "3":
+                    raise ManifestError("profile_revision_forbidden", "Stage 2B requires runtime profile revision 3")
+                if data["suite_id"] != "optiq-route-smoke-v1" or data["suite_revision"] != "1":
+                    raise ManifestError("suite_forbidden", "Stage 2B requires the approved smoke suite")
             if (
                 type(data["repetitions"]) is not int
                 or data["repetitions"] != 1
