@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -13,6 +14,9 @@ class Handler(BaseHTTPRequestHandler):
     authorization = ""
     include_reasoning_details = True
     reasoning_tokens = 2
+    stream_stall_seconds = 0.0
+    first_event_sent = threading.Event()
+    stream_release = threading.Event()
 
     def log_message(self, format: str, *args: object) -> None:
         return
@@ -50,6 +54,24 @@ class Handler(BaseHTTPRequestHandler):
                 "usage": usage,
             },
         ]
+        if Handler.stream_stall_seconds:
+            first_event = f"data: {json.dumps(chunks[0])}\n\n".encode()
+            remainder = (
+                f"data: {json.dumps(chunks[1])}\n\n"
+                "data: [DONE]\n\n"
+            ).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            try:
+                self.wfile.write(first_event)
+                self.wfile.flush()
+                Handler.first_event_sent.set()
+                Handler.stream_release.wait(Handler.stream_stall_seconds)
+                self.wfile.write(remainder)
+            except BrokenPipeError:
+                return
+            return
         body = "".join(f"data: {json.dumps(item)}\n\n" for item in chunks) + "data: [DONE]\n\n"
         encoded = body.encode()
         self.send_response(200)
@@ -63,12 +85,16 @@ class TransportTest(unittest.TestCase):
     def setUp(self) -> None:
         Handler.include_reasoning_details = True
         Handler.reasoning_tokens = 2
+        Handler.stream_stall_seconds = 0.0
+        Handler.first_event_sent = threading.Event()
+        Handler.stream_release = threading.Event()
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         self.base_url = f"http://127.0.0.1:{self.server.server_port}/v1"
 
     def tearDown(self) -> None:
+        Handler.stream_release.set()
         self.server.shutdown()
         self.server.server_close()
         self.thread.join()
@@ -119,6 +145,39 @@ class TransportTest(unittest.TestCase):
             transport.list_models("http://example.com:8100/v1", Credential("key"))
         with self.assertRaises(TransportError):
             transport.list_models(f"http://127.0.0.1:{self.server.server_port}/other", Credential("key"))
+
+    def test_chat_enforces_monotonic_wall_clock_deadline_on_trickle_stream(self) -> None:
+        Handler.stream_stall_seconds = 5.0
+        transport = LoopbackTransport({self.base_url}, timeout_seconds=2)
+        started = time.monotonic()
+
+        with self.assertRaises(TransportError) as ctx:
+            transport.chat(self.base_url, "model", "secret-prompt", 16, None)
+
+        elapsed = time.monotonic() - started
+        self.assertLess(elapsed, 4.0)
+        self.assertIn("timed out", str(ctx.exception).lower())
+        self.assertNotIn("secret-prompt", str(ctx.exception))
+
+    def test_chat_observes_cancellation_during_blocked_stream_read(self) -> None:
+        Handler.stream_stall_seconds = 10.0
+        cancel = threading.Event()
+
+        def cancel_after_first_event() -> None:
+            Handler.first_event_sent.wait()
+            time.sleep(0.2)
+            cancel.set()
+
+        threading.Thread(target=cancel_after_first_event, daemon=True).start()
+        transport = LoopbackTransport({self.base_url}, timeout_seconds=120)
+        started = time.monotonic()
+
+        with self.assertRaises(TransportError) as ctx:
+            transport.chat(self.base_url, "model", "secret-prompt", 16, None, cancel=cancel)
+
+        self.assertLess(time.monotonic() - started, 3.0)
+        self.assertIn("cancelled", str(ctx.exception).lower())
+        self.assertNotIn("secret-prompt", str(ctx.exception))
 
 
 if __name__ == "__main__":

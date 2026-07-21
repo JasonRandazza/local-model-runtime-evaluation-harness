@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import http.client
 import json
+import select
 import threading
 import time
 from dataclasses import dataclass
@@ -99,6 +100,7 @@ class LoopbackTransport:
             "stream_options": {"include_usage": True},
         }).encode()
         started = time.monotonic()
+        deadline = started + self.timeout_seconds
         first_token: float | None = None
         content: list[str] = []
         content_event_count = 0
@@ -116,10 +118,25 @@ class LoopbackTransport:
                 raise TransportError(f"chat request returned HTTP {response.status}")
             if "text/event-stream" not in response.getheader("Content-Type", ""):
                 raise TransportError("chat response is not an SSE stream")
+            stream_socket = connection.sock
+            if stream_socket is None:
+                stream_socket = getattr(getattr(getattr(response, "fp", None), "raw", None), "_sock", None)
+            if stream_socket is None:
+                raise TransportError("chat stream failed")
+            stream_socket.settimeout(1.0)
             while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TransportError("request timed out")
                 if cancel is not None and cancel.is_set():
                     raise TransportError("request cancelled")
-                line = response.readline()
+                readable, _, _ = select.select([stream_socket], [], [], min(1.0, remaining))
+                if not readable:
+                    continue
+                try:
+                    line = response.readline()
+                except TimeoutError:
+                    continue
                 if not line:
                     break
                 decoded = line.decode("utf-8").strip()
