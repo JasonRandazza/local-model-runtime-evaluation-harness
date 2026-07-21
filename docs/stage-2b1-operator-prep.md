@@ -12,11 +12,10 @@ Keep that note as the live checklist (active run ID, copy-paste prompts, OptiQ l
 
 | Field | Value |
 |---|---|
-| Run ID | `stage2-20260721-003` |
-| Manifest | `manifests/stage-2-optiq-inference-003.json` |
+| Run ID | none — `001`/`002`/`003` consumed STOPPED |
+| Next step | transport SSE fix landed; ask Cursor for `004` only when ready to retry |
 | Profile | `gemma-4-12b-optiq-4bit` revision `2` |
 | Launcher | `bin/lmre-stage2-operator-serve-gemma` |
-| Expires | end of `2026-07-21` Eastern |
 
 ## Minimal command strip
 
@@ -33,14 +32,14 @@ curl -sS --max-time 180 -N -X POST http://127.0.0.1:8080/v1/chat/completions \
 cd /Users/jrazz/Dev/active/local-model-runtime-evaluation-harness
 ./bin/lmre-stage2-gate-b-check
 
-# Terminal B — after Coordinator run_scenario
-/Users/jrazz/Dev/active/local-model-runtime-evaluation-harness/bin/lmre-stage2-wait stage2-20260721-003
+# Terminal B — after Coordinator run_scenario (use the active authorized run ID)
+/Users/jrazz/Dev/active/local-model-runtime-evaluation-harness/bin/lmre-stage2-wait <run-id>
 
 # After waiter: Ctrl+C on Terminal A, then Coordinator status + cleanup
 ```
 
 Osaurus: reconnect existing `Optiq` (no edits); load only `gemma-4-12b-it-qat-jang_4m` (or idle); use Stage 2B-1 Coordinator prompt revision for schema `3.3.0` / profile revision `2`; fresh chat; one-time approvals for `inventory` → `preflight` → `run_scenario` → (after OptiQ stop) `status` → `cleanup`.
 
-**Consumed:** `stage2-20260721-001`, `stage2-20260721-002` (STOPPED — cold-load SSE). **Active:** `stage2-20260721-003` (warm-up already completed for this session).
+**Consumed:** `stage2-20260721-001`, `002`, `003` — all STOPPED from the same harness SSE 1s-timeout poison (fixed in `transport.py`). Warm-up alone was not enough.
 
 Full copy-paste prompts and checks live in the vault note.

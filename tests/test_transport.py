@@ -20,6 +20,7 @@ class Handler(BaseHTTPRequestHandler):
     stream_trickle_interval = 0.0
     response_header_trickle_interval = 0.0
     error_body_trickle_interval = 0.0
+    pre_first_event_delay_seconds = 0.0
     stream_body_override: bytes | None = None
     first_event_sent = threading.Event()
     stream_release = threading.Event()
@@ -137,6 +138,21 @@ class Handler(BaseHTTPRequestHandler):
                 return
             return
         body = "".join(f"data: {json.dumps(item)}\n\n" for item in chunks) + "data: [DONE]\n\n"
+        if Handler.pre_first_event_delay_seconds:
+            # OptiQ-style: headers first, then prompt-processing keepalives that may
+            # arrive more than one second after the stream opens.
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            try:
+                time.sleep(Handler.pre_first_event_delay_seconds)
+                self.wfile.write(b": keepalive 1/1\n\n")
+                self.wfile.flush()
+                self.wfile.write(body.encode())
+                self.wfile.flush()
+            except BrokenPipeError:
+                return
+            return
         encoded = body.encode()
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
@@ -154,6 +170,7 @@ class TransportTest(unittest.TestCase):
         Handler.stream_trickle_interval = 0.0
         Handler.response_header_trickle_interval = 0.0
         Handler.error_body_trickle_interval = 0.0
+        Handler.pre_first_event_delay_seconds = 0.0
         Handler.stream_body_override = None
         Handler.first_event_sent = threading.Event()
         Handler.stream_release = threading.Event()
@@ -357,6 +374,18 @@ class TransportTest(unittest.TestCase):
         result = LoopbackTransport({self.base_url}).chat(self.base_url, "model", "prompt", 16, None)
 
         self.assertEqual(result.content, "reply")
+
+    def test_chat_survives_keepalive_gap_longer_than_one_second(self) -> None:
+        # Regression for Stage 2B-1 cohorts 001-003: a 1s socket timeout during
+        # peek permanently poisons http.client's stream reader on macOS/Python,
+        # surfacing as stream_failed + OptiQ BrokenPipeError mid-keepalive.
+        Handler.pre_first_event_delay_seconds = 1.2
+
+        result = LoopbackTransport({self.base_url}, timeout_seconds=30).chat(
+            self.base_url, "model", "prompt", 16, None
+        )
+
+        self.assertEqual(result.content, "hello world")
 
     def test_chat_rejects_leading_whitespace_sse_framing(self) -> None:
         for invalid_line in (

@@ -196,24 +196,32 @@ class LoopbackTransport:
                 raise TransportError("chat stream failed", reason="stream_setup_failed")
             pending = bytearray()
             stream_done = False
+            # Never apply a short socket timeout to the stream makefile: after a
+            # TimeoutError, Python's socket makefile permanently raises
+            # OSError("cannot read from timed out object") on later peeks/reads.
+            # Wait with select() instead so OptiQ prompt-processing keepalives
+            # that arrive >1s after headers do not abort the cohort.
+            stream_socket.settimeout(None)
             while True:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     raise TransportError("request timed out", reason="timeout")
                 if cancel is not None and cancel.is_set():
                     raise TransportError("request cancelled", reason="cancelled")
-                stream_socket.settimeout(min(1.0, remaining))
+                stream_socket.settimeout(0)
                 try:
                     buffered = stream_reader.peek(1)
-                except TimeoutError:
-                    continue
+                except (BlockingIOError, InterruptedError, TimeoutError):
+                    buffered = b""
+                finally:
+                    stream_socket.settimeout(None)
                 if not buffered:
                     readable, _, _ = select.select([stream_socket], [], [], min(1.0, remaining))
                     if not readable:
                         continue
                 try:
                     chunk = stream_reader.read1(4096)
-                except TimeoutError:
+                except (BlockingIOError, InterruptedError, TimeoutError):
                     continue
                 if not chunk:
                     break

@@ -45,14 +45,12 @@ Run the Python and Swift test suites after relevant changes. Preserve the legacy
   tree as schema `3.3.0` with authorizing profile revision `2`. On 2026-07-21
   Gate B reported `READY_FOR_MANIFEST_AUTHORIZATION` and Jason authorized
   unused run `stage2-20260721-001` (short-lived manifest; expires end of day
-  Eastern). That cohort cleaned as `STOPPED` after a first-POST transport
-  failure (`inference_path_acceptance: FAIL`). Follow-up `stage2-20260721-002`
-  cleaned the same way (`stream_failed` during cold-load SSE). On 2026-07-21
-  Jason authorized unused run `stage2-20260721-003` after warm OptiQ + Gate B
-  `READY_FOR_MANIFEST_AUTHORIZATION` (manifest
-  `manifests/stage-2-optiq-inference-003.json`; expires end of day Eastern).
-  Live eight-POST attempt still requires Coordinator prompt + one-time tool
-  approvals. Stage 2B-2 remains unauthorized.
+  Eastern). Cohorts `001`, `002`, and `003` all cleaned as `STOPPED` on the
+  first direct POST (`stream_failed` / transport failure). Root cause confirmed
+  after `003`: harness SSE client applied a 1s socket timeout that permanently
+  poisons `http.client` after the first idle gap (OptiQ keepalives often arrive
+  later). Transport fix is required before authorizing another unused run ID.
+  Stage 2B-2 remains unauthorized.
 - Do not create additional run IDs or manifests without Jason's separate
   current-session authorization. Do not operate OptiQ/Osaurus lifecycle from
   the harness. Do not install a Coordinator prompt or issue inference without
