@@ -97,3 +97,23 @@ Benchmark Coordinator
 The contract fixes `vibethinker-3b-optiq-4bit` revision `3`, `optiq-route-smoke-v1` revision `1`, direct `http://127.0.0.1:8080/v1`, routed `http://127.0.0.1:1337/v1`, a 120-second timeout, warning-level memory stop, one in-flight request, and an eight-request total limit. Final evidence reports independent `inference_path_acceptance` and `behavioral_contract_acceptance` decisions while omitting prompts, responses, payloads, headers, credentials, and process details.
 
 Gate A is non-authorizing. It cannot create a usable run ID or live manifest, install the prompt, operate the service or provider, or invoke inference. Gate B, Jason's exact-ID approval, the one-ID manifest, manual service shutdown, cleanup, and manager review are separate. Stage 2A revision `3` remains the rollback baseline; plugin `0.3.0` is unchanged and Stage 2B-2 remains separately gated.
+
+## Stage 2B-2 Route Benchmark Lane
+
+Stage 2B-2 retains the accepted Stage 2B-1 service boundary and the same six typed plugin tools. It adds a separately gated `3.4.0` manifest contract for one counterbalanced benchmark cohort: two fixed workloads run across direct and routed paths as twelve excluded warm-ups and sixty measured observations. The resulting seventy-two serial requests and seventy-two POSTs support sealed medians and direct↔routed deltas for this Gemma OptiQ pin only. They do not support preference winners, RAG quality, matrix cells, or cross-runtime rankings.
+
+```text
+Benchmark Coordinator
+  -> one approval-gated native tool at a time
+  -> fixed Stage 2B benchmark worker
+  -> operator-owned foreground OptiQ service
+  -> direct and routed serialized benchmark requests (72 POSTs)
+  -> host waiter
+  -> operator Control-C shutdown
+  -> one status read and one cleanup call
+  -> sanitized acceptance + route-overhead evidence + manager review
+```
+
+The contract fixes `gemma-4-12b-optiq-4bit` revision `2`, `gemma-optiq-route-benchmark-v1` revision `1`, direct `http://127.0.0.1:8080/v1`, routed `http://127.0.0.1:1337/v1`, a 120-second timeout, warning-level memory stop, one in-flight request, and a seventy-two-request total limit. Final evidence reports `inference_path_acceptance`, `behavioral_contract_acceptance`, and observational `route_overhead_summary` while omitting prompts, responses, payloads, headers, credentials, and process details.
+
+Gate A decision is `GATE_A_IMPLEMENTED_PENDING_REVIEW`. It cannot create a usable run ID or live manifest, install the Osaurus prompt, operate the service or provider, or invoke inference. Gates B–D, Jason's exact-ID approval, the one-ID manifest, manual service shutdown, cleanup, and manager review are separate. Stage 2B-1 PASS on `stage2-20260721-005` remains the smoke prerequisite; see `docs/stage-2b2-gate-a.md`.
