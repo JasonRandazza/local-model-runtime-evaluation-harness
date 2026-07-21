@@ -60,7 +60,7 @@ class StageTwoManifestTest(unittest.TestCase):
         self.assertEqual(manifest.mode, "operator_inference_probe")
         self.assertEqual(manifest.comparison_class, "gemma-optiq-operator-route-smoke")
         self.assertEqual(manifest.runtime_profile_id, "gemma-4-12b-optiq-4bit")
-        self.assertEqual(manifest.runtime_profile_revision, "1")
+        self.assertEqual(manifest.runtime_profile_revision, "2")
         self.assertEqual(manifest.suite_id, "gemma-optiq-route-smoke-v1")
         self.assertEqual(manifest.suite_revision, "1")
         self.assertEqual(manifest.repetitions, 1)

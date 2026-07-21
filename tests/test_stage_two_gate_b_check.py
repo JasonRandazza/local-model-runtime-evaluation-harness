@@ -76,7 +76,7 @@ class StageTwoGateBCheckTest(unittest.TestCase):
     def setUp(self) -> None:
         self.static = {
             "runtime_profile_id": "gemma-4-12b-optiq-4bit",
-            "runtime_profile_revision": "1",
+            "runtime_profile_revision": "2",
             "runtime_identity": "PASS",
             "artifact_identity": "PASS",
             "provider_identity": "PASS",
@@ -95,10 +95,11 @@ class StageTwoGateBCheckTest(unittest.TestCase):
 
     def test_gate_b_pins_gemma_profile_and_routed_id(self) -> None:
         self.assertEqual(gate_b_mod._PROFILE_ID, "gemma-4-12b-optiq-4bit")
-        self.assertEqual(gate_b_mod._PROFILE_REVISION, "1")
+        self.assertEqual(gate_b_mod._PROFILE_REVISION, "2")
         self.assertEqual(
             gate_b_mod._ROUTED_MODEL_ID,
-            "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+            "optiq//Users/jrazz/.cache/huggingface/hub/"
+            "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
         )
 
     def test_reports_ready_for_plugin_install_before_upgrade(self) -> None:
@@ -116,7 +117,7 @@ class StageTwoGateBCheckTest(unittest.TestCase):
         )
         self.assertEqual(result["overall"], "READY_FOR_MANIFEST_AUTHORIZATION")
         self.assertEqual(result["runtime_profile_id"], "gemma-4-12b-optiq-4bit")
-        self.assertEqual(result["runtime_profile_revision"], "1")
+        self.assertEqual(result["runtime_profile_revision"], "2")
 
     def test_stops_on_provider_or_zero_activity_failure(self) -> None:
         static = dict(self.static)
@@ -168,7 +169,7 @@ class StageTwoGateBCheckTest(unittest.TestCase):
     def test_dry_gate_b_static_evidence_accepts_gemma_profile_pins(self) -> None:
         root = Path(__file__).parents[1]
         profile = RuntimeProfileRegistry(root / "config" / "runtime-profiles").get(
-            "gemma-4-12b-optiq-4bit", "1",
+            "gemma-4-12b-optiq-4bit", "2",
         )
         self.assertEqual(profile.routed_model_id, gate_b_mod._ROUTED_MODEL_ID)
 
@@ -217,7 +218,7 @@ class StageTwoGateBCheckTest(unittest.TestCase):
         )
 
         self.assertEqual(result["runtime_profile_id"], "gemma-4-12b-optiq-4bit")
-        self.assertEqual(result["runtime_profile_revision"], "1")
+        self.assertEqual(result["runtime_profile_revision"], "2")
         self.assertEqual(result["route_identity"], "PASS")
         self.assertEqual(result["coordinator_model_id"], "gemma-4-12b-it-qat-jang_4m")
         self.assertEqual(result["model_load_attempts"], 0)

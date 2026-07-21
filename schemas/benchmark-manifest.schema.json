@@ -88,7 +88,7 @@
         "output_root": {"$ref": "#/$defs/output_root"}, "approved_by": {"type": "string", "minLength": 1},
         "approved_at": {"type": "string", "format": "date-time"}, "expires_at": {"type": "string", "format": "date-time"},
         "comparison_class": {"const": "gemma-optiq-operator-route-smoke"},
-        "runtime_profile_id": {"const": "gemma-4-12b-optiq-4bit"}, "runtime_profile_revision": {"const": "1"},
+        "runtime_profile_id": {"const": "gemma-4-12b-optiq-4bit"}, "runtime_profile_revision": {"const": "2"},
         "suite_id": {"const": "gemma-optiq-route-smoke-v1"}, "suite_revision": {"const": "1"},
         "repetitions": {"const": 1}, "route_order": {"const": "counterbalanced"},
         "routes": {"const": {"direct": "http://127.0.0.1:8080/v1", "routed": "http://127.0.0.1:1337/v1"}},

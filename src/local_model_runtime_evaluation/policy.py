@@ -54,7 +54,7 @@ class StageTwoPolicy:
             ),
             (
                 "3.3.0", "operator_inference_probe",
-                "gemma-optiq-operator-route-smoke", "1",
+                "gemma-optiq-operator-route-smoke", "2",
             ),
         }
         contract = (

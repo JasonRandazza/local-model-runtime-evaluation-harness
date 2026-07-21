@@ -37,8 +37,11 @@ _ZERO_FIELDS = (
 
 _PLUGIN_ID = "local.jrazz.model-runtime-evaluation-harness"
 _PROFILE_ID = "gemma-4-12b-optiq-4bit"
-_PROFILE_REVISION = "1"
-_ROUTED_MODEL_ID = "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"
+_PROFILE_REVISION = "2"
+_ROUTED_MODEL_ID = (
+    "optiq//Users/jrazz/.cache/huggingface/hub/"
+    "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think"
+)
 
 
 class GateBReadinessError(RuntimeError):

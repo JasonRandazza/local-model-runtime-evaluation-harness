@@ -27,7 +27,7 @@
     "serve_arguments": {"type": "array", "items": {"type": "string"}},
     "direct_base_url": {"const": "http://127.0.0.1:8080/v1"},
     "routed_base_url": {"const": "http://127.0.0.1:1337/v1"},
-    "direct_model_identities": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "string"}},
+    "direct_model_identities": {"type": "array", "minItems": 2, "maxItems": 3, "items": {"type": "string"}},
     "osaurus_provider_id": {"const": "Optiq"},
     "routed_model_id": {"type": "string"},
     "rejected_local_model_ids": {"type": "array", "items": {"type": "string"}},
@@ -92,10 +92,45 @@
         "properties": {
           "model_repository": {"const": "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"},
           "model_revision": {"const": "083d338ef60c7ce2b47b27e1447ed92e729c4150"},
+          "direct_model_identities": {"minItems": 2, "maxItems": 2},
           "routed_model_id": {"const": "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"},
           "rejected_local_model_ids": {"const": [
             "gemma-4-12b-optiq-4bit",
             "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"
+          ]},
+          "service_ownership": {"const": "operator"},
+          "provider_activation": {"const": "operator_reconnect_required"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "profile_id": {"const": "gemma-4-12b-optiq-4bit"},
+          "revision": {"const": "2"}
+        },
+        "required": ["profile_id", "revision"]
+      },
+      "then": {
+        "required": ["service_ownership", "provider_activation"],
+        "properties": {
+          "model_repository": {"const": "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"},
+          "model_revision": {"const": "083d338ef60c7ce2b47b27e1447ed92e729c4150"},
+          "direct_model_identities": {
+            "const": [
+              "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
+              "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+              "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"
+            ]
+          },
+          "routed_model_id": {
+            "const": "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think"
+          },
+          "rejected_local_model_ids": {"const": [
+            "gemma-4-12b-optiq-4bit",
+            "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+            "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+            "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"
           ]},
           "service_ownership": {"const": "operator"},
           "provider_activation": {"const": "operator_reconnect_required"}

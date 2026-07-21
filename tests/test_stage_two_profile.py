@@ -168,6 +168,55 @@ class StageTwoRuntimeProfileTest(unittest.TestCase):
                 with self.assertRaises(RuntimeProfileError):
                     RuntimeProfileRegistry(Path(temp)).get("gemma-4-12b-optiq-4bit", "1")
 
+    def test_gemma_revision_two_pins_path_based_no_think_route(self) -> None:
+        profile = RuntimeProfileRegistry(self.root / "config" / "runtime-profiles").get(
+            "gemma-4-12b-optiq-4bit", "2"
+        )
+        gemma_path = (
+            "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"
+        )
+        self.assertEqual(profile.revision, "2")
+        self.assertEqual(
+            profile.direct_model_identities[0],
+            f"{gemma_path}:no-think",
+        )
+        self.assertEqual(
+            profile.routed_model_id,
+            f"optiq/{gemma_path}:no-think",
+        )
+        self.assertEqual(
+            profile.rejected_local_model_ids,
+            (
+                "gemma-4-12b-optiq-4bit",
+                "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+                "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+                f"optiq/{gemma_path}",
+            ),
+        )
+        self.assertEqual(profile.service_ownership, "operator")
+        self.assertEqual(profile.provider_activation, "operator_reconnect_required")
+
+    def test_gemma_revision_two_rejects_hub_shaped_and_bare_path_routed_ids(self) -> None:
+        source = (
+            self.root / "config" / "runtime-profiles" / "gemma-4-12b-optiq-4bit-r2.json"
+        )
+        base = json.loads(source.read_text())
+        gemma_path = (
+            "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"
+        )
+        for routed_model_id in (
+            "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+            f"optiq/{gemma_path}",
+            f"optiq/{gemma_path}:think",
+        ):
+            with self.subTest(routed_model_id=routed_model_id), tempfile.TemporaryDirectory() as temp:
+                data = dict(base)
+                data["routed_model_id"] = routed_model_id
+                path = Path(temp) / "profile.json"
+                path.write_text(json.dumps(data))
+                with self.assertRaises(RuntimeProfileError):
+                    RuntimeProfileRegistry(Path(temp)).get("gemma-4-12b-optiq-4bit", "2")
+
 
 if __name__ == "__main__":
     unittest.main()

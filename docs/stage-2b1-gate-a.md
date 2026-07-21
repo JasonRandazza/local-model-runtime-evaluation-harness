@@ -41,7 +41,7 @@ Live authorizing shape after Slice 2 review + separate Gate B authorization:
 | Manifest schema | `3.3.0` |
 | Mode | `operator_inference_probe` |
 | Comparison class | `gemma-optiq-operator-route-smoke` |
-| Runtime profile | `gemma-4-12b-optiq-4bit` revision `1` |
+| Runtime profile | `gemma-4-12b-optiq-4bit` revision `2` |
 | Suite | `gemma-optiq-route-smoke-v1` revision `1` |
 | Operator launcher | `bin/lmre-stage2-operator-serve-gemma` |
 | Non-authorizing template | `manifests/stage-2-optiq-inference-smoke.json.template` |
@@ -54,7 +54,7 @@ Live authorizing shape after Slice 2 review + separate Gate B authorization:
 | Total request limit | `8` |
 | Coordinator model | `gemma-4-12b-it-qat-jang_4m` |
 | Plugin | `local.jrazz.model-runtime-evaluation-harness` `0.3.0` |
-| Expected routed ID | `optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit` (exact inventory match) |
+| Expected routed ID | `optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think` (exact inventory match) |
 
 The only acceptance decisions are `inference_path_acceptance` and `behavioral_contract_acceptance`. Evidence remains sanitized: it excludes prompts, generated output, request payloads, headers, credentials, and process details.
 
@@ -71,7 +71,7 @@ The accepted Stage 2A revision-3 baseline remains the rollback and service-owner
 1. Keep OptiQ Lab closed.
 2. Start the Stage 2B-1 foreground launcher `bin/lmre-stage2-operator-serve-gemma` and leave it open. (Leave `bin/lmre-stage2-operator-serve` untouched as Stage 2A historical rollback.)
 3. Reconnect the existing `Optiq` provider without editing it.
-4. Ask Codex to run read-only Gate B (`bin/lmre-stage2-gate-b-check`), which pins `gemma-4-12b-optiq-4bit` revision `1` and the exact Gemma routed ID.
+4. Ask Codex to run read-only Gate B (`bin/lmre-stage2-gate-b-check`), which pins `gemma-4-12b-optiq-4bit` revision `2` and the exact path-based `:no-think` routed ID.
 5. Authorize one exact unused ID only after Gate B reports ready.
 6. Materialize a short-lived manifest from `manifests/stage-2-optiq-inference-smoke.json.template` for that ID only (placeholder approval fields are never live authority).
 7. Install the Stage 2B-1 Coordinator prompt and use a fresh Coordinator chat.

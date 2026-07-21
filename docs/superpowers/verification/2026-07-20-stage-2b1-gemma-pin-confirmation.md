@@ -5,12 +5,16 @@ a live manifest, a usable run ID, eight-POST smoke, plugin rebuild, or harness
 lifecycle control of OptiQ/Osaurus. Agents must not execute these steps unless
 Jason explicitly authorizes live contact in the current session.
 
-**Profile under confirmation:** `gemma-4-12b-optiq-4bit` revision `1`  
-**Profile file:** `config/runtime-profiles/gemma-4-12b-optiq-4bit-r1.json`  
+**Profile under confirmation:** `gemma-4-12b-optiq-4bit` revision `2`  
+**Profile file:** `config/runtime-profiles/gemma-4-12b-optiq-4bit-r2.json`  
 **Expected routed ID (exact, case-sensitive):**
-`optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit`  
-**Rejected locals:** `gemma-4-12b-optiq-4bit`,
-`mlx-community/gemma-4-12B-it-qat-OptiQ-4bit`  
+`optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think`  
+**Rejected locals / substitutes:** `gemma-4-12b-optiq-4bit`,
+`mlx-community/gemma-4-12B-it-qat-OptiQ-4bit`,
+`optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit`,
+`optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit`
+(bare path without `:no-think`)  
+**Chat POST direct identity:** absolute snapshot path with `:no-think`  
 **Direct base:** `http://127.0.0.1:8080/v1`  
 **Routed base:** `http://127.0.0.1:1337/v1`
 
@@ -90,18 +94,18 @@ curl -sS http://127.0.0.1:1337/v1/models
 - [ ] Routed `GET /health` is reachable and healthy enough for inventory
       (record status).
 - [ ] Direct `GET /v1/models` includes an approved direct identity from the
-      profile allowlist (`mlx-community/gemma-4-12B-it-qat-OptiQ-4bit` and/or
-      the immutable snapshot path).
+      profile allowlist (absolute snapshot path, optional `:no-think` /
+      `:think` variants as advertised, and/or the hub-shaped repository id).
 - [ ] Routed `GET /v1/models` exposes the exact required routed id:
 
 ```text
-optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit
+optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think
 ```
 
-- [ ] No accepted substitute: reject bare
-      `mlx-community/gemma-4-12B-it-qat-OptiQ-4bit`, local slug
-      `gemma-4-12b-optiq-4bit`, `:no-think` variants, and any other prefix or
-      casing.
+- [ ] No accepted substitute: reject hub-shaped
+      `optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit`, bare path routed id
+      without `:no-think`, local slug `gemma-4-12b-optiq-4bit`, and
+      `:think` as the required Stage 2B chat route.
 - [ ] Record the exact routed `id` string observed (copy/paste, do not
       normalize):
 
@@ -119,7 +123,7 @@ Stop here if the routed id is missing, ambiguous, or not an exact match.
 
 ## 4. Confirm artifact hashes still match the profile
 
-Against `config/runtime-profiles/gemma-4-12b-optiq-4bit-r1.json`:
+Against `config/runtime-profiles/gemma-4-12b-optiq-4bit-r2.json`:
 
 - [ ] Snapshot path still resolves to the pinned model directory.
 - [ ] `model_revision` / repository identity still match live artifacts.
@@ -127,12 +131,12 @@ Against `config/runtime-profiles/gemma-4-12b-optiq-4bit-r1.json`:
       to the profile. Example:
 
 ```sh
-PROFILE=config/runtime-profiles/gemma-4-12b-optiq-4bit-r1.json
+PROFILE=config/runtime-profiles/gemma-4-12b-optiq-4bit-r2.json
 SNAP=$(python3 -c "import json; print(json.load(open('$PROFILE'))['model_snapshot'])")
 python3 - <<'PY'
 import hashlib, json
 from pathlib import Path
-profile = json.loads(Path("config/runtime-profiles/gemma-4-12b-optiq-4bit-r1.json").read_text())
+profile = json.loads(Path("config/runtime-profiles/gemma-4-12b-optiq-4bit-r2.json").read_text())
 snap = Path(profile["model_snapshot"])
 mismatches = []
 for name, expected in profile["artifact_hashes"].items():
@@ -156,12 +160,12 @@ PY
 
 - [ ] If any hash, revision, snapshot path, executable, package version,
       argv, base URL, or routed id drifts: **do not silently overwrite**
-      revision `1`.
-- [ ] Land a **new profile revision** (e.g. revision `2` in a new file /
+      revision `2`.
+- [ ] Land a **new profile revision** (e.g. revision `3` in a new file /
       coordinated loader bump), update Gate B / template / suite pins in a
       separate change, and re-run this checklist against the new revision.
-- [ ] Historical revision `1` remains evidence; Stage 2A VibeThinker revision
-      `3` remains untouched rollback.
+- [ ] Historical revision `1` (hub-shaped guess) and Stage 2A VibeThinker
+      revision `3` remain untouched evidence / rollback.
 
 ```text
 hash_check_result: ok | drift

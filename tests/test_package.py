@@ -32,7 +32,7 @@ class PackageTest(unittest.TestCase):
     def test_stage_two_gemma_operator_launcher_matches_gemma_profile(self) -> None:
         root = Path(__file__).parents[1]
         profile = json.loads((
-            root / "config" / "runtime-profiles" / "gemma-4-12b-optiq-4bit-r1.json"
+            root / "config" / "runtime-profiles" / "gemma-4-12b-optiq-4bit-r2.json"
         ).read_text(encoding="utf-8"))
         launcher = root / "bin" / "lmre-stage2-operator-serve-gemma"
         content = launcher.read_text(encoding="utf-8")
@@ -88,7 +88,7 @@ class PackageTest(unittest.TestCase):
         self.assertEqual(template["expires_at"], "REPLACE_AFTER_APPROVAL")
         self.assertEqual(template["comparison_class"], "gemma-optiq-operator-route-smoke")
         self.assertEqual(template["runtime_profile_id"], "gemma-4-12b-optiq-4bit")
-        self.assertEqual(template["runtime_profile_revision"], "1")
+        self.assertEqual(template["runtime_profile_revision"], "2")
         self.assertEqual(template["suite_id"], "gemma-optiq-route-smoke-v1")
         self.assertEqual(template["suite_revision"], "1")
         self.assertEqual(template["mode"], "operator_inference_probe")

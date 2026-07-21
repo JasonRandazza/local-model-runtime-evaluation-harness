@@ -17,7 +17,7 @@
   "expires_at": "REPLACE_AFTER_APPROVAL",
   "comparison_class": "gemma-optiq-operator-route-smoke",
   "runtime_profile_id": "gemma-4-12b-optiq-4bit",
-  "runtime_profile_revision": "1",
+  "runtime_profile_revision": "2",
   "suite_id": "gemma-optiq-route-smoke-v1",
   "suite_revision": "1",
   "repetitions": 1,

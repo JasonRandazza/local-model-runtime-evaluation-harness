@@ -103,8 +103,14 @@ class FakeTransport:
         ):
             return (ModelDescriptor("optiq/unapproved-model"),)
         if route == "direct":
-            return (ModelDescriptor("mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),)
-        return (ModelDescriptor("optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),)
+            return (ModelDescriptor(
+                "/Users/jrazz/.cache/huggingface/hub/"
+                "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think"
+            ),)
+        return (ModelDescriptor(
+            "optiq//Users/jrazz/.cache/huggingface/hub/"
+            "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think"
+        ),)
 
     def chat(
         self, base_url: str, model_id: str, prompt: str, max_tokens: int,

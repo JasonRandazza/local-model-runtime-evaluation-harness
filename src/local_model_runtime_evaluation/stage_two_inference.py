@@ -74,7 +74,7 @@ _STAGE_2B_1_SCHEDULE = (
 )
 _STAGE_2B_1_PROFILE = RuntimeProfile(
     profile_id="gemma-4-12b-optiq-4bit",
-    revision="1",
+    revision="2",
     runtime_executable=Path("/Users/jrazz/Dev/tools/mlx-optiq/.venv/bin/optiq"),
     runtime_version="0.3.3",
     coordinator_model_id="gemma-4-12b-it-qat-jang_4m",
@@ -111,14 +111,20 @@ _STAGE_2B_1_PROFILE = RuntimeProfile(
     direct_base_url="http://127.0.0.1:8080/v1",
     routed_base_url="http://127.0.0.1:1337/v1",
     direct_model_identities=(
-        "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+        "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
         "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+        "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
     ),
     osaurus_provider_id="Optiq",
-    routed_model_id="optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+    routed_model_id=(
+        "optiq//Users/jrazz/.cache/huggingface/hub/"
+        "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think"
+    ),
     rejected_local_model_ids=(
         "gemma-4-12b-optiq-4bit",
         "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+        "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+        "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
     ),
     service_ownership="operator",
     provider_activation="operator_reconnect_required",
@@ -176,7 +182,7 @@ class StageTwoInferenceEngine:
             and manifest.mode == "operator_inference_probe"
             and manifest.comparison_class == "gemma-optiq-operator-route-smoke"
             and manifest.runtime_profile_id == "gemma-4-12b-optiq-4bit"
-            and manifest.runtime_profile_revision == "1"
+            and manifest.runtime_profile_revision == "2"
             and manifest.suite_id == "gemma-optiq-route-smoke-v1"
             and manifest.suite_revision == "1"
             and manifest.repetitions == 1

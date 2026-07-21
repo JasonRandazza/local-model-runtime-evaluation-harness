@@ -179,8 +179,8 @@ def validate_manifest(
                     raise ManifestError("comparison_forbidden", "Stage 2B comparison contract is not approved")
                 if data["runtime_profile_id"] != "gemma-4-12b-optiq-4bit":
                     raise ManifestError("profile_forbidden", "Stage 2B requires the approved runtime profile")
-                if data["runtime_profile_revision"] != "1":
-                    raise ManifestError("profile_revision_forbidden", "Stage 2B requires runtime profile revision 1")
+                if data["runtime_profile_revision"] != "2":
+                    raise ManifestError("profile_revision_forbidden", "Stage 2B requires runtime profile revision 2")
                 if data["suite_id"] != "gemma-optiq-route-smoke-v1" or data["suite_revision"] != "1":
                     raise ManifestError("suite_forbidden", "Stage 2B requires the approved smoke suite")
             else:

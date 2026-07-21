@@ -29,7 +29,7 @@ def _validate_stage_two_inference_manifest(manifest) -> None:
         and manifest.mode == "operator_inference_probe"
         and manifest.comparison_class == "gemma-optiq-operator-route-smoke"
         and manifest.runtime_profile_id == "gemma-4-12b-optiq-4bit"
-        and manifest.runtime_profile_revision == "1"
+        and manifest.runtime_profile_revision == "2"
         and manifest.suite_id == "gemma-optiq-route-smoke-v1"
         and manifest.suite_revision == "1"
         and manifest.repetitions == 1

@@ -57,8 +57,14 @@ class FakeTransport:
         route = "direct" if ":8080" in base_url else "routed"
         self.calls.append(("GET", f"{route}_models"))
         if route == "direct":
-            return (ModelDescriptor("mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),)
-        return (ModelDescriptor("optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),)
+            return (ModelDescriptor(
+                "/Users/jrazz/.cache/huggingface/hub/"
+                "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think"
+            ),)
+        return (ModelDescriptor(
+            "optiq//Users/jrazz/.cache/huggingface/hub/"
+            "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think"
+        ),)
 
     def chat(
         self,
@@ -221,14 +227,46 @@ class StageTwoGateAE2ETest(unittest.TestCase):
             self.assertEqual(
                 transport.posts,
                 [
-                    ("direct", "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
-                    ("routed", "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
-                    ("direct", "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
-                    ("routed", "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
-                    ("routed", "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
-                    ("direct", "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
-                    ("routed", "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
-                    ("direct", "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
+                    (
+                        "direct",
+                        "/Users/jrazz/.cache/huggingface/hub/"
+                        "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
+                    ),
+                    (
+                        "routed",
+                        "optiq//Users/jrazz/.cache/huggingface/hub/"
+                        "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
+                    ),
+                    (
+                        "direct",
+                        "/Users/jrazz/.cache/huggingface/hub/"
+                        "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
+                    ),
+                    (
+                        "routed",
+                        "optiq//Users/jrazz/.cache/huggingface/hub/"
+                        "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
+                    ),
+                    (
+                        "routed",
+                        "optiq//Users/jrazz/.cache/huggingface/hub/"
+                        "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
+                    ),
+                    (
+                        "direct",
+                        "/Users/jrazz/.cache/huggingface/hub/"
+                        "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
+                    ),
+                    (
+                        "routed",
+                        "optiq//Users/jrazz/.cache/huggingface/hub/"
+                        "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
+                    ),
+                    (
+                        "direct",
+                        "/Users/jrazz/.cache/huggingface/hub/"
+                        "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
+                    ),
                 ],
             )
             self.assertEqual(len(observations), 8)

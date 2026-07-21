@@ -111,7 +111,7 @@ class ArtifactBundle:
                 and (
                     (
                         manifest.get("schema_version") == "3.3.0"
-                        and manifest.get("runtime_profile_revision") == "1"
+                        and manifest.get("runtime_profile_revision") == "2"
                     )
                     or (
                         manifest.get("schema_version") == "3.2.0"
