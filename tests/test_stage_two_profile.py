@@ -104,6 +104,70 @@ class StageTwoRuntimeProfileTest(unittest.TestCase):
                 with self.assertRaises(RuntimeProfileError):
                     RuntimeProfileRegistry(Path(temp)).get("vibethinker-3b-optiq-4bit", "2")
 
+    def test_gemma_revision_one_profile_loads_with_draft_pins(self) -> None:
+        profile = RuntimeProfileRegistry(self.root / "config" / "runtime-profiles").get(
+            "gemma-4-12b-optiq-4bit", "1"
+        )
+        gemma_model = Path(
+            "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"
+        )
+        self.assertEqual(profile.revision, "1")
+        self.assertEqual(profile.coordinator_model_id, "gemma-4-12b-it-qat-jang_4m")
+        self.assertEqual(profile.model_repository, "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit")
+        self.assertEqual(profile.model_snapshot, gemma_model)
+        self.assertEqual(
+            profile.routed_model_id,
+            "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+        )
+        self.assertEqual(
+            profile.rejected_local_model_ids,
+            (
+                "gemma-4-12b-optiq-4bit",
+                "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+            ),
+        )
+        self.assertEqual(
+            profile.artifact_hashes,
+            {
+                "config.json": (
+                    "10c3765fec68c1cd13e6b67dd968468fa71c0e66f33b4c8003d9e7565f68b209"
+                ),
+                "optiq_metadata.json": (
+                    "e64e0271ef661b18c1d6b54c395266681be08771aa3e11804c7a206ada32dddf"
+                ),
+                "model.safetensors.index.json": (
+                    "62d43537384d711cd4af06295524cb92e1f6d3f3df7fdfbcbcb2628ea5d0f08d"
+                ),
+                "model-00001-of-00002.safetensors": (
+                    "515896784d9237ed8545ee2668eb886f665b075abe8ae50dc70f10cf173763c1"
+                ),
+                "model-00002-of-00002.safetensors": (
+                    "0bea2433d5812dbb20fddc75b4adaa2d33a964420209eabefef94579048b0457"
+                ),
+            },
+        )
+        self.assertEqual(profile.serve_arguments[2], str(gemma_model))
+        self.assertEqual(profile.service_ownership, "operator")
+        self.assertEqual(profile.provider_activation, "operator_reconnect_required")
+
+    def test_gemma_revision_one_rejects_unprefixed_and_short_alias_as_routed_id(self) -> None:
+        source = (
+            self.root / "config" / "runtime-profiles" / "gemma-4-12b-optiq-4bit-r1.json"
+        )
+        self.assertTrue(source.is_file(), "gemma revision-1 profile must exist")
+        base = json.loads(source.read_text())
+        for routed_model_id in (
+            "gemma-4-12b-optiq-4bit",
+            "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+        ):
+            with self.subTest(routed_model_id=routed_model_id), tempfile.TemporaryDirectory() as temp:
+                data = dict(base)
+                data["routed_model_id"] = routed_model_id
+                path = Path(temp) / "profile.json"
+                path.write_text(json.dumps(data))
+                with self.assertRaises(RuntimeProfileError):
+                    RuntimeProfileRegistry(Path(temp)).get("gemma-4-12b-optiq-4bit", "1")
+
 
 if __name__ == "__main__":
     unittest.main()

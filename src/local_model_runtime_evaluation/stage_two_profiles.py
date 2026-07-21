@@ -41,14 +41,41 @@ _BASE_FIELDS = {
 }
 _REVISION_THREE_FIELDS = _BASE_FIELDS | {"service_ownership", "provider_activation"}
 _EXECUTABLE = Path("/Users/jrazz/Dev/tools/mlx-optiq/.venv/bin/optiq")
-_SNAPSHOT = Path(
+_PACKAGE_VERSIONS = {
+    "mlx-optiq": "0.3.3", "mlx": "0.32.0", "mlx-lm": "0.31.3",
+    "transformers": "5.12.1",
+}
+_VIBETHINKER_SNAPSHOT = Path(
     "/Users/jrazz/.cache/huggingface/hub/"
     "models--mlx-community--VibeThinker-3B-OptiQ-4bit/snapshots/"
     "94bce93443d4f62946ae89261f62e0ecdbb1ef1e"
 )
-_HASH_FILES = {
+_VIBETHINKER_HASH_FILES = {
     "model.safetensors", "config.json", "optiq_metadata.json", "model.safetensors.index.json"
 }
+_GEMMA_SNAPSHOT = Path(
+    "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"
+)
+_GEMMA_ARTIFACT_HASHES = {
+    "config.json": "10c3765fec68c1cd13e6b67dd968468fa71c0e66f33b4c8003d9e7565f68b209",
+    "optiq_metadata.json": "e64e0271ef661b18c1d6b54c395266681be08771aa3e11804c7a206ada32dddf",
+    "model.safetensors.index.json": (
+        "62d43537384d711cd4af06295524cb92e1f6d3f3df7fdfbcbcb2628ea5d0f08d"
+    ),
+    "model-00001-of-00002.safetensors": (
+        "515896784d9237ed8545ee2668eb886f665b075abe8ae50dc70f10cf173763c1"
+    ),
+    "model-00002-of-00002.safetensors": (
+        "0bea2433d5812dbb20fddc75b4adaa2d33a964420209eabefef94579048b0457"
+    ),
+}
+_SERVE_FLAGS = [
+    "--host", "127.0.0.1", "--port", "8080",
+    "--no-anthropic", "--no-responses", "--no-auth", "--single-model",
+    "--max-concurrent", "1", "--idle-timeout", "0", "--max-context", "8192",
+    "--context-scale", "1.0", "--no-stream-experts", "--decode-concurrency", "1",
+    "--prompt-concurrency", "1",
+]
 
 
 def _parse(data: object) -> RuntimeProfile:
@@ -57,7 +84,12 @@ def _parse(data: object) -> RuntimeProfile:
     ):
         raise RuntimeProfileError("runtime profile fields are invalid")
     revision = data.get("revision")
-    if data["schema_version"] != "1.0.0" or revision not in {"2", "3"} or data["approved"] is not True:
+    profile_id = data.get("profile_id")
+    if data["schema_version"] != "1.0.0" or data["approved"] is not True:
+        raise RuntimeProfileError("runtime profile is not approved")
+    if profile_id == "gemma-4-12b-optiq-4bit" and revision == "1":
+        return _parse_gemma_revision_one(data)
+    if revision not in {"2", "3"}:
         raise RuntimeProfileError("runtime profile is not approved")
     if revision == "2" and set(data) != _BASE_FIELDS:
         raise RuntimeProfileError("revision 2 profile fields are invalid")
@@ -65,33 +97,24 @@ def _parse(data: object) -> RuntimeProfile:
         raise RuntimeProfileError("revision 3 profile fields are invalid")
     executable = Path(str(data["runtime_executable"]))
     snapshot = Path(str(data["model_snapshot"]))
-    if executable != _EXECUTABLE or snapshot != _SNAPSHOT:
+    if executable != _EXECUTABLE or snapshot != _VIBETHINKER_SNAPSHOT:
         raise RuntimeProfileError("runtime or model path is not canonical")
     if data["runtime_version"] != "0.3.3":
         raise RuntimeProfileError("runtime version is not approved")
     if data["coordinator_model_id"] != "gemma-4-12b-it-qat-jang_4m":
         raise RuntimeProfileError("coordinator model is not approved")
     packages = data["package_versions"]
-    if packages != {
-        "mlx-optiq": "0.3.3", "mlx": "0.32.0", "mlx-lm": "0.31.3",
-        "transformers": "5.12.1",
-    }:
+    if packages != _PACKAGE_VERSIONS:
         raise RuntimeProfileError("package versions are not approved")
     hashes = data["artifact_hashes"]
-    if not isinstance(hashes, dict) or set(hashes) != _HASH_FILES:
+    if not isinstance(hashes, dict) or set(hashes) != _VIBETHINKER_HASH_FILES:
         raise RuntimeProfileError("artifact hash inventory is invalid")
     if any(not isinstance(value, str) or len(value) != 64 for value in hashes.values()):
         raise RuntimeProfileError("artifact hashes are invalid")
     arguments = data["serve_arguments"]
     if not isinstance(arguments, list) or any(not isinstance(value, str) for value in arguments):
         raise RuntimeProfileError("serve arguments are invalid")
-    expected_arguments = [
-        "serve", "--model", str(_SNAPSHOT), "--host", "127.0.0.1", "--port", "8080",
-        "--no-anthropic", "--no-responses", "--no-auth", "--single-model",
-        "--max-concurrent", "1", "--idle-timeout", "0", "--max-context", "8192",
-        "--context-scale", "1.0", "--no-stream-experts", "--decode-concurrency", "1",
-        "--prompt-concurrency", "1",
-    ]
+    expected_arguments = ["serve", "--model", str(_VIBETHINKER_SNAPSHOT), *_SERVE_FLAGS]
     if arguments != expected_arguments:
         raise RuntimeProfileError("serve arguments differ from the approved API-only command")
     if data["direct_base_url"] != "http://127.0.0.1:8080/v1" or data["routed_base_url"] != "http://127.0.0.1:1337/v1":
@@ -149,6 +172,72 @@ def _parse(data: object) -> RuntimeProfile:
         rejected_local_model_ids=tuple(str(value) for value in rejected_local_model_ids),
         service_ownership=service_ownership,
         provider_activation=provider_activation,
+    )
+
+
+def _parse_gemma_revision_one(data: dict) -> RuntimeProfile:
+    if set(data) != _REVISION_THREE_FIELDS:
+        raise RuntimeProfileError("revision 1 profile fields are invalid")
+    executable = Path(str(data["runtime_executable"]))
+    snapshot = Path(str(data["model_snapshot"]))
+    if executable != _EXECUTABLE or snapshot != _GEMMA_SNAPSHOT:
+        raise RuntimeProfileError("runtime or model path is not canonical")
+    if data["runtime_version"] != "0.3.3":
+        raise RuntimeProfileError("runtime version is not approved")
+    if data["coordinator_model_id"] != "gemma-4-12b-it-qat-jang_4m":
+        raise RuntimeProfileError("coordinator model is not approved")
+    packages = data["package_versions"]
+    if packages != _PACKAGE_VERSIONS:
+        raise RuntimeProfileError("package versions are not approved")
+    hashes = data["artifact_hashes"]
+    if not isinstance(hashes, dict) or hashes != _GEMMA_ARTIFACT_HASHES:
+        raise RuntimeProfileError("artifact hash inventory is invalid")
+    arguments = data["serve_arguments"]
+    if not isinstance(arguments, list) or any(not isinstance(value, str) for value in arguments):
+        raise RuntimeProfileError("serve arguments are invalid")
+    expected_arguments = ["serve", "--model", str(_GEMMA_SNAPSHOT), *_SERVE_FLAGS]
+    if arguments != expected_arguments:
+        raise RuntimeProfileError("serve arguments differ from the approved API-only command")
+    if data["direct_base_url"] != "http://127.0.0.1:8080/v1" or data["routed_base_url"] != "http://127.0.0.1:1337/v1":
+        raise RuntimeProfileError("runtime routes are not approved")
+    identities = data["direct_model_identities"]
+    if not isinstance(identities, list) or identities != [str(data["model_repository"]), str(snapshot)]:
+        raise RuntimeProfileError("direct model identities are invalid")
+    if data["model_repository"] != "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit":
+        raise RuntimeProfileError("model repository is not approved")
+    if data["model_revision"] != "083d338ef60c7ce2b47b27e1447ed92e729c4150":
+        raise RuntimeProfileError("model revision is not approved")
+    routed_model_id = data["routed_model_id"]
+    rejected_local_model_ids = data["rejected_local_model_ids"]
+    expected_rejected = [
+        "gemma-4-12b-optiq-4bit",
+        "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+    ]
+    if (
+        data["osaurus_provider_id"] != "Optiq"
+        or not isinstance(rejected_local_model_ids, list)
+        or rejected_local_model_ids != expected_rejected
+        or routed_model_id != "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"
+        or routed_model_id in rejected_local_model_ids
+        or data["service_ownership"] != "operator"
+        or data["provider_activation"] != "operator_reconnect_required"
+    ):
+        raise RuntimeProfileError("Osaurus route identity is invalid")
+    return RuntimeProfile(
+        profile_id=str(data["profile_id"]), revision=str(data["revision"]),
+        runtime_executable=executable, runtime_version=str(data["runtime_version"]),
+        coordinator_model_id=str(data["coordinator_model_id"]),
+        package_versions={str(key): str(value) for key, value in packages.items()},
+        model_repository=str(data["model_repository"]), model_revision=str(data["model_revision"]),
+        model_snapshot=snapshot, artifact_hashes={str(key): str(value) for key, value in hashes.items()},
+        serve_arguments=tuple(arguments), direct_base_url=str(data["direct_base_url"]),
+        routed_base_url=str(data["routed_base_url"]),
+        direct_model_identities=tuple(str(value) for value in identities),
+        osaurus_provider_id=str(data["osaurus_provider_id"]),
+        routed_model_id=str(routed_model_id),
+        rejected_local_model_ids=tuple(str(value) for value in rejected_local_model_ids),
+        service_ownership=str(data["service_ownership"]),
+        provider_activation=str(data["provider_activation"]),
     )
 
 
