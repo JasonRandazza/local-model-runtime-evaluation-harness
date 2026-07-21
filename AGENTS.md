@@ -46,10 +46,13 @@ Run the Python and Swift test suites after relevant changes. Preserve the legacy
   Gate B reported `READY_FOR_MANIFEST_AUTHORIZATION` and Jason authorized
   unused run `stage2-20260721-001` (short-lived manifest; expires end of day
   Eastern). That cohort cleaned as `STOPPED` after a first-POST transport
-  failure (`inference_path_acceptance: FAIL`). Jason authorized unused follow-up
-  run `stage2-20260721-002`. Live eight-POST retry still requires Coordinator
-  prompt + one-time tool approvals and a fresh Gate B if OptiQ was restarted.
-  Stage 2B-2 remains unauthorized.
+  failure (`inference_path_acceptance: FAIL`). Follow-up `stage2-20260721-002`
+  cleaned the same way (`stream_failed` during cold-load SSE). On 2026-07-21
+  Jason authorized unused run `stage2-20260721-003` after warm OptiQ + Gate B
+  `READY_FOR_MANIFEST_AUTHORIZATION` (manifest
+  `manifests/stage-2-optiq-inference-003.json`; expires end of day Eastern).
+  Live eight-POST attempt still requires Coordinator prompt + one-time tool
+  approvals. Stage 2B-2 remains unauthorized.
 - Do not create additional run IDs or manifests without Jason's separate
   current-session authorization. Do not operate OptiQ/Osaurus lifecycle from
   the harness. Do not install a Coordinator prompt or issue inference without
