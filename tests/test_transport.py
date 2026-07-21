@@ -5,6 +5,7 @@ import threading
 import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from unittest.mock import patch
 
 from local_model_runtime_evaluation.credentials import Credential
 from local_model_runtime_evaluation.transport import LoopbackTransport, TransportError
@@ -15,6 +16,8 @@ class Handler(BaseHTTPRequestHandler):
     include_reasoning_details = True
     reasoning_tokens = 2
     stream_stall_seconds = 0.0
+    stream_fragmented = False
+    stream_trickle_interval = 0.0
     first_event_sent = threading.Event()
     stream_release = threading.Event()
 
@@ -55,11 +58,19 @@ class Handler(BaseHTTPRequestHandler):
             },
         ]
         if Handler.stream_stall_seconds:
-            first_event = f"data: {json.dumps(chunks[0])}\n\n".encode()
+            complete_first_event = f"data: {json.dumps(chunks[0])}\n\n".encode()
+            if Handler.stream_fragmented:
+                split_at = len(complete_first_event) // 2
+                first_event = complete_first_event[:split_at]
+                remaining_first_event = complete_first_event[split_at:]
+            else:
+                first_event = complete_first_event
+                remaining_first_event = b""
             remainder = (
-                f"data: {json.dumps(chunks[1])}\n\n"
-                "data: [DONE]\n\n"
-            ).encode()
+                remaining_first_event
+                + f"data: {json.dumps(chunks[1])}\n\n".encode()
+                + b"data: [DONE]\n\n"
+            )
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.end_headers()
@@ -67,7 +78,17 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(first_event)
                 self.wfile.flush()
                 Handler.first_event_sent.set()
-                Handler.stream_release.wait(Handler.stream_stall_seconds)
+                if Handler.stream_trickle_interval:
+                    elapsed = 0.0
+                    while elapsed < Handler.stream_stall_seconds:
+                        Handler.stream_release.wait(Handler.stream_trickle_interval)
+                        if Handler.stream_release.is_set():
+                            return
+                        self.wfile.write(b"x")
+                        self.wfile.flush()
+                        elapsed += Handler.stream_trickle_interval
+                else:
+                    Handler.stream_release.wait(Handler.stream_stall_seconds)
                 self.wfile.write(remainder)
             except BrokenPipeError:
                 return
@@ -86,6 +107,8 @@ class TransportTest(unittest.TestCase):
         Handler.include_reasoning_details = True
         Handler.reasoning_tokens = 2
         Handler.stream_stall_seconds = 0.0
+        Handler.stream_fragmented = False
+        Handler.stream_trickle_interval = 0.0
         Handler.first_event_sent = threading.Event()
         Handler.stream_release = threading.Event()
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
@@ -148,6 +171,8 @@ class TransportTest(unittest.TestCase):
 
     def test_chat_enforces_monotonic_wall_clock_deadline_on_trickle_stream(self) -> None:
         Handler.stream_stall_seconds = 5.0
+        Handler.stream_fragmented = True
+        Handler.stream_trickle_interval = 0.1
         transport = LoopbackTransport({self.base_url}, timeout_seconds=2)
         started = time.monotonic()
 
@@ -178,6 +203,42 @@ class TransportTest(unittest.TestCase):
         self.assertLess(time.monotonic() - started, 3.0)
         self.assertIn("cancelled", str(ctx.exception).lower())
         self.assertNotIn("secret-prompt", str(ctx.exception))
+
+    def test_chat_sanitizes_pre_stream_timeouts_and_cancellation(self) -> None:
+        class FakeConnection:
+            failure_site = "request"
+
+            def __init__(self, *_args: object, **_kwargs: object) -> None:
+                return
+
+            def request(self, *_args: object, **_kwargs: object) -> None:
+                if self.failure_site == "request":
+                    raise TimeoutError("prompt secret")
+
+            def getresponse(self) -> object:
+                if self.failure_site == "getresponse":
+                    raise TimeoutError("prompt secret")
+                raise AssertionError("a pre-stream timeout should be configured")
+
+            def close(self) -> None:
+                return
+
+        with patch("local_model_runtime_evaluation.transport.http.client.HTTPConnection", FakeConnection):
+            for failure_site in ("request", "getresponse"):
+                with self.subTest(failure_site=failure_site):
+                    FakeConnection.failure_site = failure_site
+                    with self.assertRaisesRegex(TransportError, "^request timed out$"):
+                        LoopbackTransport({self.base_url}).chat(
+                            self.base_url, "model", "secret-prompt", 16, None
+                        )
+
+            cancel = threading.Event()
+            cancel.set()
+            FakeConnection.failure_site = "request"
+            with self.assertRaisesRegex(TransportError, "^request cancelled$"):
+                LoopbackTransport({self.base_url}).chat(
+                    self.base_url, "model", "secret-prompt", 16, None, cancel=cancel
+                )
 
 
 if __name__ == "__main__":

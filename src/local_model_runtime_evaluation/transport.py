@@ -111,7 +111,21 @@ class LoopbackTransport:
         try:
             headers = self._headers(credential)
             headers["Content-Type"] = "application/json"
+            if cancel is not None and cancel.is_set():
+                raise TransportError("request cancelled")
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TransportError("request timed out")
+            connection.timeout = remaining
             connection.request("POST", f"{path}/chat/completions", body=payload, headers=headers)
+            if cancel is not None and cancel.is_set():
+                raise TransportError("request cancelled")
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TransportError("request timed out")
+            request_socket = getattr(connection, "sock", None)
+            if request_socket is not None:
+                request_socket.settimeout(remaining)
             response = connection.getresponse()
             if response.status != 200:
                 response.read()
@@ -123,64 +137,81 @@ class LoopbackTransport:
                 stream_socket = getattr(getattr(getattr(response, "fp", None), "raw", None), "_sock", None)
             if stream_socket is None:
                 raise TransportError("chat stream failed")
-            stream_socket.settimeout(1.0)
+            stream_reader = getattr(response, "fp", None)
+            if stream_reader is None or not hasattr(stream_reader, "read1"):
+                raise TransportError("chat stream failed")
+            pending = bytearray()
+            stream_done = False
             while True:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     raise TransportError("request timed out")
                 if cancel is not None and cancel.is_set():
                     raise TransportError("request cancelled")
+                stream_socket.settimeout(min(1.0, remaining))
                 readable, _, _ = select.select([stream_socket], [], [], min(1.0, remaining))
                 if not readable:
                     continue
                 try:
-                    line = response.readline()
+                    chunk = stream_reader.read1(4096)
                 except TimeoutError:
                     continue
-                if not line:
+                if not chunk:
                     break
-                decoded = line.decode("utf-8").strip()
-                if not decoded or not decoded.startswith("data: "):
-                    continue
-                data = decoded[6:]
-                if data == "[DONE]":
+                pending.extend(chunk)
+                while b"\n" in pending:
+                    newline = pending.index(b"\n")
+                    line = bytes(pending[:newline])
+                    del pending[:newline + 1]
+                    decoded = line.decode("utf-8").strip()
+                    if not decoded or not decoded.startswith("data: "):
+                        continue
+                    data = decoded[6:]
+                    if data == "[DONE]":
+                        stream_done = True
+                        break
+                    event = json.loads(data)
+                    choices = event.get("choices", [])
+                    if choices:
+                        delta = choices[0].get("delta", {}).get("content")
+                        if delta:
+                            if first_token is None:
+                                first_token = time.monotonic()
+                            last_content = time.monotonic()
+                            content_event_count += 1
+                            content.append(str(delta))
+                        if choices[0].get("finish_reason") is not None:
+                            finish_reason = str(choices[0]["finish_reason"])
+                    usage = event.get("usage")
+                    if isinstance(usage, dict):
+                        completion_value = usage.get("completion_tokens")
+                        if completion_value is not None:
+                            if (
+                                not isinstance(completion_value, int)
+                                or isinstance(completion_value, bool)
+                                or completion_value < 0
+                            ):
+                                raise TransportError("completion-token accounting is invalid")
+                            completion_tokens = completion_value
+                        details = usage.get("completion_tokens_details")
+                        if isinstance(details, dict) and "reasoning_tokens" in details:
+                            reasoning_value = details["reasoning_tokens"]
+                            if (
+                                not isinstance(reasoning_value, int)
+                                or isinstance(reasoning_value, bool)
+                                or reasoning_value < 0
+                            ):
+                                raise TransportError("reasoning-token accounting is invalid")
+                            reasoning_tokens = reasoning_value
+                if stream_done:
                     break
-                event = json.loads(data)
-                choices = event.get("choices", [])
-                if choices:
-                    delta = choices[0].get("delta", {}).get("content")
-                    if delta:
-                        if first_token is None:
-                            first_token = time.monotonic()
-                        last_content = time.monotonic()
-                        content_event_count += 1
-                        content.append(str(delta))
-                    if choices[0].get("finish_reason") is not None:
-                        finish_reason = str(choices[0]["finish_reason"])
-                usage = event.get("usage")
-                if isinstance(usage, dict):
-                    completion_value = usage.get("completion_tokens")
-                    if completion_value is not None:
-                        if (
-                            not isinstance(completion_value, int)
-                            or isinstance(completion_value, bool)
-                            or completion_value < 0
-                        ):
-                            raise TransportError("completion-token accounting is invalid")
-                        completion_tokens = completion_value
-                    details = usage.get("completion_tokens_details")
-                    if isinstance(details, dict) and "reasoning_tokens" in details:
-                        reasoning_value = details["reasoning_tokens"]
-                        if (
-                            not isinstance(reasoning_value, int)
-                            or isinstance(reasoning_value, bool)
-                            or reasoning_value < 0
-                        ):
-                            raise TransportError("reasoning-token accounting is invalid")
-                        reasoning_tokens = reasoning_value
         except TransportError:
             raise
-        except (OSError, TimeoutError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
+        except TimeoutError as error:
+            if cancel is not None and cancel.is_set():
+                raise TransportError("request cancelled") from error
+            raise TransportError("request timed out") from error
+        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
             raise TransportError("chat stream failed") from error
         finally:
             connection.close()
