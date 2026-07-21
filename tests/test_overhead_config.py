@@ -94,6 +94,23 @@ class OverheadConfigTests(unittest.TestCase):
         self.assertEqual(selection.family_id, "ornith-35b")
         self.assertEqual(selection.pairs, ("ornith_oq4", "ornith_optiq_4bit"))
 
+    def test_load_qwen_oq4_pair(self) -> None:
+        pair = OverheadPair.load(ROOT / "config/overhead/pairs/qwen_oq4.json")
+        self.assertEqual(pair.pair_id, "qwen_oq4")
+        self.assertEqual(pair.direct_cell_id, "qwen_oq4__omlx")
+        self.assertEqual(pair.routed_model_id, "omlx/Qwen3.6-35B-A3B-oQ4-mtp")
+
+    def test_load_qwen_optiq_4bit_pair(self) -> None:
+        pair = OverheadPair.load(ROOT / "config/overhead/pairs/qwen_optiq_4bit.json")
+        self.assertEqual(pair.pair_id, "qwen_optiq_4bit")
+        self.assertEqual(pair.direct_cell_id, "qwen_optiq_4bit__optiq")
+        self.assertIn(":no-think", pair.routed_model_id)
+
+    def test_resolve_family_override_qwen(self) -> None:
+        selection = resolve_overhead_selection(family_id="qwen36-35b-a3b", pairs=None)
+        self.assertEqual(selection.family_id, "qwen36-35b-a3b")
+        self.assertEqual(selection.pairs, ("qwen_oq4", "qwen_optiq_4bit"))
+
     def test_resolve_missing_family_fails(self) -> None:
         empty = OverheadDefaults(family_id="", pairs=())
         with self.assertRaises(OverheadError):

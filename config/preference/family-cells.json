@@ -10,5 +10,11 @@
     "ornith_oq4__omlx",
     "ornith_optiq_4bit__omlx",
     "ornith_optiq_4bit__optiq"
+  ],
+  "qwen36-35b-a3b": [
+    "qwen_mxfp4__osaurus",
+    "qwen_oq4__omlx",
+    "qwen_optiq_4bit__omlx",
+    "qwen_optiq_4bit__optiq"
   ]
 }

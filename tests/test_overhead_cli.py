@@ -44,6 +44,17 @@ class OverheadCliTests(unittest.TestCase):
         pair_ids = {pair["pair_id"] for pair in payload["pairs"]}
         self.assertEqual(pair_ids, {"ornith_oq4", "ornith_optiq_4bit"})
 
+    def test_dry_config_family_qwen(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["run", "--dry-config", "--family", "qwen36-35b-a3b"])
+        self.assertEqual(code, 0)
+        payload = json.loads(buffer.getvalue())
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["family_id"], "qwen36-35b-a3b")
+        pair_ids = {pair["pair_id"] for pair in payload["pairs"]}
+        self.assertEqual(pair_ids, {"qwen_oq4", "qwen_optiq_4bit"})
+
     def test_dry_config_rejects_ornith_pair_under_gemma_family(self) -> None:
         buffer = io.StringIO()
         with redirect_stdout(buffer):

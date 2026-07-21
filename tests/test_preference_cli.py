@@ -47,6 +47,24 @@ class PreferenceCliTests(unittest.TestCase):
         self.assertEqual(payload["family_id"], "ornith-35b")
         self.assertEqual(len(payload["cells"]), 4)
 
+    def test_collect_dry_config_family_qwen(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["collect", "--dry-config", "--family", "qwen36-35b-a3b"])
+        self.assertEqual(code, 0)
+        payload = json.loads(buffer.getvalue())
+        self.assertEqual(payload["family_id"], "qwen36-35b-a3b")
+        self.assertEqual(len(payload["cells"]), 4)
+        self.assertEqual(
+            payload["cells"],
+            [
+                "qwen_mxfp4__osaurus",
+                "qwen_oq4__omlx",
+                "qwen_optiq_4bit__omlx",
+                "qwen_optiq_4bit__optiq",
+            ],
+        )
+
     def test_collect_rejects_ornith_cell_under_gemma_family(self) -> None:
         buffer = io.StringIO()
         with redirect_stdout(buffer):

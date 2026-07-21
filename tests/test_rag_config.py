@@ -50,6 +50,19 @@ class RagConfigTests(unittest.TestCase):
         self.assertEqual(len(selection.cells), 4)
         self.assertTrue(all(c.startswith("ornith_") for c in selection.cells))
 
+    def test_resolve_family_override_qwen(self) -> None:
+        selection = resolve_rag_selection(family_id="qwen36-35b-a3b", cells=None)
+        self.assertEqual(selection.family_id, "qwen36-35b-a3b")
+        self.assertEqual(
+            selection.cells,
+            (
+                "qwen_mxfp4__osaurus",
+                "qwen_oq4__omlx",
+                "qwen_optiq_4bit__omlx",
+                "qwen_optiq_4bit__optiq",
+            ),
+        )
+
     def test_resolve_missing_family_fails(self) -> None:
         empty = RagDefaults(family_id="", cells=())
         with self.assertRaises(RagError):

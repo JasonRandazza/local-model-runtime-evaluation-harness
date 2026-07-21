@@ -40,9 +40,13 @@ Four screen 12/12 cells (adds `optiq_4bit__omlx` to the prior three-cell default
 
 Ornith recipe (four screen 12/12 cells): `ornith_jang_4m__omlx`, `ornith_oq4__omlx`, `ornith_optiq_4bit__omlx`, `ornith_optiq_4bit__optiq`.
 
-### Qwen
+### Qwen override
 
-No Qwen RAG recipe yet — add after that matrix family and screen PASS cells exist.
+```bash
+./bin/lmre-rag collect --dry-config --family qwen36-35b-a3b
+```
+
+Qwen recipe (four screen PASS cells from `qwen36-35b-a3b-3x3-screen-20260720-201114`): `qwen_mxfp4__osaurus`, `qwen_oq4__omlx`, `qwen_optiq_4bit__omlx`, `qwen_optiq_4bit__optiq`.
 
 ## Modes
 
@@ -89,6 +93,14 @@ Ornith four-cell recipe:
 
 Prints JSON with `ok: true`, `"family_id": "ornith-35b"`, four `ornith_*` cell ids.
 
+Qwen four-cell recipe:
+
+```bash
+./bin/lmre-rag collect --dry-config --family qwen36-35b-a3b
+```
+
+Prints JSON with `ok: true`, `"family_id": "qwen36-35b-a3b"`, four `qwen_*` cell ids.
+
 Keyword mode:
 
 ```bash
@@ -108,6 +120,13 @@ Ornith live collect (only after separate operator authorize):
 
 ```bash
 ./bin/lmre-rag collect --family ornith-35b
+```
+
+Qwen live collect (only after separate operator authorize):
+
+```bash
+./bin/lmre-rag collect --family qwen36-35b-a3b
+./bin/lmre-rag collect --family qwen36-35b-a3b --mode keyword --top-k 2
 ```
 
 Optional filters: `--family`, `--cells id,id`, `--suite PATH`, `--corpus-root PATH`, `--results-dir PATH`, `--mode oracle|keyword`, `--top-k N`.
@@ -180,4 +199,3 @@ Latency is metadata only; scoring uses case-sensitive required-fact substring hi
 - BM25, TF-IDF, or embedding retrieval
 - Pairwise preference or local judge on RAG answers
 - New corpus or suite (reuses Phase 1 `rag-oracle-v1` / `gemma-rag-oracle-v1`)
-- Qwen RAG recipe (after Qwen matrix screen PASS cells exist)

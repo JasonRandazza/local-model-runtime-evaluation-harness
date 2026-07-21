@@ -40,13 +40,22 @@ Ornith recipe (two pairs): `ornith_oq4`, `ornith_optiq_4bit`. Pair files:
 
 A third Ornith pair (`ornith_optiq_4bit__omlx`) is out of scope for this phase.
 
+### Qwen override
+
+```bash
+./bin/lmre-overhead run --dry-config --family qwen36-35b-a3b
+```
+
+Qwen recipe (two pairs from screen PASS non-Osaurus winners): `qwen_oq4`, `qwen_optiq_4bit`. Pair files:
+
+- `config/overhead/pairs/qwen_oq4.json` — direct/backend `qwen_oq4__omlx`
+- `config/overhead/pairs/qwen_optiq_4bit.json` — direct/backend `qwen_optiq_4bit__optiq`
+
+MXFP (`qwen_mxfp4__osaurus`) has no overhead pair (Osaurus-native). A third pair (`qwen_optiq_4bit__omlx`) is out of scope.
+
 ### Pin routed model ids before live
 
 Checked-in `routed_model_id` strings in `config/overhead/pairs/*.json` are structural placeholders on each family’s allowlist. Before any live run, confirm Osaurus inventory and **pin the exact live id** in the pair JSON (often `omlx/...` for oMLX; OptiQ provider ids as configured). Mismatch fails the routed leg early.
-
-### Qwen
-
-No Qwen overhead recipe yet — add after that matrix family and screen PASS pairs exist.
 
 ## Hybrid lifecycle
 
@@ -103,6 +112,14 @@ Ornith two-pair recipe:
 
 Prints JSON with `ok: true`, `"family_id": "ornith-35b"`, pair ids `ornith_oq4` and `ornith_optiq_4bit`.
 
+Qwen two-pair recipe:
+
+```bash
+./bin/lmre-overhead run --dry-config --family qwen36-35b-a3b
+```
+
+Prints JSON with `ok: true`, `"family_id": "qwen36-35b-a3b"`, pair ids `qwen_oq4` and `qwen_optiq_4bit`.
+
 ## Workflow
 
 ```bash
@@ -115,6 +132,12 @@ Ornith live run (only after separate operator authorize and routed id pin):
 
 ```bash
 ./bin/lmre-overhead run --family ornith-35b
+```
+
+Qwen live run (only after separate operator authorize and routed id pin):
+
+```bash
+./bin/lmre-overhead run --family qwen36-35b-a3b
 ```
 
 `run` writes `raw.json` and `report.md` under `results/overhead/overhead-<timestamp>/`. Use `report` to regenerate `report.md` from an existing run.
@@ -153,10 +176,6 @@ Keep Approach 1 until overhead is proven useful; revisit Approach 2 only if main
 ### Metrics pack C — equal-weight full deltas
 
 Later expansion: report Δ median total, Δ median TTFT, and Δ estimated decode tok/s with equal weight (still labeled when estimated / incomparable).
-
-### Qwen overhead
-
-Add after Qwen matrix screen PASS pairs exist.
 
 ## Safety
 

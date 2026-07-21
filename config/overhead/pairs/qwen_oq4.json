@@ -1,0 +1,7 @@
+{
+  "pair_id": "qwen_oq4",
+  "direct_cell_id": "qwen_oq4__omlx",
+  "backend_cell_id": "qwen_oq4__omlx",
+  "routed_base_url": "http://127.0.0.1:1337/v1",
+  "routed_model_id": "omlx/Qwen3.6-35B-A3B-oQ4-mtp"
+}

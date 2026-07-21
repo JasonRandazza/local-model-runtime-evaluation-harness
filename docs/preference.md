@@ -38,13 +38,17 @@ Cell ids come from `--cells` or the selected family’s recipe in `config/prefer
 
 Ornith recipe (four screen 12/12 cells): `ornith_jang_4m__omlx`, `ornith_oq4__omlx`, `ornith_optiq_4bit__omlx`, `ornith_optiq_4bit__optiq`.
 
+### Qwen override
+
+```bash
+./bin/lmre-preference collect --dry-config --family qwen36-35b-a3b
+```
+
+Qwen recipe (four screen PASS cells from `qwen36-35b-a3b-3x3-screen-20260720-201114`): `qwen_mxfp4__osaurus`, `qwen_oq4__omlx`, `qwen_optiq_4bit__omlx`, `qwen_optiq_4bit__optiq`.
+
 ### Pair count
 
 Four cells → **6 unordered pairs per prompt** (**36** judgments across the six-prompt suite). Historical **3-cell** Gemma preference runs remain valid artifacts; review and tally read `cell_ids` from each run’s `raw.json`.
-
-### Qwen
-
-No Qwen preference recipe yet — add after that matrix family and screen PASS cells exist.
 
 ## Prerequisites
 
@@ -82,6 +86,14 @@ Ornith four-cell recipe:
 
 Prints JSON with `ok: true`, `"family_id": "ornith-35b"`, four `ornith_*` cell ids, and `prompts: 6`.
 
+Qwen four-cell recipe:
+
+```bash
+./bin/lmre-preference collect --dry-config --family qwen36-35b-a3b
+```
+
+Prints JSON with `ok: true`, `"family_id": "qwen36-35b-a3b"`, four `qwen_*` cell ids, and `prompts: 6`.
+
 Judge dry-config (after review):
 
 ```bash
@@ -113,6 +125,14 @@ Ornith live collect (only after separate operator authorize):
 ```bash
 ./bin/lmre-preference collect --family ornith-35b
 ```
+
+Qwen live collect (only after separate operator authorize):
+
+```bash
+./bin/lmre-preference collect --family qwen36-35b-a3b
+```
+
+For Qwen judging, prefer a PASS cell that is not under test self-bias pressure if desired, e.g. `--judge-cell qwen_optiq_4bit__optiq` or `qwen_mxfp4__osaurus`.
 
 Default judge cell: `jang_4m__osaurus`. Override with `--judge-cell`:
 
