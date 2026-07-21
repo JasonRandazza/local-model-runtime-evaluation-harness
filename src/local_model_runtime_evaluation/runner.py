@@ -287,7 +287,9 @@ class StageZeroRunner:
             }
             bundle.finalize_partial(summary)
             state = lifecycle.transition(run_id, RunStatus.CLEANED, "failed Stage 2 preflight evidence cleaned")
-        bundle.reseal_after_state_transition()
+        bundle.reseal_after_state_transition(
+            expected_lifecycle_lines=lifecycle.verified_history(run_id),
+        )
         validation = bundle.validate_partial()
         return {
             **summary,

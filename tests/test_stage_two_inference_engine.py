@@ -577,7 +577,7 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
             engine, controller, transport = self._complete_and_shutdown(output)
             original_reseal = engine.bundle.reseal_after_state_transition
 
-            def fail_once() -> None:
+            def fail_once(**kwargs) -> None:
                 engine.bundle.reseal_after_state_transition = original_reseal
                 raise ArtifactError("injected reseal failure fake-secret")
 
@@ -593,13 +593,34 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
             self.assertEqual(repeated["disposition"], "PASS")
             self.assertEqual(repeated["checksum_validation"], "PASS")
 
+    def test_recovery_cleanup_rejects_a_tampered_lifecycle_history(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            engine, controller, transport = self._complete_and_shutdown(output)
+            result = engine.cleanup()
+            self.assertEqual(result["checksum_validation"], "PASS")
+
+            lifecycle_path = output / self.manifest.run_id / "lifecycle.jsonl"
+            lines = lifecycle_path.read_text(encoding="utf-8").splitlines()
+            self.assertGreaterEqual(len(lines), 3)
+            tampered = "\n".join([lines[0]] + lines[2:]) + "\n"
+            lifecycle_path.write_text(tampered, encoding="utf-8")
+
+            recovery_engine = self._engine(output, transport, controller)
+            with self.assertRaises(StageTwoError) as context:
+                recovery_engine.cleanup()
+            self.assertEqual(context.exception.code, "evidence_incomplete")
+            self.assertFalse(
+                (output / self.manifest.run_id / "checksums.txt.tmp").exists()
+            )
+
     def test_recovery_cleanup_fails_if_lock_disappears_before_reseal(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             output = Path(temp)
             engine, controller, transport = self._complete_and_shutdown(output)
             original_reseal = engine.bundle.reseal_after_state_transition
 
-            def fail_once() -> None:
+            def fail_once(**kwargs) -> None:
                 engine.bundle.reseal_after_state_transition = original_reseal
                 raise ArtifactError("injected reseal failure fake-secret")
 
@@ -627,7 +648,7 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
             engine, controller, transport = self._complete_and_shutdown(output)
             original_reseal = engine.bundle.reseal_after_state_transition
 
-            def fail_once() -> None:
+            def fail_once(**kwargs) -> None:
                 engine.bundle.reseal_after_state_transition = original_reseal
                 raise ArtifactError("injected reseal failure fake-secret")
 

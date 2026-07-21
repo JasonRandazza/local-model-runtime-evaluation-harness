@@ -365,7 +365,9 @@ class StageTwoEngine:
             }
             self.bundle.finalize_partial(summary)
             self.lifecycle.transition(run_id, RunStatus.CLEANED, "stopped Stage 2A evidence cleaned")
-            self.bundle.reseal_after_state_transition()
+            self.bundle.reseal_after_state_transition(
+                expected_lifecycle_lines=self.lifecycle.verified_history(run_id),
+            )
             validation = self.bundle.validate_partial()
             return {
                 **summary, "artifact_directory": str(self.bundle.path),
@@ -410,7 +412,9 @@ class StageTwoEngine:
         }
         self.bundle.finalize(summary)
         self.lifecycle.transition(run_id, RunStatus.CLEANED, "Stage 2A operator evidence cleaned")
-        self.bundle.reseal_after_state_transition()
+        self.bundle.reseal_after_state_transition(
+            expected_lifecycle_lines=self.lifecycle.verified_history(run_id),
+        )
         validation = self.bundle.validate()
         return {
             **summary,
@@ -443,7 +447,9 @@ class StageTwoEngine:
             validate = self.bundle.validate_partial
         else:
             raise StageTwoError("evidence_incomplete", "cleaned Stage 2A disposition is invalid")
-        self.bundle.reseal_after_state_transition()
+        self.bundle.reseal_after_state_transition(
+            expected_lifecycle_lines=self.lifecycle.verified_history(self.manifest.run_id),
+        )
         validation = validate()
         return {
             **summary,

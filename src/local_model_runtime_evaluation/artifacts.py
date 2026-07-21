@@ -151,9 +151,18 @@ class ArtifactBundle:
             raise ArtifactError("partial artifact bundle lacks its durable run record")
         self._write_checksums()
 
-    def reseal_after_state_transition(self) -> None:
+    def reseal_after_state_transition(
+        self, *, expected_lifecycle_lines: tuple[str, ...],
+    ) -> None:
         if not (self.path / "checksums.txt").is_file():
             raise ArtifactError("artifact bundle must be finalized before resealing")
+        actual_lines = tuple(
+            (self.path / "lifecycle.jsonl").read_text(encoding="utf-8").splitlines()
+        )
+        if actual_lines != tuple(expected_lifecycle_lines):
+            raise ArtifactError(
+                "lifecycle history does not match the expected reconciliation"
+            )
         self._validate_checksums(allowed_changes={"lifecycle.jsonl"})
         self._write_checksums()
 

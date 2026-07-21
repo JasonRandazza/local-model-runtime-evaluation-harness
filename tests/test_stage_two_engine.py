@@ -235,7 +235,7 @@ class StageTwoEngineTest(unittest.TestCase):
             controller.running = False
             original_reseal = engine.bundle.reseal_after_state_transition
 
-            def fail_once() -> None:
+            def fail_once(**kwargs) -> None:
                 engine.bundle.reseal_after_state_transition = original_reseal
                 raise ArtifactError("injected reseal failure")
 
@@ -262,7 +262,7 @@ class StageTwoEngineTest(unittest.TestCase):
             controller.running = False
             original_reseal = engine.bundle.reseal_after_state_transition
 
-            def fail_once() -> None:
+            def fail_once(**kwargs) -> None:
                 engine.bundle.reseal_after_state_transition = original_reseal
                 raise ArtifactError("injected partial reseal failure")
 

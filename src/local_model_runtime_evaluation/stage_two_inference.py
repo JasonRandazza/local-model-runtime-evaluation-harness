@@ -979,7 +979,9 @@ class StageTwoInferenceEngine:
         self.lifecycle.transition(
             self.manifest.run_id, RunStatus.CLEANED, "Stage 2B-1 evidence cleaned",
         )
-        self.bundle.reseal_after_state_transition()
+        self.bundle.reseal_after_state_transition(
+            expected_lifecycle_lines=self.lifecycle.verified_history(self.manifest.run_id),
+        )
         validation = self.bundle.validate_partial() if partial else self.bundle.validate()
         return {
             **summary,
@@ -1028,7 +1030,9 @@ class StageTwoInferenceEngine:
             raise StageTwoError(
                 "cleanup_failed", "Stage 2B-1 cleanup could not be completed",
             )
-        self.bundle.reseal_after_state_transition()
+        self.bundle.reseal_after_state_transition(
+            expected_lifecycle_lines=self.lifecycle.verified_history(self.manifest.run_id),
+        )
         validation = self.bundle.validate_partial() if partial else self.bundle.validate()
         return {
             **summary,

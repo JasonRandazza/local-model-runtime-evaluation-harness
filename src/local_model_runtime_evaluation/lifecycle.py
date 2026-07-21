@@ -93,6 +93,48 @@ class LifecycleStore:
         except (OSError, KeyError, TypeError, json.JSONDecodeError) as error:
             raise LifecycleError(f"lifecycle history is unavailable for {run_id}") from error
 
+    def raw_lines(self, run_id: str) -> tuple[str, ...]:
+        try:
+            return tuple(
+                (self._directory(run_id) / "lifecycle.jsonl").read_text(encoding="utf-8").splitlines()
+            )
+        except OSError as error:
+            raise LifecycleError(f"lifecycle history is unavailable for {run_id}") from error
+
+    def verified_history(self, run_id: str) -> tuple[str, ...]:
+        """Replay every persisted lifecycle row and fail closed on tampering.
+
+        Unlike ``history``/``raw_lines``, this rejects any row that is out of
+        sequence, references another run, or is not a legal successor of the
+        previous row, so appended, removed, reordered, duplicated, or modified
+        rows cannot be re-checksummed as if they were authentic evidence.
+        """
+        lines = self.raw_lines(run_id)
+        previous_status: RunStatus | None = None
+        for index, line in enumerate(lines):
+            try:
+                payload = json.loads(line)
+                record_run_id = str(payload["run_id"])
+                status = RunStatus(payload["status"])
+                sequence = int(payload["sequence"])
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+                raise LifecycleError(
+                    f"lifecycle history row {index} is malformed for {run_id}"
+                ) from error
+            if record_run_id != run_id or sequence != index:
+                raise LifecycleError(f"lifecycle history is not contiguous for {run_id}")
+            if index == 0:
+                if status is not RunStatus.QUEUED:
+                    raise LifecycleError(f"lifecycle history does not begin at queued for {run_id}")
+            elif status not in LEGAL_TRANSITIONS[previous_status] and not (
+                status is previous_status and status in {RunStatus.CANCELLED, RunStatus.CLEANED}
+            ):
+                raise LifecycleError(
+                    f"lifecycle history row {index} is an illegal transition for {run_id}"
+                )
+            previous_status = status
+        return lines
+
     def transition(self, run_id: str, target: RunStatus, reason: str) -> RunState:
         current = self.read(run_id)
         if current.status == target and target in {RunStatus.CANCELLED, RunStatus.CLEANED}:
