@@ -41,14 +41,16 @@ Run the Python and Swift test suites after relevant changes. Preserve the legacy
 ## Stage 2B-1 Boundary
 
 - Current decision: `GATE_A_FINDINGS_CLOSED` (Jason, 2026-07-20). Gate A
-  remediation for the five findings is accepted. Slice 2 (schema `3.3.0`
-  Gemma OptiQ retarget) is implemented in tree per
-  `docs/superpowers/specs/2026-07-20-stage-2b1-gemma-retarget-design.md` and
-  remains pending independent retarget review before any Gate B session.
-- Do not run Gate B, create or authorize a run ID, create a live manifest,
-  operate services or providers for a Stage 2B run, install a Coordinator
-  prompt, or issue inference until Slice 2 is reviewed and Jason separately
-  authorizes Gate B for the Gemma profile.
+  remediation for the five findings is accepted. Slice 2 Gemma retarget is in
+  tree as schema `3.3.0` with authorizing profile revision `2`. On 2026-07-21
+  Gate B reported `READY_FOR_MANIFEST_AUTHORIZATION` and Jason authorized
+  unused run `stage2-20260721-001` (short-lived manifest; expires end of day
+  Eastern). Live eight-POST cohort still requires Coordinator prompt install
+  and one-time tool approvals. Stage 2B-2 remains unauthorized.
+- Do not create additional run IDs or manifests without Jason's separate
+  current-session authorization. Do not operate OptiQ/Osaurus lifecycle from
+  the harness. Do not install a Coordinator prompt or issue inference without
+  the operator sequence in `docs/stage-2b1-gate-a.md`.
 - Stage 2B-1 is one bounded inference-path acceptance cohort, not a benchmark. It permits exactly eight serial inference requests and eight HTTP POSTs only after separately completed Gate B, Jason's explicit current-session authorization of one exact unused ID, and a short-lived manifest for that exact ID.
 - Historical authorizing shape (evidence only): schema `3.2.0`, comparison class `optiq-operator-route-smoke`, profile `vibethinker-3b-optiq-4bit` revision `3`, suite `optiq-route-smoke-v1` revision `1`, launcher `bin/lmre-stage2-operator-serve`. New live authorization must use schema `3.3.0` with comparison class `gemma-optiq-operator-route-smoke`, profile `gemma-4-12b-optiq-4bit` revision `2`, suite `gemma-optiq-route-smoke-v1` revision `1`, and launcher `bin/lmre-stage2-operator-serve-gemma`. The required routed ID is the exact inventory string `optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think`. Revision `1` remains historical evidence only.
 - The only permitted routes are `http://127.0.0.1:8080/v1` and `http://127.0.0.1:1337/v1`. Limits are 120 seconds per request, warning-level memory stop, one in-flight request, and eight total requests.

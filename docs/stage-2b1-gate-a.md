@@ -6,12 +6,13 @@
 findings have in-tree code-and-test remediation on `main`, and Jason accepted
 Gate A as complete for moving to Slice 2 (Gemma schema `3.3.0` retarget).
 
-**Slice 2 status:** implementation is in tree (schema `3.3.0`, Gemma profile
-revision `1`, smoke suite, Gate B pins, non-authorizing template, and
-`bin/lmre-stage2-operator-serve-gemma`). Slice 2 remains **pending independent
-retarget review**. Gate B, usable run IDs, live manifests, provider reconnect
-for a Stage 2B run, and eight-POST smoke remain blocked until that review
-passes and Jason separately authorizes Gate B for the Gemma profile. See
+**Slice 2 / Gate B status (2026-07-21):** Gemma profile revision `2` (path-based
+`:no-think` route) is authorizing. Gate B reported
+`READY_FOR_MANIFEST_AUTHORIZATION`. Jason authorized unused run
+`stage2-20260721-001` with short-lived manifest
+`manifests/stage-2-optiq-inference-001.json` (expires end of 2026-07-21 Eastern).
+Live eight-POST cohort still requires Coordinator prompt install and one-time
+tool approvals. Stage 2B-2 remains unauthorized. See
 `docs/superpowers/specs/2026-07-20-stage-2b1-gemma-retarget-design.md`.
 
 Historical note: the prior `GATE_A_STOPPED` decision and the five findings are
