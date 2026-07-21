@@ -73,8 +73,8 @@ _STAGE_2B_1_SCHEDULE = (
     ("structured-tool-json", "direct", True, 8, 1),
 )
 _STAGE_2B_1_PROFILE = RuntimeProfile(
-    profile_id="vibethinker-3b-optiq-4bit",
-    revision="3",
+    profile_id="gemma-4-12b-optiq-4bit",
+    revision="1",
     runtime_executable=Path("/Users/jrazz/Dev/tools/mlx-optiq/.venv/bin/optiq"),
     runtime_version="0.3.3",
     coordinator_model_id="gemma-4-12b-it-qat-jang_4m",
@@ -84,24 +84,25 @@ _STAGE_2B_1_PROFILE = RuntimeProfile(
         "mlx-lm": "0.31.3",
         "transformers": "5.12.1",
     }),
-    model_repository="mlx-community/VibeThinker-3B-OptiQ-4bit",
-    model_revision="94bce93443d4f62946ae89261f62e0ecdbb1ef1e",
+    model_repository="mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+    model_revision="083d338ef60c7ce2b47b27e1447ed92e729c4150",
     model_snapshot=Path(
-        "/Users/jrazz/.cache/huggingface/hub/"
-        "models--mlx-community--VibeThinker-3B-OptiQ-4bit/snapshots/"
-        "94bce93443d4f62946ae89261f62e0ecdbb1ef1e"
+        "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"
     ),
     artifact_hashes=MappingProxyType({
-        "model.safetensors": "22d7239f48ecdc5190b1c6bf39c997381ea08a33fc7da4bb8612034e7733c27b",
-        "config.json": "d474f82a1b9f4b4653a6018774d6e2a8ca28de974ab29c5fd167ca95d3b5a22e",
-        "optiq_metadata.json": "79c7c593fc23be80d516754735fc1e7a213866d29a6811943b49b18fc3500e4a",
-        "model.safetensors.index.json": "84bfe43075e74ee90a2dc62862ae2f726686dd04a609db0198e3fb664960f751",
+        "config.json": "10c3765fec68c1cd13e6b67dd968468fa71c0e66f33b4c8003d9e7565f68b209",
+        "optiq_metadata.json": "e64e0271ef661b18c1d6b54c395266681be08771aa3e11804c7a206ada32dddf",
+        "model.safetensors.index.json": "62d43537384d711cd4af06295524cb92e1f6d3f3df7fdfbcbcb2628ea5d0f08d",
+        "model-00001-of-00002.safetensors": (
+            "515896784d9237ed8545ee2668eb886f665b075abe8ae50dc70f10cf173763c1"
+        ),
+        "model-00002-of-00002.safetensors": (
+            "0bea2433d5812dbb20fddc75b4adaa2d33a964420209eabefef94579048b0457"
+        ),
     }),
     serve_arguments=(
         "serve", "--model",
-        "/Users/jrazz/.cache/huggingface/hub/"
-        "models--mlx-community--VibeThinker-3B-OptiQ-4bit/snapshots/"
-        "94bce93443d4f62946ae89261f62e0ecdbb1ef1e",
+        "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
         "--host", "127.0.0.1", "--port", "8080", "--no-anthropic", "--no-responses",
         "--no-auth", "--single-model", "--max-concurrent", "1", "--idle-timeout", "0",
         "--max-context", "8192", "--context-scale", "1.0", "--no-stream-experts",
@@ -110,16 +111,14 @@ _STAGE_2B_1_PROFILE = RuntimeProfile(
     direct_base_url="http://127.0.0.1:8080/v1",
     routed_base_url="http://127.0.0.1:1337/v1",
     direct_model_identities=(
-        "mlx-community/VibeThinker-3B-OptiQ-4bit",
-        "/Users/jrazz/.cache/huggingface/hub/"
-        "models--mlx-community--VibeThinker-3B-OptiQ-4bit/snapshots/"
-        "94bce93443d4f62946ae89261f62e0ecdbb1ef1e",
+        "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+        "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
     ),
     osaurus_provider_id="Optiq",
-    routed_model_id="optiq/mlx-community/VibeThinker-3B-OptiQ-4bit",
+    routed_model_id="optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
     rejected_local_model_ids=(
-        "vibethinker-3b-optiq-4bit",
-        "mlx-community/VibeThinker-3B-OptiQ-4bit",
+        "gemma-4-12b-optiq-4bit",
+        "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
     ),
     service_ownership="operator",
     provider_activation="operator_reconnect_required",
@@ -173,12 +172,12 @@ class StageTwoInferenceEngine:
     ) -> None:
         valid_manifest = (
             manifest.stage == 2
-            and manifest.schema_version == "3.2.0"
+            and manifest.schema_version == "3.3.0"
             and manifest.mode == "operator_inference_probe"
-            and manifest.comparison_class == "optiq-operator-route-smoke"
-            and manifest.runtime_profile_id == "vibethinker-3b-optiq-4bit"
-            and manifest.runtime_profile_revision == "3"
-            and manifest.suite_id == "optiq-route-smoke-v1"
+            and manifest.comparison_class == "gemma-optiq-operator-route-smoke"
+            and manifest.runtime_profile_id == "gemma-4-12b-optiq-4bit"
+            and manifest.runtime_profile_revision == "1"
+            and manifest.suite_id == "gemma-optiq-route-smoke-v1"
             and manifest.suite_revision == "1"
             and manifest.repetitions == 1
             and manifest.route_order == "counterbalanced"
@@ -190,7 +189,7 @@ class StageTwoInferenceEngine:
             raise ValueError("StageTwoInferenceEngine requires the fixed Stage 2B-1 contract")
         valid_profile = profile == _STAGE_2B_1_PROFILE
         valid_suite = (
-            suite.suite_id == "optiq-route-smoke-v1"
+            suite.suite_id == "gemma-optiq-route-smoke-v1"
             and suite.revision == "1"
             and suite.temperature == 0
             and suite.streaming is True

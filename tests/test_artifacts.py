@@ -16,8 +16,8 @@ from local_model_runtime_evaluation.manifest import load_manifest
 
 class ArtifactTest(unittest.TestCase):
     def test_stage_two_inference_schema_requires_complete_inference_bundle(self) -> None:
-        fixture = Path(__file__).parent / "fixtures" / "valid-stage-2-inference.json"
-        manifest = load_manifest(fixture, now=datetime(2026, 7, 15, tzinfo=timezone.utc))
+        fixture = Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json"
+        manifest = load_manifest(fixture, now=datetime(2026, 7, 20, tzinfo=timezone.utc))
         with tempfile.TemporaryDirectory() as temp:
             bundle = ArtifactBundle.create(manifest, Path(temp))
             self.assertEqual(bundle._required_files(), STAGE_TWO_INFERENCE_REQUIRED_FILES)

@@ -103,8 +103,8 @@ class FakeTransport:
         ):
             return (ModelDescriptor("optiq/unapproved-model"),)
         if route == "direct":
-            return (ModelDescriptor("mlx-community/VibeThinker-3B-OptiQ-4bit"),)
-        return (ModelDescriptor("optiq/mlx-community/VibeThinker-3B-OptiQ-4bit"),)
+            return (ModelDescriptor("mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),)
+        return (ModelDescriptor("optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),)
 
     def chat(
         self, base_url: str, model_id: str, prompt: str, max_tokens: int,
@@ -144,13 +144,13 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
     def setUp(self) -> None:
         self.root = Path(__file__).parents[1]
         self.manifest = load_manifest(
-            Path(__file__).parent / "fixtures" / "valid-stage-2-inference.json",
-            now=datetime(2026, 7, 15, 12, tzinfo=timezone.utc),
+            Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json",
+            now=datetime(2026, 7, 20, 12, tzinfo=timezone.utc),
         )
         self.profile = RuntimeProfileRegistry(self.root / "config" / "runtime-profiles").get(
             self.manifest.runtime_profile_id, self.manifest.runtime_profile_revision,
         )
-        self.suite = StageTwoSmokeSuite.load(self.root / "suites" / "optiq-route-smoke-v1.json")
+        self.suite = StageTwoSmokeSuite.load(self.root / "suites" / "gemma-optiq-route-smoke-v1.json")
         self.validation = HostValidation(
             runtime_identity={"version": "0.3.3", "packages": dict(self.profile.package_versions)},
             artifact_identity={

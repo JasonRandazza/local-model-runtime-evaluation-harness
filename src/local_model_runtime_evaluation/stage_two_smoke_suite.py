@@ -41,22 +41,7 @@ _WORKLOADS = (
         "stage2b-status-tool-json",
     ),
 )
-_EXPECTED_SUITE = {
-    "schema_version": "1.0.0",
-    "suite_id": "optiq-route-smoke-v1",
-    "revision": "1",
-    "temperature": 0,
-    "streaming": True,
-    "workloads": [
-        {
-            "workload_id": workload.workload_id,
-            "prompt": workload.prompt,
-            "max_tokens": workload.max_tokens,
-            "response_contract": workload.response_contract,
-        }
-        for workload in _WORKLOADS
-    ],
-}
+_APPROVED_SUITE_IDS = frozenset({"optiq-route-smoke-v1", "gemma-optiq-route-smoke-v1"})
 _SCHEDULE = (
     SmokeRequest("short-chat", "direct", False, 1, 0),
     SmokeRequest("short-chat", "routed", False, 2, 0),
@@ -67,6 +52,25 @@ _SCHEDULE = (
     SmokeRequest("structured-tool-json", "routed", True, 7, 1),
     SmokeRequest("structured-tool-json", "direct", True, 8, 1),
 )
+
+
+def _expected_suite(suite_id: str) -> dict[str, object]:
+    return {
+        "schema_version": "1.0.0",
+        "suite_id": suite_id,
+        "revision": "1",
+        "temperature": 0,
+        "streaming": True,
+        "workloads": [
+            {
+                "workload_id": workload.workload_id,
+                "prompt": workload.prompt,
+                "max_tokens": workload.max_tokens,
+                "response_contract": workload.response_contract,
+            }
+            for workload in _WORKLOADS
+        ],
+    }
 
 
 def _matches_exact(value: object, expected: object) -> bool:
@@ -97,9 +101,12 @@ class StageTwoSmokeSuite:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as error:
             raise SmokeSuiteError("smoke suite is unreadable") from error
-        if not _matches_exact(data, _EXPECTED_SUITE):
+        suite_id = data.get("suite_id") if isinstance(data, dict) else None
+        if suite_id not in _APPROVED_SUITE_IDS:
             raise SmokeSuiteError("smoke suite does not match the approved contract")
-        return cls("optiq-route-smoke-v1", "1", 0, True, _WORKLOADS)
+        if not _matches_exact(data, _expected_suite(str(suite_id))):
+            raise SmokeSuiteError("smoke suite does not match the approved contract")
+        return cls(str(suite_id), "1", 0, True, _WORKLOADS)
 
     def schedule(self) -> tuple[SmokeRequest, ...]:
         return _SCHEDULE

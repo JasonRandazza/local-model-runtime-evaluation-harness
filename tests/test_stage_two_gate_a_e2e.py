@@ -57,8 +57,8 @@ class FakeTransport:
         route = "direct" if ":8080" in base_url else "routed"
         self.calls.append(("GET", f"{route}_models"))
         if route == "direct":
-            return (ModelDescriptor("mlx-community/VibeThinker-3B-OptiQ-4bit"),)
-        return (ModelDescriptor("optiq/mlx-community/VibeThinker-3B-OptiQ-4bit"),)
+            return (ModelDescriptor("mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),)
+        return (ModelDescriptor("optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),)
 
     def chat(
         self,
@@ -98,7 +98,7 @@ class FakeTransport:
 
 
 class StageTwoGateAE2ETest(unittest.TestCase):
-    run_id = "stage2-20260715-901"
+    run_id = "stage2-20260720-901"
 
     def test_fake_stage_2b1_lifecycle_seals_a_redacted_eight_post_bundle_before_lock_release(self) -> None:
         source_root = Path(__file__).parents[1]
@@ -113,12 +113,12 @@ class StageTwoGateAE2ETest(unittest.TestCase):
                 repository / "config" / "runtime-profiles",
             )
             shutil.copy(
-                source_root / "suites" / "optiq-route-smoke-v1.json",
-                repository / "suites" / "optiq-route-smoke-v1.json",
+                source_root / "suites" / "gemma-optiq-route-smoke-v1.json",
+                repository / "suites" / "gemma-optiq-route-smoke-v1.json",
             )
             manifest_path = repository / "manifests" / "stage2-inference.json"
             manifest = json.loads(
-                (source_root / "tests" / "fixtures" / "valid-stage-2-inference.json").read_text(
+                (source_root / "tests" / "fixtures" / "valid-stage-2-inference-gemma.json").read_text(
                     encoding="utf-8"
                 )
             )
@@ -139,7 +139,7 @@ class StageTwoGateAE2ETest(unittest.TestCase):
                 profile = RuntimeProfileRegistry(
                     repository / "config" / "runtime-profiles"
                 ).get(parsed_manifest.runtime_profile_id, parsed_manifest.runtime_profile_revision)
-                suite = StageTwoSmokeSuite.load(repository / "suites" / "optiq-route-smoke-v1.json")
+                suite = StageTwoSmokeSuite.load(repository / "suites" / "gemma-optiq-route-smoke-v1.json")
                 host_validation = HostValidation(
                     runtime_identity={
                         "version": profile.runtime_version,
@@ -221,14 +221,14 @@ class StageTwoGateAE2ETest(unittest.TestCase):
             self.assertEqual(
                 transport.posts,
                 [
-                    ("direct", "mlx-community/VibeThinker-3B-OptiQ-4bit"),
-                    ("routed", "optiq/mlx-community/VibeThinker-3B-OptiQ-4bit"),
-                    ("direct", "mlx-community/VibeThinker-3B-OptiQ-4bit"),
-                    ("routed", "optiq/mlx-community/VibeThinker-3B-OptiQ-4bit"),
-                    ("routed", "optiq/mlx-community/VibeThinker-3B-OptiQ-4bit"),
-                    ("direct", "mlx-community/VibeThinker-3B-OptiQ-4bit"),
-                    ("routed", "optiq/mlx-community/VibeThinker-3B-OptiQ-4bit"),
-                    ("direct", "mlx-community/VibeThinker-3B-OptiQ-4bit"),
+                    ("direct", "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
+                    ("routed", "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
+                    ("direct", "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
+                    ("routed", "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
+                    ("routed", "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
+                    ("direct", "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
+                    ("routed", "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
+                    ("direct", "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"),
                 ],
             )
             self.assertEqual(len(observations), 8)

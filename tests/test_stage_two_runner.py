@@ -85,8 +85,8 @@ class StageTwoRunnerTest(unittest.TestCase):
             Path(__file__).parent / "fixtures" / "valid-stage-2.json",
         )
         inference_manifest = load_manifest(
-            Path(__file__).parent / "fixtures" / "valid-stage-2-inference.json",
-            now=datetime(2026, 7, 15, tzinfo=timezone.utc),
+            Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json",
+            now=datetime(2026, 7, 20, tzinfo=timezone.utc),
         )
 
         route_engine = build_stage_two_engine(root, route_manifest, Path(tempfile.mkdtemp()))
@@ -106,6 +106,8 @@ class StageTwoRunnerTest(unittest.TestCase):
 
         self.assertIsInstance(route_engine, StageTwoEngine)
         self.assertIsInstance(inference_engine, StageTwoInferenceEngine)
+        self.assertEqual(inference_engine.profile.profile_id, "gemma-4-12b-optiq-4bit")
+        self.assertEqual(inference_engine.suite.suite_id, "gemma-optiq-route-smoke-v1")
         self.assertIsNone(snapshot.active_run_id)
         self.assertTrue(decision.allowed)
         self.assertEqual(
@@ -120,8 +122,8 @@ class StageTwoRunnerTest(unittest.TestCase):
             Path(__file__).parent / "fixtures" / "valid-stage-2.json",
         )
         inference_manifest = load_manifest(
-            Path(__file__).parent / "fixtures" / "valid-stage-2-inference.json",
-            now=datetime(2026, 7, 15, tzinfo=timezone.utc),
+            Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json",
+            now=datetime(2026, 7, 20, tzinfo=timezone.utc),
         )
         mixed_manifests = (
             replace(route_manifest, mode="operator_inference_probe"),

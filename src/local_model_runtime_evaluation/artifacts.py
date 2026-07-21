@@ -107,9 +107,17 @@ class ArtifactBundle:
             raise ArtifactError("manifest artifact is unavailable") from error
         if manifest.get("stage") == 2:
             if (
-                manifest.get("schema_version") == "3.2.0"
-                and manifest.get("mode") == "operator_inference_probe"
-                and manifest.get("runtime_profile_revision") == "3"
+                manifest.get("mode") == "operator_inference_probe"
+                and (
+                    (
+                        manifest.get("schema_version") == "3.3.0"
+                        and manifest.get("runtime_profile_revision") == "1"
+                    )
+                    or (
+                        manifest.get("schema_version") == "3.2.0"
+                        and manifest.get("runtime_profile_revision") == "3"
+                    )
+                )
             ):
                 return STAGE_TWO_INFERENCE_REQUIRED_FILES
             if (

@@ -79,7 +79,7 @@ class RecordingLauncher:
 
 
 class StageTwoInferenceRunnerTest(unittest.TestCase):
-    run_id = "stage2-20260715-901"
+    run_id = "stage2-20260720-901"
 
     def _runner(self, engine_type=InferenceEngineStub):
         if engine_type is RetryableInferenceCleanup:
@@ -91,7 +91,7 @@ class StageTwoInferenceRunnerTest(unittest.TestCase):
         repo = Path(repo_temp.name)
         (repo / "manifests").mkdir()
         shutil.copy(
-            Path(__file__).parent / "fixtures" / "valid-stage-2-inference.json",
+            Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json",
             repo / "manifests" / "stage2-inference.json",
         )
         manifest_path = repo / "manifests" / "stage2-inference.json"
@@ -177,7 +177,7 @@ class StageTwoInferenceRunnerTest(unittest.TestCase):
         self.assertEqual(engines[0].preflight_calls, 1)
         recovery = json.loads((output / self.run_id / "preflight-recovery.json").read_text(encoding="utf-8"))
         self.assertEqual(recovery["mode"], "operator_inference_probe")
-        self.assertEqual(recovery["comparison_class"], "optiq-operator-route-smoke")
+        self.assertEqual(recovery["comparison_class"], "gemma-optiq-operator-route-smoke")
         self.assertEqual(recovery["http_post_attempts"], 0)
         self.assertTrue((output / ".active-run.lock").exists())
 

@@ -19,8 +19,8 @@ from local_model_runtime_evaluation.worker import WorkerLauncher
 class StageTwoContractTest(unittest.TestCase):
     def test_stage_two_inference_bundle_requires_only_the_stage_2b_evidence_contract(self) -> None:
         manifest = load_manifest(
-            Path(__file__).parent / "fixtures" / "valid-stage-2-inference.json",
-            now=datetime(2026, 7, 15, tzinfo=timezone.utc),
+            Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json",
+            now=datetime(2026, 7, 20, tzinfo=timezone.utc),
         )
         with tempfile.TemporaryDirectory() as temp:
             bundle = ArtifactBundle.create(manifest, Path(temp))

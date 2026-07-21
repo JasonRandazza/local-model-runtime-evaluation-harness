@@ -56,6 +56,16 @@ class StageTwoSmokeSuiteTest(unittest.TestCase):
         self.assertEqual(suite.workloads[1].max_tokens, 512)
         self.assertEqual(suite.workloads[1].response_contract, "stage2b-status-tool-json")
 
+    def test_gemma_suite_shares_workloads_and_eight_request_schedule(self) -> None:
+        path = Path(__file__).parents[1] / "suites" / "gemma-optiq-route-smoke-v1.json"
+        suite = StageTwoSmokeSuite.load(path)
+        historical = StageTwoSmokeSuite.load(self.path)
+        self.assertEqual(suite.suite_id, "gemma-optiq-route-smoke-v1")
+        self.assertEqual(suite.revision, "1")
+        self.assertEqual(suite.workloads, historical.workloads)
+        self.assertEqual(suite.schedule(), historical.schedule())
+        self.assertEqual(len(suite.schedule()), 8)
+
     def test_rejects_suite_contract_drift(self) -> None:
         cases = [
             ("third workload", lambda data: data["workloads"].append(dict(data["workloads"][0]))),

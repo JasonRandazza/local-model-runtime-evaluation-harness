@@ -25,12 +25,12 @@ PROVIDER_CONFIG = Path("/Users/jrazz/.osaurus/providers/remote.json")
 def _validate_stage_two_inference_manifest(manifest) -> None:
     fixed_contract = (
         manifest.stage == 2
-        and manifest.schema_version == "3.2.0"
+        and manifest.schema_version == "3.3.0"
         and manifest.mode == "operator_inference_probe"
-        and manifest.comparison_class == "optiq-operator-route-smoke"
-        and manifest.runtime_profile_id == "vibethinker-3b-optiq-4bit"
-        and manifest.runtime_profile_revision == "3"
-        and manifest.suite_id == "optiq-route-smoke-v1"
+        and manifest.comparison_class == "gemma-optiq-operator-route-smoke"
+        and manifest.runtime_profile_id == "gemma-4-12b-optiq-4bit"
+        and manifest.runtime_profile_revision == "1"
+        and manifest.suite_id == "gemma-optiq-route-smoke-v1"
         and manifest.suite_revision == "1"
         and manifest.repetitions == 1
         and manifest.route_order == "counterbalanced"
@@ -44,15 +44,17 @@ def _validate_stage_two_inference_manifest(manifest) -> None:
 
 def build_stage_two_engine(repository_root: Path, manifest, output_root: Path) -> StageTwoEngine | StageTwoInferenceEngine:
     contract = (manifest.schema_version, manifest.mode)
-    if contract == ("3.2.0", "operator_inference_probe"):
+    if contract == ("3.3.0", "operator_inference_probe"):
         _validate_stage_two_inference_manifest(manifest)
     elif contract != ("3.1.0", "operator_route_probe"):
         raise ValueError("unsupported Stage 2 mode")
     profile = RuntimeProfileRegistry(repository_root / "config" / "runtime-profiles").get(
         manifest.runtime_profile_id, manifest.runtime_profile_revision
     )
-    if contract == ("3.2.0", "operator_inference_probe"):
-        suite = StageTwoSmokeSuite.load(repository_root / "suites" / "optiq-route-smoke-v1.json")
+    if contract == ("3.3.0", "operator_inference_probe"):
+        suite = StageTwoSmokeSuite.load(
+            repository_root / "suites" / "gemma-optiq-route-smoke-v1.json"
+        )
         transport = StageTwoInferenceTransport(set(manifest.routes.values()), timeout_seconds=120)
         controller = OperatorOptiQController(
             (str(profile.runtime_executable), *profile.serve_arguments),
