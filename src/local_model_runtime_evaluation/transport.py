@@ -191,7 +191,13 @@ class LoopbackTransport:
                 stream_socket = getattr(getattr(getattr(response, "fp", None), "raw", None), "_sock", None)
             if stream_socket is None:
                 raise TransportError("chat stream failed", reason="stream_setup_failed")
-            stream_reader = getattr(response, "fp", None)
+            # Prefer HTTPResponse.read1 so Transfer-Encoding: chunked (Osaurus) is
+            # decoded. Reading response.fp raw exposes hex chunk sizes as SSE lines.
+            http_response = isinstance(response, http.client.HTTPResponse)
+            if http_response or (hasattr(response, "read1") and hasattr(response, "peek")):
+                stream_reader = response
+            else:
+                stream_reader = getattr(response, "fp", None)
             if stream_reader is None or not hasattr(stream_reader, "read1"):
                 raise TransportError("chat stream failed", reason="stream_setup_failed")
             pending = bytearray()
@@ -201,6 +207,8 @@ class LoopbackTransport:
             # OSError("cannot read from timed out object") on later peeks/reads.
             # Wait with select() instead so OptiQ prompt-processing keepalives
             # that arrive >1s after headers do not abort the cohort.
+            # Also: never non-blocking-peek a real HTTPResponse — settimeout(0)
+            # before peek corrupts chunked decoding on the next read1.
             stream_socket.settimeout(None)
             while True:
                 remaining = deadline - time.monotonic()
@@ -208,21 +216,37 @@ class LoopbackTransport:
                     raise TransportError("request timed out", reason="timeout")
                 if cancel is not None and cancel.is_set():
                     raise TransportError("request cancelled", reason="cancelled")
-                stream_socket.settimeout(0)
-                try:
-                    buffered = stream_reader.peek(1)
-                except (BlockingIOError, InterruptedError, TimeoutError):
-                    buffered = b""
-                finally:
-                    stream_socket.settimeout(None)
+                buffered = b""
+                if not http_response:
+                    try:
+                        stream_socket.settimeout(0)
+                        buffered = stream_reader.peek(1)
+                    except (BlockingIOError, InterruptedError, TimeoutError, OSError):
+                        buffered = b""
+                    finally:
+                        try:
+                            stream_socket.settimeout(None)
+                        except OSError:
+                            pass
                 if not buffered:
-                    readable, _, _ = select.select([stream_socket], [], [], min(1.0, remaining))
+                    try:
+                        readable, _, _ = select.select(
+                            [stream_socket], [], [], min(1.0, remaining),
+                        )
+                    except (ValueError, OSError):
+                        break
                     if not readable:
                         continue
                 try:
                     chunk = stream_reader.read1(4096)
                 except (BlockingIOError, InterruptedError, TimeoutError):
                     continue
+                except http.client.IncompleteRead as error:
+                    chunk = error.partial or b""
+                    if not chunk:
+                        break
+                except OSError:
+                    break
                 if not chunk:
                     break
                 pending.extend(chunk)

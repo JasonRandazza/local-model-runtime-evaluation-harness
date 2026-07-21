@@ -49,11 +49,11 @@ Run the Python and Swift test suites after relevant changes. Preserve the legacy
   first direct POST (`stream_failed` / transport failure). Root cause confirmed
   after `003`: harness SSE client applied a 1s socket timeout that permanently
   poisons `http.client` after the first idle gap (OptiQ keepalives often arrive
-  later). Transport fix is in tree (`256b78e`). Jason authorized unused run
-  `stage2-20260721-004` (manifest `manifests/stage-2-optiq-inference-004.json`;
-  expires end of day Eastern). Live eight-POST attempt still requires operator
-  OptiQ up + warm-up, Gate B `READY_FOR_MANIFEST_AUTHORIZATION`, Coordinator
-  prompt, and one-time tool approvals. Stage 2B-2 remains unauthorized.
+  later). Transport fix for that is in tree (`256b78e`). Jason authorized
+  unused run `stage2-20260721-004`; direct request 1 completed, routed request 2
+  failed with `unsupported_sse` because Osaurus uses HTTP chunked encoding and
+  the client read raw `response.fp`. Chunked-SSE decode fix is required before
+  authorizing another unused run ID. Stage 2B-2 remains unauthorized.
 - Do not create additional run IDs or manifests without Jason's separate
   current-session authorization. Do not operate OptiQ/Osaurus lifecycle from
   the harness. Do not install a Coordinator prompt or issue inference without

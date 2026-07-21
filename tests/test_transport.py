@@ -387,6 +387,56 @@ class TransportTest(unittest.TestCase):
 
         self.assertEqual(result.content, "hello world")
 
+    def test_chat_decodes_chunked_sse_without_treating_chunk_sizes_as_framing(self) -> None:
+        # Regression for stage2-20260721-004: Osaurus routed SSE is HTTP/1.1
+        # Transfer-Encoding: chunked. Reading response.fp exposes hex chunk
+        # sizes (e.g. "138") as lines → unsupported_sse. Must use HTTPResponse.
+        import socketserver
+
+        body = (
+            b'data: {"choices":[{"delta":{"content":"hello"},"finish_reason":null}]}\n\n'
+            b'data: {"choices":[{"delta":{"content":" world"},"finish_reason":"stop"}],'
+            b'"usage":{"completion_tokens":2,"completion_tokens_details":{"reasoning_tokens":0}}}\n\n'
+            b"data: [DONE]\n\n"
+        )
+
+        def chunked(payload: bytes) -> bytes:
+            parts: list[bytes] = []
+            offset = 0
+            while offset < len(payload):
+                piece = payload[offset : offset + 24]
+                offset += len(piece)
+                parts.append(f"{len(piece):x}\r\n".encode() + piece + b"\r\n")
+            parts.append(b"0\r\n\r\n")
+            return b"".join(parts)
+
+        class ChunkedHandler(socketserver.BaseRequestHandler):
+            def handle(self) -> None:
+                self.request.recv(65536)
+                headers = (
+                    b"HTTP/1.1 200 OK\r\n"
+                    b"Content-Type: text/event-stream\r\n"
+                    b"Transfer-Encoding: chunked\r\n"
+                    b"Connection: close\r\n"
+                    b"\r\n"
+                )
+                self.request.sendall(headers + chunked(body))
+
+        server = socketserver.ThreadingTCPServer(("127.0.0.1", 0), ChunkedHandler)
+        server.allow_reuse_address = True
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_address[1]}/v1"
+            result = LoopbackTransport({base_url}, timeout_seconds=30).chat(
+                base_url, "model", "prompt", 16, None
+            )
+            self.assertEqual(result.content, "hello world")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
     def test_chat_rejects_leading_whitespace_sse_framing(self) -> None:
         for invalid_line in (
             b' data: {"choices":[{"delta":{"content":"ignored"},"finish_reason":null}]}\n\n',
