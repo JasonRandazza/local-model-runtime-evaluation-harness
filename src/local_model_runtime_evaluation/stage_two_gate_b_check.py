@@ -36,8 +36,9 @@ _ZERO_FIELDS = (
 )
 
 _PLUGIN_ID = "local.jrazz.model-runtime-evaluation-harness"
-_PROFILE_ID = "vibethinker-3b-optiq-4bit"
-_PROFILE_REVISION = "3"
+_PROFILE_ID = "gemma-4-12b-optiq-4bit"
+_PROFILE_REVISION = "1"
+_ROUTED_MODEL_ID = "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"
 
 
 class GateBReadinessError(RuntimeError):
@@ -246,6 +247,8 @@ def main(argv: list[str] | None = None) -> int:
         profile = RuntimeProfileRegistry(repository_root / "config" / "runtime-profiles").get(
             _PROFILE_ID, _PROFILE_REVISION,
         )
+        if profile.routed_model_id != _ROUTED_MODEL_ID:
+            raise ValueError("approved profile routed model id differs from Gate B pin")
         manifest = (
             load_authorized_manifest(repository_root, arguments.run_id)
             if arguments.run_id else None

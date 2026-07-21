@@ -29,6 +29,28 @@ class PackageTest(unittest.TestCase):
         )
         self.assertTrue(launcher.stat().st_mode & 0o111)
 
+    def test_stage_two_gemma_operator_launcher_matches_gemma_profile(self) -> None:
+        root = Path(__file__).parents[1]
+        profile = json.loads((
+            root / "config" / "runtime-profiles" / "gemma-4-12b-optiq-4bit-r1.json"
+        ).read_text(encoding="utf-8"))
+        launcher = root / "bin" / "lmre-stage2-operator-serve-gemma"
+        content = launcher.read_text(encoding="utf-8")
+        command = next(line for line in content.splitlines() if line.startswith("exec "))
+
+        self.assertEqual(content.splitlines()[0], "#!/bin/zsh")
+        self.assertNotIn("$@", content)
+        self.assertNotIn("eval", content)
+        self.assertIn("lmre-stage2-operator-serve-gemma accepts no arguments", content)
+        self.assertEqual(
+            shlex.split(command),
+            ["exec", profile["runtime_executable"], *profile["serve_arguments"]],
+        )
+        self.assertTrue(launcher.stat().st_mode & 0o111)
+        historical = (root / "bin" / "lmre-stage2-operator-serve").read_text(encoding="utf-8")
+        self.assertIn("VibeThinker-3B-OptiQ-4bit", historical)
+        self.assertNotIn("gemma-4-12B-it-qat-OptiQ-4bit", historical)
+
     def test_stage_two_template_cannot_authorize_a_run(self) -> None:
         root = Path(__file__).parents[1]
         template = json.loads((
@@ -59,11 +81,17 @@ class PackageTest(unittest.TestCase):
             / "HarnessCore.swift"
         ).read_text(encoding="utf-8")
 
-        self.assertEqual(template["schema_version"], "3.2.0")
+        self.assertEqual(template["schema_version"], "3.3.0")
         self.assertEqual(template["run_id"], "stage2-YYYYMMDD-NNN")
         self.assertEqual(template["approved_by"], "REQUIRES_CURRENT_SESSION_APPROVAL")
         self.assertEqual(template["approved_at"], "REPLACE_AFTER_APPROVAL")
         self.assertEqual(template["expires_at"], "REPLACE_AFTER_APPROVAL")
+        self.assertEqual(template["comparison_class"], "gemma-optiq-operator-route-smoke")
+        self.assertEqual(template["runtime_profile_id"], "gemma-4-12b-optiq-4bit")
+        self.assertEqual(template["runtime_profile_revision"], "1")
+        self.assertEqual(template["suite_id"], "gemma-optiq-route-smoke-v1")
+        self.assertEqual(template["suite_revision"], "1")
+        self.assertEqual(template["mode"], "operator_inference_probe")
         self.assertEqual(template["routes"], {
             "direct": "http://127.0.0.1:8080/v1",
             "routed": "http://127.0.0.1:1337/v1",
@@ -75,6 +103,13 @@ class PackageTest(unittest.TestCase):
             "total_request_limit": 8,
         })
 
+        historical = json.loads((
+            root / "manifests" / "stage-2-optiq-inference-smoke-vibethinker.json.template"
+        ).read_text(encoding="utf-8"))
+        self.assertEqual(historical["schema_version"], "3.2.0")
+        self.assertEqual(historical["runtime_profile_id"], "vibethinker-3b-optiq-4bit")
+        self.assertEqual(historical["runtime_profile_revision"], "3")
+        self.assertEqual(historical["approved_by"], "REQUIRES_CURRENT_SESSION_APPROVAL")
         self.assertEqual(plugin["version"], "0.3.0")
         match = re.search(r"static let toolIDs = \[(.*?)\]", plugin_source)
         self.assertIsNotNone(match)

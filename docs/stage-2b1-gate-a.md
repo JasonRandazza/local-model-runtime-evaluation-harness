@@ -6,9 +6,12 @@
 findings have in-tree code-and-test remediation on `main`, and Jason accepted
 Gate A as complete for moving to Slice 2 (Gemma schema `3.3.0` retarget).
 
-Gate B, usable run IDs, live manifests, provider reconnect for a Stage 2B run,
-and eight-POST smoke remain blocked until Slice 2 lands, is reviewed, and Jason
-separately authorizes Gate B for the Gemma profile. See
+**Slice 2 status:** implementation is in tree (schema `3.3.0`, Gemma profile
+revision `1`, smoke suite, Gate B pins, non-authorizing template, and
+`bin/lmre-stage2-operator-serve-gemma`). Slice 2 remains **pending independent
+retarget review**. Gate B, usable run IDs, live manifests, provider reconnect
+for a Stage 2B run, and eight-POST smoke remain blocked until that review
+passes and Jason separately authorizes Gate B for the Gemma profile. See
 `docs/superpowers/specs/2026-07-20-stage-2b1-gemma-retarget-design.md`.
 
 Historical note: the prior `GATE_A_STOPPED` decision and the five findings are
@@ -19,8 +22,8 @@ Stage 2B-1 is a bounded inference-path acceptance check, not a benchmark. It exe
 
 ## Fixed Contract
 
-Historical Gate A / VibeThinker authorizing shape (parseable evidence only after
-Slice 2; not for new live authorization):
+Historical Gate A / VibeThinker authorizing shape (parseable evidence only;
+not for new live authorization):
 
 | Item | Historical value |
 |---|---|
@@ -29,8 +32,9 @@ Slice 2; not for new live authorization):
 | Comparison class | `optiq-operator-route-smoke` |
 | Runtime profile | `vibethinker-3b-optiq-4bit` revision `3` |
 | Suite | `optiq-route-smoke-v1` revision `1` |
+| Operator launcher | `bin/lmre-stage2-operator-serve` (Stage 2A rollback) |
 
-Upcoming live authorizing shape (Slice 2 — see Gemma retarget design):
+Live authorizing shape after Slice 2 review + separate Gate B authorization:
 
 | Item | Required value |
 |---|---|
@@ -39,6 +43,8 @@ Upcoming live authorizing shape (Slice 2 — see Gemma retarget design):
 | Comparison class | `gemma-optiq-operator-route-smoke` |
 | Runtime profile | `gemma-4-12b-optiq-4bit` revision `1` |
 | Suite | `gemma-optiq-route-smoke-v1` revision `1` |
+| Operator launcher | `bin/lmre-stage2-operator-serve-gemma` |
+| Non-authorizing template | `manifests/stage-2-optiq-inference-smoke.json.template` |
 | Direct route | `http://127.0.0.1:8080/v1` |
 | Routed route | `http://127.0.0.1:1337/v1` |
 | Route order | one counterbalanced repetition |
@@ -56,22 +62,23 @@ The only acceptance decisions are `inference_path_acceptance` and `behavioral_co
 
 Gate A is implementation and deterministic verification only. It does not create a live manifest, select a usable run ID, install a Coordinator prompt, start OptiQ, reconnect a provider, send a request, or grant inference authority.
 
-Gate B is a later read-only readiness check while Jason owns the existing foreground OptiQ launcher and reconnects the existing provider without editing it. Only after Gate B passes may Jason explicitly authorize one exact unused run ID in the current session. That authorization permits one short-lived manifest for that ID only.
+Gate B is a later read-only readiness check while Jason owns the Gemma foreground OptiQ launcher and reconnects the existing provider without editing it. Only after Gate B passes may Jason explicitly authorize one exact unused run ID in the current session. That authorization permits one short-lived manifest for that ID only. Do not run Gate B against live services until retarget review and Jason’s current-session authorization.
 
-The accepted Stage 2A revision-3 baseline remains the rollback and service-ownership reference. Its `GET`-only observation procedure and plugin `0.3.0` stay intact. Stage 2B-2 is a separate future proposal and is not authorized by Stage 2B-1.
+The accepted Stage 2A revision-3 baseline remains the rollback and service-ownership reference (`bin/lmre-stage2-operator-serve` + VibeThinker). Its `GET`-only observation procedure and plugin `0.3.0` stay intact. Stage 2B-2 is a separate future proposal and is not authorized by Stage 2B-1.
 
 ## Operator Sequence After Separate Authorization
 
 1. Keep OptiQ Lab closed.
-2. Start the existing foreground `bin/lmre-stage2-operator-serve` launcher and leave it open.
+2. Start the Stage 2B-1 foreground launcher `bin/lmre-stage2-operator-serve-gemma` and leave it open. (Leave `bin/lmre-stage2-operator-serve` untouched as Stage 2A historical rollback.)
 3. Reconnect the existing `Optiq` provider without editing it.
-4. Ask Codex to run read-only Gate B.
+4. Ask Codex to run read-only Gate B (`bin/lmre-stage2-gate-b-check`), which pins `gemma-4-12b-optiq-4bit` revision `1` and the exact Gemma routed ID.
 5. Authorize one exact unused ID only after Gate B reports ready.
-6. Install the Stage 2B-1 Coordinator prompt and use a fresh Coordinator chat.
-7. Approve `inventory`, `preflight`, and `run_scenario` individually with one-time approval.
-8. Run `bin/lmre-stage2-wait <run-id>` and wait for the operator shutdown result.
-9. Stop the foreground OptiQ launcher with `Control-C`.
-10. Return to the Coordinator for one `status` call and one `cleanup` call.
-11. Return the sanitized Coordinator report to Codex for manager review.
+6. Materialize a short-lived manifest from `manifests/stage-2-optiq-inference-smoke.json.template` for that ID only (placeholder approval fields are never live authority).
+7. Install the Stage 2B-1 Coordinator prompt and use a fresh Coordinator chat.
+8. Approve `inventory`, `preflight`, and `run_scenario` individually with one-time approval.
+9. Run `bin/lmre-stage2-wait <run-id>` and wait for the operator shutdown result.
+10. Stop the foreground OptiQ launcher with `Control-C`.
+11. Return to the Coordinator for one `status` call and one `cleanup` call.
+12. Return the sanitized Coordinator report to Codex for manager review.
 
 No tool may be approved persistently. The Coordinator has no ambient filesystem, Sandbox, Search, MCP, memory, provider-editing, service-lifecycle, or subagent authority.

@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 from local_model_runtime_evaluation.stage_two import HostValidation, ModelDescriptor
 from local_model_runtime_evaluation.stage_two_host import ProcessSnapshot
+from local_model_runtime_evaluation import stage_two_gate_b_check as gate_b_mod
 from local_model_runtime_evaluation.stage_two_gate_b_check import (
     build_gate_b_report,
     collect_plugin_state,
@@ -15,7 +16,10 @@ from local_model_runtime_evaluation.stage_two_gate_b_check import (
     load_authorized_manifest,
     parse_active_plugin_version,
 )
-from local_model_runtime_evaluation.stage_two_profiles import RuntimeProfile
+from local_model_runtime_evaluation.stage_two_profiles import (
+    RuntimeProfile,
+    RuntimeProfileRegistry,
+)
 
 
 class FakeValidator:
@@ -71,8 +75,8 @@ class FakeResourceProbe:
 class StageTwoGateBCheckTest(unittest.TestCase):
     def setUp(self) -> None:
         self.static = {
-            "runtime_profile_id": "vibethinker-3b-optiq-4bit",
-            "runtime_profile_revision": "3",
+            "runtime_profile_id": "gemma-4-12b-optiq-4bit",
+            "runtime_profile_revision": "1",
             "runtime_identity": "PASS",
             "artifact_identity": "PASS",
             "provider_identity": "PASS",
@@ -89,6 +93,14 @@ class StageTwoGateBCheckTest(unittest.TestCase):
             "service_lifecycle_actions": 0,
         }
 
+    def test_gate_b_pins_gemma_profile_and_routed_id(self) -> None:
+        self.assertEqual(gate_b_mod._PROFILE_ID, "gemma-4-12b-optiq-4bit")
+        self.assertEqual(gate_b_mod._PROFILE_REVISION, "1")
+        self.assertEqual(
+            gate_b_mod._ROUTED_MODEL_ID,
+            "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+        )
+
     def test_reports_ready_for_plugin_install_before_upgrade(self) -> None:
         result = build_gate_b_report(
             static_result=self.static, installed_version="0.2.0",
@@ -103,8 +115,8 @@ class StageTwoGateBCheckTest(unittest.TestCase):
             packaged_sha256="same", installed_sha256="same", manifest=None,
         )
         self.assertEqual(result["overall"], "READY_FOR_MANIFEST_AUTHORIZATION")
-        self.assertEqual(result["runtime_profile_id"], "vibethinker-3b-optiq-4bit")
-        self.assertEqual(result["runtime_profile_revision"], "3")
+        self.assertEqual(result["runtime_profile_id"], "gemma-4-12b-optiq-4bit")
+        self.assertEqual(result["runtime_profile_revision"], "1")
 
     def test_stops_on_provider_or_zero_activity_failure(self) -> None:
         static = dict(self.static)
@@ -152,6 +164,65 @@ class StageTwoGateBCheckTest(unittest.TestCase):
         self.assertEqual(result["operator_service_identity"], "PASS")
         self.assertEqual(result["route_identity"], "PASS")
         self.assertFalse(result["port_8080_free"])
+
+    def test_dry_gate_b_static_evidence_accepts_gemma_profile_pins(self) -> None:
+        root = Path(__file__).parents[1]
+        profile = RuntimeProfileRegistry(root / "config" / "runtime-profiles").get(
+            "gemma-4-12b-optiq-4bit", "1",
+        )
+        self.assertEqual(profile.routed_model_id, gate_b_mod._ROUTED_MODEL_ID)
+
+        class GemmaValidator(FakeValidator):
+            def validate(self) -> HostValidation:
+                return HostValidation(
+                    runtime_identity={
+                        "version": profile.runtime_version,
+                        "packages": dict(profile.package_versions),
+                    },
+                    artifact_identity={
+                        "revision": profile.model_revision,
+                        "hashes": dict(profile.artifact_hashes),
+                    },
+                    provider_identity={
+                        "provider_id": profile.osaurus_provider_id,
+                        "enabled": True,
+                        "custom_header_count": 0,
+                        "secret_header_key_count": 0,
+                    },
+                )
+
+        class GemmaTransport(FakeTransport):
+            def health(self, base_url: str) -> dict[str, object]:
+                if ":8080" in base_url:
+                    return {"status": "ok"}
+                return {
+                    "status": "healthy",
+                    "loaded": [profile.coordinator_model_id],
+                    "resident_models": [],
+                    "current_model": profile.coordinator_model_id,
+                }
+
+            def list_models(self, base_url: str) -> tuple[ModelDescriptor, ...]:
+                if ":8080" in base_url:
+                    return (ModelDescriptor(profile.direct_model_identities[0]),)
+                return (ModelDescriptor(profile.routed_model_id),)
+
+        command = (str(profile.runtime_executable), *profile.serve_arguments)
+        result = collect_static_result(
+            profile=profile,
+            validator=GemmaValidator(),
+            process_backend=FakeProcessBackend(command),
+            transport=GemmaTransport(),
+            resource_probe=FakeResourceProbe(),
+        )
+
+        self.assertEqual(result["runtime_profile_id"], "gemma-4-12b-optiq-4bit")
+        self.assertEqual(result["runtime_profile_revision"], "1")
+        self.assertEqual(result["route_identity"], "PASS")
+        self.assertEqual(result["coordinator_model_id"], "gemma-4-12b-it-qat-jang_4m")
+        self.assertEqual(result["model_load_attempts"], 0)
+        self.assertEqual(result["http_post_attempts"], 0)
+        self.assertEqual(result["service_lifecycle_actions"], 0)
 
     def test_rejects_routed_health_the_worker_would_reject(self) -> None:
         profile = RuntimeProfile(
