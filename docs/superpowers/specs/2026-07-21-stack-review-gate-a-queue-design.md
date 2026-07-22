@@ -198,15 +198,27 @@ sequenceDiagram
 **Gate B readiness surface (not live):**
 `docs/package-2-omlx-thinking-gate-b.md`
 
+**Gate C sealed PASS:**
+`docs/superpowers/verification/2026-07-22-package-2-gate-c-omlx-thinking-20260722-004.md`
+
+**Gate D design / plan / status (manager review; not auto-accepted):**
+`docs/superpowers/specs/2026-07-22-package-2-omlx-thinking-gate-d-design.md`,
+`docs/superpowers/plans/2026-07-22-package-2-omlx-thinking-gate-d.md`,
+`docs/package-2-omlx-thinking-gate-d.md`
+
 **Implications note:**
 `docs/superpowers/notes/2026-07-21-omlx-0.5.2-implications.md`
 
 **Intent:** Measure thinking models without false preflight failure (oMLX
-`0.5.2` token-budget / external-bench fixes + harness-side classification).
+`0.5.2`/`0.5.3` token-budget / external-bench fixes + harness-side classification).
 
 **Gate A status:** landed (implementation and fake-only tests; not live authority).
+**Gate B status:** landed readiness surface.
+**Gate C status:** sealed PASS `omlx-thinking-20260722-004`.
+**Gate D status:** `GATE_D_READY` (manager-review docs; Jason ACCEPT/REJECT pending).
+**Follow-ons:** D2 expanded suite; D3 external-bench (deferred).
 
-**Non-goals:** OptiQ retarget, live authorization, same-artifact OptiQ↔oMLX
+**Non-goals:** OptiQ retarget, same-artifact OptiQ↔oMLX
 matrix campaign, preference/RAG expansion.
 
 ## Package 1 success criteria
