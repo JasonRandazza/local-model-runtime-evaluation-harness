@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "pin_id": "omlx-0.5.3-thinking",
+  "revision": "2",
+  "version": "0.5.3",
+  "base_url": "http://127.0.0.1:8100/v1",
+  "comparison_class": "omlx-thinking-measure-v1",
+  "model_id": "Qwen3.6-35B-A3B-OptiQ-4bit",
+  "model_dir": "/Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+  "ownership_mode": "dedicated_serve",
+  "api_key_source": "matrix_local",
+  "extra_body_allowlist": [],
+  "required_chat_template_kwargs": {
+    "enable_thinking": true
+  },
+  "start_command": [
+    "omlX",
+    "serve",
+    "--model-dir",
+    "/Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8100"
+  ],
+  "stop_command": [
+    "omlX",
+    "stop"
+  ]
+}

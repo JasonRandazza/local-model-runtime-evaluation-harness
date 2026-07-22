@@ -23,7 +23,11 @@ class OmlxThinkingPinTest(unittest.TestCase):
     def test_loads_canonical_pin(self) -> None:
         pin = OmlxThinkingPin.load(self.path)
         self.assertEqual(pin.pin_id, "omlx-0.5.3-thinking")
-        self.assertEqual(pin.revision, "1")
+        self.assertEqual(pin.revision, "2")
+        self.assertEqual(
+            dict(pin.required_chat_template_kwargs),
+            {"enable_thinking": True},
+        )
         self.assertEqual(pin.version, "0.5.3")
         self.assertEqual(pin.base_url, "http://127.0.0.1:8100/v1")
         self.assertEqual(pin.comparison_class, "omlx-thinking-measure-v1")
@@ -49,6 +53,41 @@ class OmlxThinkingPinTest(unittest.TestCase):
             ),
         )
         self.assertEqual(pin.stop_command, ("omlX", "stop"))
+
+    def test_rejects_historical_r1_pin_path(self) -> None:
+        r1 = Path("config/omlx-pins/omlx-0.5.3-thinking-r1.json")
+        with self.assertRaises(OmlxThinkingPinError):
+            OmlxThinkingPin.load(r1)
+
+    def test_rejects_missing_required_chat_template_kwargs(self) -> None:
+        data = json.loads(self.path.read_text(encoding="utf-8"))
+        del data["required_chat_template_kwargs"]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "pin.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaises(OmlxThinkingPinError):
+                OmlxThinkingPin.load(path)
+
+    def test_rejects_enable_thinking_false(self) -> None:
+        data = json.loads(self.path.read_text(encoding="utf-8"))
+        data["required_chat_template_kwargs"] = {"enable_thinking": False}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "pin.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaises(OmlxThinkingPinError):
+                OmlxThinkingPin.load(path)
+
+    def test_rejects_extra_chat_template_kwarg_keys(self) -> None:
+        data = json.loads(self.path.read_text(encoding="utf-8"))
+        data["required_chat_template_kwargs"] = {
+            "enable_thinking": True,
+            "foo": True,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "pin.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaises(OmlxThinkingPinError):
+                OmlxThinkingPin.load(path)
 
     def test_rejects_wrong_version(self) -> None:
         data = json.loads(self.path.read_text(encoding="utf-8"))

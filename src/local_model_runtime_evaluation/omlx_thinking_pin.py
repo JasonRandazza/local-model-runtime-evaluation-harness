@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 
 from .omlx_thinking_measure import preflight_budget_ok
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 PIN_ID = "omlx-0.5.3-thinking"
-PIN_REVISION = "1"
+PIN_REVISION = "2"
 PIN_VERSION = "0.5.3"
 PIN_BASE_URL = "http://127.0.0.1:8100/v1"
 COMPARISON_CLASS = "omlx-thinking-measure-v1"
@@ -17,6 +19,9 @@ PIN_MODEL_ID = "Qwen3.6-35B-A3B-OptiQ-4bit"
 PIN_MODEL_DIR = "/Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit"
 PIN_OWNERSHIP_MODE = "dedicated_serve"
 PIN_API_KEY_SOURCE = "matrix_local"
+REQUIRED_CHAT_TEMPLATE_KWARGS: Mapping[str, object] = MappingProxyType(
+    {"enable_thinking": True}
+)
 PIN_START_COMMAND = (
     "omlX",
     "serve",
@@ -47,6 +52,7 @@ _PIN_REQUIRED = frozenset({
     "ownership_mode",
     "api_key_source",
     "extra_body_allowlist",
+    "required_chat_template_kwargs",
     "start_command",
     "stop_command",
 })
@@ -71,7 +77,7 @@ class OmlxThinkingPinError(ValueError):
 
 
 def default_pin_path() -> Path:
-    return REPOSITORY_ROOT / "config" / "omlx-pins" / "omlx-0.5.3-thinking-r1.json"
+    return REPOSITORY_ROOT / "config" / "omlx-pins" / "omlx-0.5.3-thinking-r2.json"
 
 
 def default_suite_path() -> Path:
@@ -94,6 +100,7 @@ class OmlxThinkingPin:
     ownership_mode: str
     api_key_source: str
     extra_body_allowlist: tuple[str, ...]
+    required_chat_template_kwargs: Mapping[str, object]
     start_command: tuple[str, ...]
     stop_command: tuple[str, ...]
 
@@ -131,6 +138,7 @@ class OmlxThinkingPin:
             raise OmlxThinkingPinError("pin start_command must include --model-dir")
         if tuple(start_command) != PIN_START_COMMAND:
             raise OmlxThinkingPinError("pin start_command does not match approved contract")
+        kwargs = _required_chat_template_kwargs(data["required_chat_template_kwargs"])
         return cls(
             PIN_ID,
             PIN_REVISION,
@@ -142,6 +150,7 @@ class OmlxThinkingPin:
             PIN_OWNERSHIP_MODE,
             PIN_API_KEY_SOURCE,
             allowlist,
+            kwargs,
             tuple(start_command),
             tuple(stop_command),
         )
@@ -231,3 +240,15 @@ def _string_list(value: object, *, field: str) -> tuple[str, ...]:
             raise OmlxThinkingPinError(f"pin {field} must contain only strings")
         items.append(item)
     return tuple(items)
+
+
+def _required_chat_template_kwargs(value: object) -> Mapping[str, object]:
+    if not isinstance(value, dict):
+        raise OmlxThinkingPinError("pin required_chat_template_kwargs must be an object")
+    if set(value) != {"enable_thinking"}:
+        raise OmlxThinkingPinError("pin required_chat_template_kwargs keys are invalid")
+    if value.get("enable_thinking") is not True:
+        raise OmlxThinkingPinError(
+            "pin required_chat_template_kwargs.enable_thinking must be true"
+        )
+    return MappingProxyType({"enable_thinking": True})
