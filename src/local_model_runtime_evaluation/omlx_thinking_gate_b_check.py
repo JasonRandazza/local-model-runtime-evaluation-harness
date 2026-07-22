@@ -83,6 +83,70 @@ def _pin_is_valid(pin: OmlxThinkingPin) -> bool:
     )
 
 
+def observe_omlx_profile(
+    model_id: str,
+    *,
+    omlx_home: Path | None = None,
+) -> dict[str, object]:
+    home = omlx_home if omlx_home is not None else Path.home() / ".omlx"
+    settings_path = home / "model_settings.json"
+    if not settings_path.is_file():
+        return {
+            "status": "file_missing",
+            "enable_thinking": None,
+            "active_profile_name": None,
+            "profile_enable_thinking": None,
+        }
+    try:
+        payload = json.loads(settings_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {
+            "status": "unreadable",
+            "enable_thinking": None,
+            "active_profile_name": None,
+            "profile_enable_thinking": None,
+        }
+    models = payload.get("models") if isinstance(payload, dict) else None
+    if not isinstance(models, dict) or model_id not in models:
+        return {
+            "status": "model_missing",
+            "enable_thinking": None,
+            "active_profile_name": None,
+            "profile_enable_thinking": None,
+        }
+    entry = models[model_id]
+    if not isinstance(entry, dict):
+        return {
+            "status": "unreadable",
+            "enable_thinking": None,
+            "active_profile_name": None,
+            "profile_enable_thinking": None,
+        }
+    enable = entry.get("enable_thinking")
+    active = entry.get("active_profile_name")
+    profile_enable = None
+    if isinstance(active, str) and active:
+        profiles_path = home / "model_profiles.json"
+        try:
+            profiles_payload = json.loads(profiles_path.read_text(encoding="utf-8"))
+            profiles = profiles_payload.get("profiles", {})
+            model_profiles = profiles.get(model_id, {}) if isinstance(profiles, dict) else {}
+            profile = model_profiles.get(active, {}) if isinstance(model_profiles, dict) else {}
+            settings = profile.get("settings", {}) if isinstance(profile, dict) else {}
+            if isinstance(settings, dict) and "enable_thinking" in settings:
+                profile_enable = settings.get("enable_thinking")
+                if not isinstance(profile_enable, bool):
+                    profile_enable = None
+        except (OSError, json.JSONDecodeError, AttributeError):
+            profile_enable = None
+    return {
+        "status": "ok",
+        "enable_thinking": enable if isinstance(enable, bool) else None,
+        "active_profile_name": active if isinstance(active, str) else None,
+        "profile_enable_thinking": profile_enable,
+    }
+
+
 def collect_readiness(
     pin: OmlxThinkingPin,
     *,
@@ -90,6 +154,7 @@ def collect_readiness(
     port_free: Callable[[int], bool],
     transport: ReadOnlyTransport,
     observe_busy_port: bool = True,
+    omlx_home: Path | None = None,
 ) -> dict[str, object]:
     pin_valid = _pin_is_valid(pin)
     version_match = installed_version == APPROVED_VERSION
@@ -97,6 +162,7 @@ def collect_readiness(
     health_ready = False
     model_present = False
     readiness_path = "port_free"
+    omlx_profile_observe = observe_omlx_profile(pin.model_id, omlx_home=omlx_home)
 
     if not pin_valid:
         return {
@@ -113,6 +179,7 @@ def collect_readiness(
             "model_present": model_present,
             "readiness_path": "pin_invalid",
             "observe_busy_port": observe_busy_port,
+            "omlx_profile_observe": omlx_profile_observe,
             "http_post_attempts": 0,
             "inference_request_attempts": 0,
             "service_lifecycle_actions": 0,
@@ -149,6 +216,7 @@ def collect_readiness(
         "model_present": model_present,
         "readiness_path": readiness_path,
         "observe_busy_port": observe_busy_port,
+        "omlx_profile_observe": omlx_profile_observe,
         "http_post_attempts": 0,
         "inference_request_attempts": 0,
         "service_lifecycle_actions": 0,
@@ -203,6 +271,7 @@ def build_gate_b_report(readiness: Mapping[str, object]) -> dict[str, object]:
         "checks": checks,
         "readiness_path": readiness.get("readiness_path"),
         "observe_busy_port": observe_busy_port,
+        "omlx_profile_observe": readiness.get("omlx_profile_observe"),
         "http_post_attempts": readiness.get("http_post_attempts", 0),
         "inference_request_attempts": readiness.get("inference_request_attempts", 0),
         "service_lifecycle_actions": readiness.get("service_lifecycle_actions", 0),
@@ -217,6 +286,7 @@ def run_gate_b_check(
     version_probe: Callable[[], str] | None = None,
     port_free: Callable[[int], bool] | None = None,
     transport: ReadOnlyTransport | None = None,
+    omlx_home: Path | None = None,
 ) -> dict[str, object]:
     pin = OmlxThinkingPin.load(pin_path)
     installed_version = (version_probe or probe_omlx_version)()
@@ -228,6 +298,7 @@ def run_gate_b_check(
         port_free=check_port,
         transport=loopback,
         observe_busy_port=observe_busy_port,
+        omlx_home=omlx_home,
     )
     return build_gate_b_report(readiness)
 

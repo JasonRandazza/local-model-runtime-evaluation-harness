@@ -23,7 +23,8 @@
 
 Exact visible-token decode qualification needs oMLX to emit
 `completion_tokens_details.reasoning_tokens` (or equivalent) on the chat stream.
-That is a measurement-depth follow-on, not a reopen of this PASS.
+That measurement-depth follow-on is tracked as **D4** (deferred), not a reopen
+of this PASS.
 
 **D3** (external-bench) remains deferred.
 

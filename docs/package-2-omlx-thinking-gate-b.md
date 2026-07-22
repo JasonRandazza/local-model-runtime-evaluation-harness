@@ -18,7 +18,7 @@ evidence on `mlx-optiq 0.3.3` / Gemma revision `2`.
 
 | Item | Required value |
 |---|---|
-| Pin | `omlx-0.5.3-thinking` revision `1` |
+| Pin | `omlx-0.5.3-thinking` revision `2` |
 | oMLX version | `0.5.3` (exact) |
 | Comparison class | `omlx-thinking-measure-v1` |
 | Suite | `omlx-thinking-smoke-v1` revision `1` |
@@ -58,7 +58,8 @@ issue thinking POSTs, start or stop oMLX, or reclaim a foreign `:8100` pool.
 `docs/package-2-omlx-thinking-gate-d.md` and
 `docs/superpowers/verification/2026-07-22-package-2-gate-d-manager-review-004.md`.
 Follow-ons: **D2** live PASSED (`omlx-thinking-measure-20260722-001`);
-**D3** external-bench remains deferred.
+**D3** external-bench remains deferred; **D4** decode / `reasoning_content`
+accounting remains deferred.
 
 ## Readiness CLI
 
@@ -68,7 +69,7 @@ Follow-ons: **D2** live PASSED (`omlx-thinking-measure-20260722-001`);
 
 Optional flags:
 
-- `--pin-path` — override pin JSON (default: `config/omlx-pins/omlx-0.5.3-thinking-r1.json`)
+- `--pin-path` — override pin JSON (default: `config/omlx-pins/omlx-0.5.3-thinking-r2.json`)
 - `--observe-busy-port` / `--no-observe-busy-port` — when port `8100` is busy, probe
   `GET /health` and authenticated `GET /v1/models` without reclaim (default: observe on)
 
@@ -76,6 +77,12 @@ The CLI emits JSON on stdout. Exit code `0` only when `decision` is
 `READY_FOR_LIVE_AUTHORIZATION`. It never POSTs, never creates run IDs, and
 reports `http_post_attempts: 0`, `inference_request_attempts: 0`, and
 `service_lifecycle_actions: 0`.
+
+When `~/.omlx/model_settings.json` (and optional `model_profiles.json`) is
+readable, the report includes an `omlx_profile_observe` diagnostic block
+(`enable_thinking`, `active_profile_name`, `profile_enable_thinking`). This
+block does **not** affect the `decision` or exit code — request pinning is
+enforced by the pin JSON and transport, not by oMLX UI profile state.
 
 ## Decision codes
 

@@ -54,6 +54,7 @@ Gate A/B/C evidence retained.
 |---|---|---|
 | **D2** | Expanded harness measure suite + qualification / reasoning-token accounting | **Live PASSED** — sealed `omlx-thinking-measure-20260722-001` |
 | **D3** | Optional oMLX external-bench lane | Deferred |
+| **D4** | Exact decode qualification (`completion_tokens_details.reasoning_tokens` / `reasoning_content` adapter) | Deferred |
 
 ## Related documents
 

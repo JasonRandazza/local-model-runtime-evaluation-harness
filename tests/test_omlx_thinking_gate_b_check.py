@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import tempfile
 import unittest
 from io import StringIO
 from pathlib import Path
@@ -219,6 +220,74 @@ class OmlxThinkingGateBCheckTest(unittest.TestCase):
         self.assertEqual(pin.version, "0.5.3")
         self.assertEqual(pin.ownership_mode, "dedicated_serve")
         self.assertEqual(pin.model_id, "Qwen3.6-35B-A3B-OptiQ-4bit")
+
+    def test_observe_omlx_profile_ok_from_temp_home(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            (home / "model_settings.json").write_text(
+                json.dumps({
+                    "version": 1,
+                    "models": {
+                        PIN_MODEL_ID: {
+                            "enable_thinking": True,
+                            "active_profile_name": "thinking",
+                        }
+                    },
+                }),
+                encoding="utf-8",
+            )
+            (home / "model_profiles.json").write_text(
+                json.dumps({
+                    "version": 1,
+                    "profiles": {
+                        PIN_MODEL_ID: {
+                            "thinking": {
+                                "settings": {"enable_thinking": True},
+                            }
+                        }
+                    },
+                }),
+                encoding="utf-8",
+            )
+            observed = gate_b_mod.observe_omlx_profile(PIN_MODEL_ID, omlx_home=home)
+            self.assertEqual(observed["status"], "ok")
+            self.assertIs(observed["enable_thinking"], True)
+            self.assertEqual(observed["active_profile_name"], "thinking")
+            self.assertIs(observed["profile_enable_thinking"], True)
+
+    def test_observe_omlx_profile_file_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            observed = gate_b_mod.observe_omlx_profile(
+                PIN_MODEL_ID, omlx_home=Path(directory),
+            )
+            self.assertEqual(observed["status"], "file_missing")
+
+    def test_ready_decision_ignores_profile_observe_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            (home / "model_settings.json").write_text(
+                json.dumps({
+                    "version": 1,
+                    "models": {
+                        PIN_MODEL_ID: {
+                            "enable_thinking": False,
+                            "active_profile_name": None,
+                        }
+                    },
+                }),
+                encoding="utf-8",
+            )
+            readiness = collect_readiness(
+                self.pin,
+                installed_version="0.5.3",
+                port_free=lambda _port: True,
+                transport=FakeTransport(),
+                observe_busy_port=False,
+                omlx_home=home,
+            )
+            report = build_gate_b_report(readiness)
+            self.assertEqual(report["decision"], "READY_FOR_LIVE_AUTHORIZATION")
+            self.assertIs(report["omlx_profile_observe"]["enable_thinking"], False)
 
 
 if __name__ == "__main__":
