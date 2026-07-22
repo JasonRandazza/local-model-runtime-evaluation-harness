@@ -7,9 +7,11 @@ from .harness_lifecycle import LifecycleController, ServerPin
 from .measurement import validate_response_contract
 from .omlx_thinking_measure import (
     THINKING_PREFLIGHT_MAX_TOKENS,
+    ThinkingMetricSample,
     ThinkingOutcome,
     classify_thinking_outcome,
     preflight_budget_ok,
+    qualify_thinking_metrics,
 )
 from .omlx_thinking_pin import OmlxThinkingPin, OmlxThinkingSuite
 from .omlx_thinking_transport import (
@@ -29,6 +31,11 @@ THINKING_PREFLIGHT_PROMPT = (
 class ThinkingChatResult:
     visible_text: str
     finish_reason: str | None = None
+    reasoning_tokens: int | None = None
+    visible_output_tokens: int | None = None
+    token_accounting_status: str = "INCOMPARABLE_TOKEN_ACCOUNTING"
+    content_span_seconds: float = 0.0
+    streaming_semantics: str = "incremental"
 
 
 @dataclass(frozen=True)
@@ -37,6 +44,12 @@ class ThinkingMeasureRequestOutcome:
     workload_id: str | None
     repetition: int
     outcome: ThinkingOutcome
+    reasoning_tokens: int | None = None
+    visible_output_tokens: int | None = None
+    token_accounting_status: str | None = None
+    content_span_seconds: float | None = None
+    streaming_semantics: str | None = None
+    finish_reason: str | None = None
 
 
 class ThinkingMeasureError(RuntimeError):
@@ -90,6 +103,11 @@ def _chat_from_transport_factory(
         return ThinkingChatResult(
             visible_text=result.visible_text,
             finish_reason=result.finish_reason,
+            reasoning_tokens=result.reasoning_tokens,
+            visible_output_tokens=result.visible_output_tokens,
+            token_accounting_status=result.token_accounting_status,
+            content_span_seconds=result.content_span_seconds,
+            streaming_semantics=result.streaming_semantics,
         )
 
     return chat
@@ -144,6 +162,24 @@ class ThinkingMeasureRunner:
     def smoke_outcomes(self) -> tuple[ThinkingMeasureRequestOutcome, ...]:
         return tuple(self._smoke_outcomes)
 
+    @property
+    def qualification_labels(self) -> dict[str, str]:
+        samples: list[ThinkingMetricSample] = []
+        for record in self._smoke_outcomes:
+            samples.append(
+                ThinkingMetricSample(
+                    outcome=record.outcome,
+                    streaming_semantics=record.streaming_semantics or "buffered",
+                    token_accounting_status=(
+                        record.token_accounting_status or "INCOMPARABLE_TOKEN_ACCOUNTING"
+                    ),
+                    visible_output_tokens=record.visible_output_tokens,
+                    content_span_seconds=float(record.content_span_seconds or 0.0),
+                    finish_reason=record.finish_reason,
+                )
+            )
+        return qualify_thinking_metrics(tuple(samples))
+
     def _classify_chat(
         self,
         *,
@@ -169,10 +205,13 @@ class ThinkingMeasureRunner:
     def _execute_chat(
         self,
         *,
+        phase: Literal["preflight", "smoke"],
+        workload_id: str | None,
+        repetition: int,
         prompt: str,
         max_tokens: int,
         contract: str,
-    ) -> ThinkingOutcome:
+    ) -> ThinkingMeasureRequestOutcome:
         if not preflight_budget_ok(max_tokens):
             raise ThinkingMeasureError(
                 f"max_tokens {max_tokens} is below thinking preflight floor",
@@ -184,26 +223,47 @@ class ThinkingMeasureRunner:
         except TransportError:
             result = None
             transport_ok = False
-        return self._classify_chat(
+        outcome = self._classify_chat(
             contract=contract,
             result=result,
             transport_ok=transport_ok,
         )
+        if result is None:
+            return ThinkingMeasureRequestOutcome(
+                phase,
+                workload_id,
+                repetition,
+                outcome,
+            )
+        return ThinkingMeasureRequestOutcome(
+            phase,
+            workload_id,
+            repetition,
+            outcome,
+            reasoning_tokens=result.reasoning_tokens,
+            visible_output_tokens=result.visible_output_tokens,
+            token_accounting_status=result.token_accounting_status,
+            content_span_seconds=result.content_span_seconds,
+            streaming_semantics=result.streaming_semantics,
+            finish_reason=result.finish_reason,
+        )
 
     def run_preflight(self) -> ThinkingMeasureRequestOutcome:
         self._controller.start(omlx_server_pin_from_pin(self._pin))
-        outcome = self._execute_chat(
+        record = self._execute_chat(
+            phase="preflight",
+            workload_id=None,
+            repetition=0,
             prompt=THINKING_PREFLIGHT_PROMPT,
             max_tokens=THINKING_PREFLIGHT_MAX_TOKENS,
             contract="text",
         )
-        record = ThinkingMeasureRequestOutcome("preflight", None, 0, outcome)
         self._preflight_outcome = record
-        if outcome != "ok":
+        if record.outcome != "ok":
             raise ThinkingMeasureError(
-                f"preflight failed: {outcome}",
+                f"preflight failed: {record.outcome}",
                 code="preflight_failed",
-                outcome=outcome,
+                outcome=record.outcome,
             )
         return record
 
@@ -222,17 +282,14 @@ class ThinkingMeasureRunner:
         self._smoke_outcomes.clear()
         for workload in self._suite.workloads:
             for repetition in range(1, self._repetitions + 1):
-                outcome = self._execute_chat(
-                    prompt=workload.prompt,
-                    max_tokens=workload.max_tokens,
-                    contract=workload.response_contract,
-                )
                 self._smoke_outcomes.append(
-                    ThinkingMeasureRequestOutcome(
-                        "smoke",
-                        workload.workload_id,
-                        repetition,
-                        outcome,
+                    self._execute_chat(
+                        phase="smoke",
+                        workload_id=workload.workload_id,
+                        repetition=repetition,
+                        prompt=workload.prompt,
+                        max_tokens=workload.max_tokens,
+                        contract=workload.response_contract,
                     )
                 )
         return tuple(self._smoke_outcomes)

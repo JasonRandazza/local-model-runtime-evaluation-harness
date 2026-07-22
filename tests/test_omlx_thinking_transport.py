@@ -99,6 +99,11 @@ class OmlxThinkingTransportTest(unittest.TestCase):
 
         self.assertEqual(result.visible_text, "visible answer")
         self.assertEqual(result.finish_reason, "stop")
+        self.assertEqual(result.reasoning_tokens, 3)
+        self.assertEqual(result.visible_output_tokens, 5)
+        self.assertEqual(result.token_accounting_status, "EXACT_VISIBLE")
+        self.assertEqual(result.streaming_semantics, "incremental")
+        self.assertEqual(result.content_span_seconds, 0.15)
         self.assertEqual(len(self.loopback.chat_calls), 1)
         base_url, model_id, prompt, max_tokens, seen_credential = self.loopback.chat_calls[0]
         self.assertEqual(base_url, self.pin.base_url)

@@ -30,6 +30,10 @@ PIN_START_COMMAND = (
 
 SUITE_ID = "omlx-thinking-smoke-v1"
 SUITE_REVISION = "1"
+MEASURE_SUITE_ID = "omlx-thinking-measure-v1"
+MEASURE_SUITE_REVISION = "1"
+SMOKE_WORKLOAD_COUNT = 2
+MEASURE_WORKLOAD_COUNT = 5
 
 _PIN_REQUIRED = frozenset({
     "schema_version",
@@ -72,6 +76,10 @@ def default_pin_path() -> Path:
 
 def default_suite_path() -> Path:
     return REPOSITORY_ROOT / "suites" / "omlx-thinking-smoke-v1.json"
+
+
+def default_measure_suite_path() -> Path:
+    return REPOSITORY_ROOT / "suites" / "omlx-thinking-measure-v1.json"
 
 
 @dataclass(frozen=True)
@@ -162,17 +170,26 @@ class OmlxThinkingSuite:
             raise OmlxThinkingPinError("suite fields are invalid")
         if data["schema_version"] != "1.0.0":
             raise OmlxThinkingPinError("suite schema_version is invalid")
-        if data["suite_id"] != SUITE_ID:
+        suite_id = data["suite_id"]
+        if suite_id == SUITE_ID:
+            expected_revision = SUITE_REVISION
+            expected_count = SMOKE_WORKLOAD_COUNT
+        elif suite_id == MEASURE_SUITE_ID:
+            expected_revision = MEASURE_SUITE_REVISION
+            expected_count = MEASURE_WORKLOAD_COUNT
+        else:
             raise OmlxThinkingPinError("suite_id does not match approved contract")
-        if data["revision"] != SUITE_REVISION:
+        if data["revision"] != expected_revision:
             raise OmlxThinkingPinError("suite revision does not match approved contract")
         if data["temperature"] != 0:
             raise OmlxThinkingPinError("suite must be deterministic")
         if data["streaming"] is not True:
             raise OmlxThinkingPinError("suite must be streaming")
         items = data["workloads"]
-        if not isinstance(items, list) or len(items) != 2:
-            raise OmlxThinkingPinError("suite must contain exactly two workloads")
+        if not isinstance(items, list) or len(items) != expected_count:
+            raise OmlxThinkingPinError(
+                f"suite must contain exactly {expected_count} workloads"
+            )
         workloads: list[OmlxThinkingWorkload] = []
         for item in items:
             if not isinstance(item, dict) or set(item) != _WORKLOAD_REQUIRED:
@@ -190,9 +207,9 @@ class OmlxThinkingSuite:
                     str(item["response_contract"]),
                 )
             )
-        if len({item.workload_id for item in workloads}) != 2:
+        if len({item.workload_id for item in workloads}) != expected_count:
             raise OmlxThinkingPinError("workload IDs must be unique")
-        return cls(SUITE_ID, SUITE_REVISION, 0, True, tuple(workloads))
+        return cls(str(suite_id), expected_revision, 0, True, tuple(workloads))
 
 
 def _read_json(path: Path, label: str) -> dict[str, object]:

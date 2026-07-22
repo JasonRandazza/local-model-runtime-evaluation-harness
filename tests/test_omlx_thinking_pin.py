@@ -10,6 +10,7 @@ from local_model_runtime_evaluation.omlx_thinking_pin import (
     OmlxThinkingPin,
     OmlxThinkingPinError,
     OmlxThinkingSuite,
+    default_measure_suite_path,
     default_pin_path,
     default_suite_path,
 )
@@ -139,6 +140,15 @@ class OmlxThinkingSuiteTest(unittest.TestCase):
         self.assertEqual(suite.revision, "1")
         self.assertEqual(len(suite.workloads), 2)
         self.assertTrue(all(item.max_tokens >= THINKING_PREFLIGHT_MAX_TOKENS for item in suite.workloads))
+
+    def test_loads_measure_suite(self) -> None:
+        suite = OmlxThinkingSuite.load(default_measure_suite_path())
+        self.assertEqual(suite.suite_id, "omlx-thinking-measure-v1")
+        self.assertEqual(suite.revision, "1")
+        self.assertEqual(len(suite.workloads), 5)
+        self.assertTrue(
+            all(item.max_tokens >= THINKING_PREFLIGHT_MAX_TOKENS for item in suite.workloads)
+        )
 
     def test_rejects_workload_below_max_tokens_floor(self) -> None:
         data = json.loads(self.path.read_text(encoding="utf-8"))

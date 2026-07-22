@@ -216,7 +216,7 @@ sequenceDiagram
 **Gate B status:** landed readiness surface.
 **Gate C status:** sealed PASS `omlx-thinking-20260722-004`.
 **Gate D status:** **Passed** (Jason ACCEPT 2026-07-22 on sealed `004`).
-**Follow-ons:** D2 expanded suite; D3 external-bench (deferred).
+**Follow-ons:** D2 Gate A ready (`docs/package-2-omlx-thinking-d2.md`); D3 external-bench (deferred).
 
 **Non-goals:** OptiQ retarget, same-artifact OptiQ↔oMLX
 matrix campaign, preference/RAG expansion.

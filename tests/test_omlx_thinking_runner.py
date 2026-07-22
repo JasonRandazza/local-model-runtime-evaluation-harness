@@ -20,6 +20,7 @@ from local_model_runtime_evaluation.omlx_thinking_runner import (
 from local_model_runtime_evaluation.omlx_thinking_pin import (
     OmlxThinkingPin,
     OmlxThinkingSuite,
+    default_measure_suite_path,
     default_pin_path,
     default_suite_path,
 )
@@ -80,7 +81,15 @@ class FakeChatTransport:
             raise TransportError("simulated transport failure")
         if self.responses:
             return self.responses[min(index - 1, len(self.responses) - 1)]
-        return ThinkingChatResult(visible_text="visible answer", finish_reason="stop")
+        return ThinkingChatResult(
+            visible_text="visible answer",
+            finish_reason="stop",
+            reasoning_tokens=3,
+            visible_output_tokens=5,
+            token_accounting_status="EXACT_VISIBLE",
+            content_span_seconds=0.15,
+            streaming_semantics="incremental",
+        )
 
 
 class ThinkingMeasureRunnerTest(unittest.TestCase):
@@ -287,6 +296,35 @@ class ThinkingMeasureRunnerTest(unittest.TestCase):
         with self.assertRaises(ThinkingMeasureError) as ctx:
             runner.run_smoke()
         self.assertEqual(ctx.exception.code, "preflight_required")
+
+    def test_qualification_labels_from_exact_visible_samples(self) -> None:
+        chat = FakeChatTransport()
+        runner = self._runner(chat)
+        runner.run_preflight()
+        outcomes = runner.run_smoke()
+        self.assertTrue(all(item.reasoning_tokens == 3 for item in outcomes))
+        self.assertTrue(all(item.token_accounting_status == "EXACT_VISIBLE" for item in outcomes))
+        labels = runner.qualification_labels
+        self.assertEqual(labels["ttft"], "QUALIFIED_INCREMENTAL_DELIVERY")
+        self.assertEqual(labels["decode"], "QUALIFIED_EXACT_VISIBLE_TOKENS")
+
+    def test_measure_suite_runs_five_workloads_under_budget(self) -> None:
+        measure = OmlxThinkingSuite.load(default_measure_suite_path())
+        chat = FakeChatTransport()
+        runner = ThinkingMeasureRunner(
+            self.pin,
+            measure,
+            chat,
+            controller=self._lifecycle(),
+        )
+        runner.run_preflight()
+        outcomes = runner.run_smoke()
+        self.assertEqual(len(outcomes), 5)
+        self.assertEqual(len(chat.calls), 6)  # preflight + 5
+        self.assertEqual(
+            runner.qualification_labels["decode"],
+            "QUALIFIED_EXACT_VISIBLE_TOKENS",
+        )
 
 
 if __name__ == "__main__":

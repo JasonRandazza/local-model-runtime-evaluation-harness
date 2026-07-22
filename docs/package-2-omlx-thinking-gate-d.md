@@ -52,7 +52,7 @@ Gate A/B/C evidence retained.
 
 | ID | Scope | Status |
 |---|---|---|
-| **D2** | Expanded harness measure suite + qualification / reasoning-token accounting | Deferred |
+| **D2** | Expanded harness measure suite + qualification / reasoning-token accounting | **Gate A ready** — `docs/package-2-omlx-thinking-d2.md` (not live) |
 | **D3** | Optional oMLX external-bench lane | Deferred |
 
 ## Related documents

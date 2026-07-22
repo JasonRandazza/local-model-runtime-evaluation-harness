@@ -39,6 +39,11 @@ def authorization_headers(credential: Credential | None = None) -> dict[str, str
 class ThinkingChatResponse:
     visible_text: str
     finish_reason: str | None = None
+    reasoning_tokens: int | None = None
+    visible_output_tokens: int | None = None
+    token_accounting_status: str = "INCOMPARABLE_TOKEN_ACCOUNTING"
+    content_span_seconds: float = 0.0
+    streaming_semantics: str = "incremental"
 
 
 @dataclass(repr=False)
@@ -84,9 +89,23 @@ class OmlxThinkingTransport:
             max_tokens,
             self.credential,
         )
+        streaming_semantics = (
+            "incremental"
+            if bool(getattr(result, "stream_valid", False))
+            and int(getattr(result, "content_event_count", 0) or 0) > 0
+            else "buffered"
+        )
+        content_span = float(getattr(result, "last_content_seconds", 0.0) or 0.0)
         return ThinkingChatResponse(
             visible_text=str(result.content),
             finish_reason=result.finish_reason,
+            reasoning_tokens=getattr(result, "reasoning_tokens", None),
+            visible_output_tokens=getattr(result, "visible_output_tokens", None),
+            token_accounting_status=str(
+                getattr(result, "token_accounting_status", "INCOMPARABLE_TOKEN_ACCOUNTING")
+            ),
+            content_span_seconds=content_span,
+            streaming_semantics=streaming_semantics,
         )
 
 
