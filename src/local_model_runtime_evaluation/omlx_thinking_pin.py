@@ -13,6 +13,20 @@ PIN_REVISION = "1"
 PIN_VERSION = "0.5.2"
 PIN_BASE_URL = "http://127.0.0.1:8100/v1"
 COMPARISON_CLASS = "omlx-thinking-measure-v1"
+PIN_MODEL_ID = "Qwen3.6-35B-A3B-OptiQ-4bit"
+PIN_MODEL_DIR = "/Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit"
+PIN_OWNERSHIP_MODE = "dedicated_serve"
+PIN_API_KEY_SOURCE = "matrix_local"
+PIN_START_COMMAND = (
+    "omlX",
+    "serve",
+    "--model-dir",
+    PIN_MODEL_DIR,
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8100",
+)
 
 SUITE_ID = "omlx-thinking-smoke-v1"
 SUITE_REVISION = "1"
@@ -24,6 +38,10 @@ _PIN_REQUIRED = frozenset({
     "version",
     "base_url",
     "comparison_class",
+    "model_id",
+    "model_dir",
+    "ownership_mode",
+    "api_key_source",
     "extra_body_allowlist",
     "start_command",
     "stop_command",
@@ -63,6 +81,10 @@ class OmlxThinkingPin:
     version: str
     base_url: str
     comparison_class: str
+    model_id: str
+    model_dir: str
+    ownership_mode: str
+    api_key_source: str
     extra_body_allowlist: tuple[str, ...]
     start_command: tuple[str, ...]
     stop_command: tuple[str, ...]
@@ -84,17 +106,33 @@ class OmlxThinkingPin:
             raise OmlxThinkingPinError("pin base_url does not match approved contract")
         if data["comparison_class"] != COMPARISON_CLASS:
             raise OmlxThinkingPinError("pin comparison_class does not match approved contract")
+        if data["model_id"] != PIN_MODEL_ID:
+            raise OmlxThinkingPinError("pin model_id does not match approved contract")
+        if data["model_dir"] != PIN_MODEL_DIR:
+            raise OmlxThinkingPinError("pin model_dir does not match approved contract")
+        if data["ownership_mode"] != PIN_OWNERSHIP_MODE:
+            raise OmlxThinkingPinError("pin ownership_mode does not match approved contract")
+        if data["api_key_source"] != PIN_API_KEY_SOURCE:
+            raise OmlxThinkingPinError("pin api_key_source does not match approved contract")
         allowlist = _string_list(data["extra_body_allowlist"], field="extra_body_allowlist")
         start_command = _string_list(data["start_command"], field="start_command")
         stop_command = _string_list(data["stop_command"], field="stop_command")
         if not start_command:
             raise OmlxThinkingPinError("pin start_command must not be empty")
+        if "--model-dir" not in start_command:
+            raise OmlxThinkingPinError("pin start_command must include --model-dir")
+        if tuple(start_command) != PIN_START_COMMAND:
+            raise OmlxThinkingPinError("pin start_command does not match approved contract")
         return cls(
             PIN_ID,
             PIN_REVISION,
             PIN_VERSION,
             PIN_BASE_URL,
             COMPARISON_CLASS,
+            PIN_MODEL_ID,
+            PIN_MODEL_DIR,
+            PIN_OWNERSHIP_MODE,
+            PIN_API_KEY_SOURCE,
             allowlist,
             tuple(start_command),
             tuple(stop_command),

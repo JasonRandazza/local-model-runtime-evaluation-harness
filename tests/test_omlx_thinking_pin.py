@@ -26,12 +26,21 @@ class OmlxThinkingPinTest(unittest.TestCase):
         self.assertEqual(pin.version, "0.5.2")
         self.assertEqual(pin.base_url, "http://127.0.0.1:8100/v1")
         self.assertEqual(pin.comparison_class, "omlx-thinking-measure-v1")
+        self.assertEqual(pin.model_id, "Qwen3.6-35B-A3B-OptiQ-4bit")
+        self.assertEqual(
+            pin.model_dir,
+            "/Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+        )
+        self.assertEqual(pin.ownership_mode, "dedicated_serve")
+        self.assertEqual(pin.api_key_source, "matrix_local")
         self.assertEqual(pin.extra_body_allowlist, ())
         self.assertEqual(
             pin.start_command,
             (
                 "omlX",
                 "serve",
+                "--model-dir",
+                "/Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
                 "--host",
                 "127.0.0.1",
                 "--port",
@@ -61,6 +70,49 @@ class OmlxThinkingPinTest(unittest.TestCase):
     def test_rejects_wrong_base_url(self) -> None:
         data = json.loads(self.path.read_text(encoding="utf-8"))
         data["base_url"] = "http://127.0.0.1:8080/v1"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "pin.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaises(OmlxThinkingPinError):
+                OmlxThinkingPin.load(path)
+
+    def test_rejects_wrong_model_id(self) -> None:
+        data = json.loads(self.path.read_text(encoding="utf-8"))
+        data["model_id"] = "ThinkingCap-Qwen3.6-27B-OptiQ-4bit"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "pin.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaises(OmlxThinkingPinError):
+                OmlxThinkingPin.load(path)
+
+    def test_rejects_attach_pool_ownership_mode(self) -> None:
+        data = json.loads(self.path.read_text(encoding="utf-8"))
+        data["ownership_mode"] = "attach_pool"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "pin.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaises(OmlxThinkingPinError):
+                OmlxThinkingPin.load(path)
+
+    def test_rejects_wrong_api_key_source(self) -> None:
+        data = json.loads(self.path.read_text(encoding="utf-8"))
+        data["api_key_source"] = "none"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "pin.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaises(OmlxThinkingPinError):
+                OmlxThinkingPin.load(path)
+
+    def test_rejects_start_command_missing_model_dir(self) -> None:
+        data = json.loads(self.path.read_text(encoding="utf-8"))
+        data["start_command"] = [
+            "omlX",
+            "serve",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8100",
+        ]
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "pin.json"
             path.write_text(json.dumps(data), encoding="utf-8")
