@@ -270,6 +270,16 @@ class StageTwoRuntimeProfileTest(unittest.TestCase):
             with self.assertRaises(RuntimeProfileError):
                 RuntimeProfileRegistry(Path(temp)).get("gemma-4-12b-optiq-4bit", "3")
 
+    def test_gemma_registry_loads_revision_three_from_config(self) -> None:
+        root = self.root / "config" / "runtime-profiles"
+        registry = RuntimeProfileRegistry(root)
+        self.assertEqual(registry.get("gemma-4-12b-optiq-4bit", "2").revision, "2")
+        self.assertEqual(registry.get("gemma-4-12b-optiq-4bit", "2").runtime_version, "0.3.3")
+        profile = registry.get("gemma-4-12b-optiq-4bit", "3")
+        self.assertEqual(profile.revision, "3")
+        self.assertEqual(profile.runtime_version, "0.4.2")
+        self.assertEqual(profile.package_versions["mlx-optiq"], "0.4.2")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "profile_id": "gemma-4-12b-optiq-4bit",
+  "revision": "3",
+  "approved": true,
+  "runtime_executable": "/Users/jrazz/Dev/tools/mlx-optiq/.venv/bin/optiq",
+  "runtime_version": "0.4.2",
+  "coordinator_model_id": "gemma-4-12b-it-qat-jang_4m",
+  "package_versions": {
+    "mlx-optiq": "0.4.2",
+    "mlx": "0.32.0",
+    "mlx-lm": "0.31.3",
+    "transformers": "5.12.1"
+  },
+  "model_repository": "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+  "model_revision": "083d338ef60c7ce2b47b27e1447ed92e729c4150",
+  "model_snapshot": "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+  "artifact_hashes": {
+    "config.json": "10c3765fec68c1cd13e6b67dd968468fa71c0e66f33b4c8003d9e7565f68b209",
+    "optiq_metadata.json": "e64e0271ef661b18c1d6b54c395266681be08771aa3e11804c7a206ada32dddf",
+    "model.safetensors.index.json": "62d43537384d711cd4af06295524cb92e1f6d3f3df7fdfbcbcb2628ea5d0f08d",
+    "model-00001-of-00002.safetensors": "515896784d9237ed8545ee2668eb886f665b075abe8ae50dc70f10cf173763c1",
+    "model-00002-of-00002.safetensors": "0bea2433d5812dbb20fddc75b4adaa2d33a964420209eabefef94579048b0457"
+  },
+  "serve_arguments": [
+    "serve", "--model", "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+    "--host", "127.0.0.1", "--port", "8080", "--no-anthropic", "--no-responses",
+    "--no-auth", "--single-model", "--max-concurrent", "1", "--idle-timeout", "0",
+    "--max-context", "8192", "--context-scale", "1.0", "--no-stream-experts",
+    "--decode-concurrency", "1", "--prompt-concurrency", "1"
+  ],
+  "direct_base_url": "http://127.0.0.1:8080/v1",
+  "routed_base_url": "http://127.0.0.1:1337/v1",
+  "direct_model_identities": [
+    "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
+    "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+    "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"
+  ],
+  "osaurus_provider_id": "Optiq",
+  "routed_model_id": "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
+  "rejected_local_model_ids": [
+    "gemma-4-12b-optiq-4bit",
+    "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+    "optiq/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+    "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"
+  ],
+  "service_ownership": "operator",
+  "provider_activation": "operator_reconnect_required"
+}
