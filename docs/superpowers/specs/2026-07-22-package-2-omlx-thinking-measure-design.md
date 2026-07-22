@@ -1,6 +1,6 @@
 # Package 2 — oMLX 0.5.2 Thinking-Model Measurement Design
 
-**Status:** Draft for Jason review (planning only). Expands the Package 2 stub in
+**Status:** Gate A landed (planning + fake-only implementation). Expands the Package 2 stub in
 `docs/superpowers/specs/2026-07-21-stack-review-gate-a-queue-design.md`.
 Does **not** authorize Gate B, live runs, oMLX upgrades on disk, Stage 2 OptiQ
 retarget, plugin rebuild, or a same-artifact OptiQ↔oMLX matrix campaign.

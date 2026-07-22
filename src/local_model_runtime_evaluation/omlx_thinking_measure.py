@@ -50,6 +50,14 @@ def qualify_thinking_metrics(
     samples: tuple[ThinkingMetricSample, ...],
 ) -> dict[str, str]:
     """Return ttft/decode qualification labels for reasoning-heavy samples."""
+    if any(
+        item.outcome == "token_capped" or item.finish_reason == "length"
+        for item in samples
+    ):
+        return {
+            "ttft": "SUPPRESSED_TOKEN_CAPPED",
+            "decode": "SUPPRESSED_TOKEN_CAPPED",
+        }
     measured = [item for item in samples if item.outcome == "ok"]
     if not measured:
         return {
@@ -60,11 +68,6 @@ def qualify_thinking_metrics(
         return {
             "ttft": "SUPPRESSED_BUFFERED_DELIVERY",
             "decode": "SUPPRESSED_BUFFERED_DELIVERY",
-        }
-    if any(item.finish_reason == "length" for item in measured):
-        return {
-            "ttft": "SUPPRESSED_TOKEN_CAPPED",
-            "decode": "SUPPRESSED_TOKEN_CAPPED",
         }
     exact_visible = all(
         item.token_accounting_status == "EXACT_VISIBLE"

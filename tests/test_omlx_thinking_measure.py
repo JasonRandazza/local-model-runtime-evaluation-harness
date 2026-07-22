@@ -133,6 +133,20 @@ class QualifyThinkingMetricsTest(unittest.TestCase):
         self.assertEqual(labels["ttft"], "SUPPRESSED_TOKEN_CAPPED")
         self.assertEqual(labels["decode"], "SUPPRESSED_TOKEN_CAPPED")
 
+    def test_suppresses_token_capped_from_classifier(self) -> None:
+        outcome = classify_thinking_outcome(
+            transport_ok=True,
+            visible_text="partial answer",
+            finish_reason="length",
+            contract_ok=True,
+        )
+        self.assertEqual(outcome, "token_capped")
+        labels = qualify_thinking_metrics((
+            _sample(outcome=outcome, finish_reason="length"),
+        ))
+        self.assertEqual(labels["ttft"], "SUPPRESSED_TOKEN_CAPPED")
+        self.assertEqual(labels["decode"], "SUPPRESSED_TOKEN_CAPPED")
+
     def test_ignores_non_ok_samples(self) -> None:
         labels = qualify_thinking_metrics((
             _sample(outcome="transport_failed"),
