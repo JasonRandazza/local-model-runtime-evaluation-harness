@@ -50,11 +50,33 @@ class HarnessOptiQController:
         wait_ready: WaitReady | None = None,
         log_dir: Path | None = None,
     ) -> None:
-        self._port_free = port_free or (lambda port: True)
+        if controller is not None:
+            self._controller = controller
+            self._port_free = controller._port_free
+            return
+
+        missing = [
+            name
+            for name, value in (
+                ("free_memory", free_memory),
+                ("port_free", port_free),
+                ("lab_closed", lab_closed),
+            )
+            if value is None
+        ]
+        if missing:
+            raise HarnessLifecycleError(
+                "HarnessOptiQController requires "
+                + ", ".join(missing)
+                + " when controller is not injected",
+                code="missing_probes",
+            )
+
+        self._port_free = port_free
         controller_kwargs: dict[str, object] = {
-            "free_memory": free_memory or (lambda: 50.0),
-            "port_free": self._port_free,
-            "lab_closed": lab_closed or (lambda: True),
+            "free_memory": free_memory,
+            "port_free": port_free,
+            "lab_closed": lab_closed,
         }
         if memory_floor_percent is not None:
             controller_kwargs["memory_floor_percent"] = memory_floor_percent
@@ -68,7 +90,7 @@ class HarnessOptiQController:
             controller_kwargs["wait_ready"] = wait_ready
         if log_dir is not None:
             controller_kwargs["log_dir"] = log_dir
-        self._controller = controller or LifecycleController(**controller_kwargs)
+        self._controller = LifecycleController(**controller_kwargs)
 
     @property
     def lifecycle_actions(self) -> int:

@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 from local_model_runtime_evaluation.harness_lifecycle import (
     HarnessLifecycleError,
+    LifecycleController,
     ServerPin,
 )
 from local_model_runtime_evaluation.matrix_lifecycle import ManagedProcess
@@ -58,6 +59,34 @@ class HarnessOptiQControllerTest(unittest.TestCase):
             start_command=("optiq", "serve"),
             stop_command=("optiq", "stop"),
         )
+
+    def test_construction_without_controller_requires_probe_callbacks(self) -> None:
+        with self.assertRaises(HarnessLifecycleError) as ctx:
+            HarnessOptiQController()
+        self.assertEqual(ctx.exception.code, "missing_probes")
+
+    def test_injected_controller_uses_controller_port_free_for_stop_probes(self) -> None:
+        port_free_calls: list[int] = []
+
+        def port_free(port: int) -> bool:
+            port_free_calls.append(port)
+            return True
+
+        lifecycle = LifecycleController(
+            free_memory=lambda: 50.0,
+            port_free=port_free,
+            lab_closed=lambda: True,
+            spawner=self._fake_spawner,
+            stop_runner=lambda cmd: self.stop_runner_calls.append(cmd),
+            wait_port_free=lambda port, timeout: self.wait_port_free_calls.append(
+                (port, timeout)
+            ),
+        )
+        controller = HarnessOptiQController(controller=lifecycle)
+        controller.ensure_started(self._optiq_pin())
+        port_free_calls.clear()
+        controller.ensure_stopped()
+        self.assertEqual(port_free_calls, [8080, 8080])
 
     def test_start_then_stop_records_at_least_two_lifecycle_actions(self) -> None:
         controller = self._controller()
