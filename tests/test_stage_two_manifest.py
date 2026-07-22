@@ -11,6 +11,7 @@ from local_model_runtime_evaluation.manifest import ManifestError, validate_mani
 FIXTURE = Path(__file__).parent / "fixtures" / "valid-stage-2.json"
 INFERENCE_FIXTURE = Path(__file__).parent / "fixtures" / "valid-stage-2-inference.json"
 GEMMA_INFERENCE_FIXTURE = Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json"
+HARNESS_SMOKE_FIXTURE = Path(__file__).parent / "fixtures" / "valid-stage-2-harness-smoke.json"
 
 
 class StageTwoManifestTest(unittest.TestCase):
@@ -74,6 +75,49 @@ class StageTwoManifestTest(unittest.TestCase):
                 "total_request_limit": 8,
             },
         )
+
+    def test_valid_stage_two_harness_smoke_manifest_loads(self) -> None:
+        data = json.loads(HARNESS_SMOKE_FIXTURE.read_text())
+        now = datetime(2026, 7, 22, tzinfo=timezone.utc)
+        manifest = validate_manifest(data, now=now)
+        self.assertEqual(manifest.schema_version, "3.5.0")
+        self.assertEqual(manifest.mode, "harness_inference_probe")
+        self.assertEqual(manifest.comparison_class, "gemma-optiq-042-harness-route-smoke")
+        self.assertEqual(manifest.runtime_profile_id, "gemma-4-12b-optiq-4bit")
+        self.assertEqual(manifest.runtime_profile_revision, "4")
+        self.assertEqual(manifest.suite_id, "gemma-optiq-042-harness-route-smoke-v1")
+        self.assertEqual(manifest.suite_revision, "1")
+        self.assertEqual(manifest.repetitions, 1)
+        self.assertEqual(manifest.route_order, "counterbalanced")
+        self.assertEqual(
+            manifest.limits,
+            {
+                "request_timeout_seconds": 120,
+                "memory_stop_level": "warning",
+                "maximum_in_flight_requests": 1,
+                "total_request_limit": 8,
+            },
+        )
+
+    def test_schema_350_rejects_operator_comparison_class(self) -> None:
+        data = json.loads(HARNESS_SMOKE_FIXTURE.read_text())
+        data["comparison_class"] = "gemma-optiq-operator-route-smoke"
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=datetime(2026, 7, 22, tzinfo=timezone.utc))
+
+    def test_schema_350_rejects_profile_revision_two_or_three(self) -> None:
+        for revision in ("2", "3"):
+            with self.subTest(revision=revision):
+                data = json.loads(HARNESS_SMOKE_FIXTURE.read_text())
+                data["runtime_profile_revision"] = revision
+                with self.assertRaises(ManifestError):
+                    validate_manifest(data, now=datetime(2026, 7, 22, tzinfo=timezone.utc))
+
+    def test_schema_330_rejects_harness_comparison_class(self) -> None:
+        data = json.loads(GEMMA_INFERENCE_FIXTURE.read_text())
+        data["comparison_class"] = "gemma-optiq-042-harness-route-smoke"
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=datetime(2026, 7, 20, tzinfo=timezone.utc))
 
     def test_schema_330_rejects_vibethinker_pins(self) -> None:
         data = json.loads(INFERENCE_FIXTURE.read_text())

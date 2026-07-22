@@ -94,6 +94,40 @@
         "routes": {"const": {"direct": "http://127.0.0.1:8080/v1", "routed": "http://127.0.0.1:1337/v1"}},
         "limits": {"const": {"request_timeout_seconds": 120, "memory_stop_level": "warning", "maximum_in_flight_requests": 1, "total_request_limit": 8}}
       }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "run_id", "stage", "mode", "operations", "output_root", "approved_by", "approved_at", "expires_at", "comparison_class", "runtime_profile_id", "runtime_profile_revision", "suite_id", "suite_revision", "repetitions", "route_order", "routes", "limits"],
+      "properties": {
+        "schema_version": {"const": "3.4.0"}, "run_id": {"type": "string", "pattern": "^stage2-[0-9]{8}-[0-9]{3}$"},
+        "stage": {"const": 2}, "mode": {"const": "operator_route_benchmark"}, "operations": {"$ref": "#/$defs/operations"},
+        "output_root": {"$ref": "#/$defs/output_root"}, "approved_by": {"type": "string", "minLength": 1},
+        "approved_at": {"type": "string", "format": "date-time"}, "expires_at": {"type": "string", "format": "date-time"},
+        "comparison_class": {"const": "gemma-optiq-operator-route-benchmark"},
+        "runtime_profile_id": {"const": "gemma-4-12b-optiq-4bit"}, "runtime_profile_revision": {"const": "2"},
+        "suite_id": {"const": "gemma-optiq-route-benchmark-v1"}, "suite_revision": {"const": "1"},
+        "repetitions": {"const": 1}, "route_order": {"const": "counterbalanced"},
+        "routes": {"const": {"direct": "http://127.0.0.1:8080/v1", "routed": "http://127.0.0.1:1337/v1"}},
+        "limits": {"const": {"request_timeout_seconds": 120, "memory_stop_level": "warning", "maximum_in_flight_requests": 1, "total_request_limit": 72}}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "run_id", "stage", "mode", "operations", "output_root", "approved_by", "approved_at", "expires_at", "comparison_class", "runtime_profile_id", "runtime_profile_revision", "suite_id", "suite_revision", "repetitions", "route_order", "routes", "limits"],
+      "properties": {
+        "schema_version": {"const": "3.5.0"}, "run_id": {"type": "string", "pattern": "^stage2-[0-9]{8}-[0-9]{3}$"},
+        "stage": {"const": 2}, "mode": {"const": "harness_inference_probe"}, "operations": {"$ref": "#/$defs/operations"},
+        "output_root": {"$ref": "#/$defs/output_root"}, "approved_by": {"type": "string", "minLength": 1},
+        "approved_at": {"type": "string", "format": "date-time"}, "expires_at": {"type": "string", "format": "date-time"},
+        "comparison_class": {"const": "gemma-optiq-042-harness-route-smoke"},
+        "runtime_profile_id": {"const": "gemma-4-12b-optiq-4bit"}, "runtime_profile_revision": {"const": "4"},
+        "suite_id": {"const": "gemma-optiq-042-harness-route-smoke-v1"}, "suite_revision": {"const": "1"},
+        "repetitions": {"const": 1}, "route_order": {"const": "counterbalanced"},
+        "routes": {"const": {"direct": "http://127.0.0.1:8080/v1", "routed": "http://127.0.0.1:1337/v1"}},
+        "limits": {"const": {"request_timeout_seconds": 120, "memory_stop_level": "warning", "maximum_in_flight_requests": 1, "total_request_limit": 8}}
+      }
     }
   ],
   "$defs": {

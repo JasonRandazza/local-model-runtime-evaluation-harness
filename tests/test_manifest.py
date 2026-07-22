@@ -66,6 +66,18 @@ class ManifestTest(unittest.TestCase):
         })
         return data
 
+    def test_valid_stage_two_harness_smoke_manifest_loads(self) -> None:
+        now = datetime(2026, 7, 22, tzinfo=timezone.utc)
+        manifest = validate_manifest(
+            json.loads((FIXTURES / "valid-stage-2-harness-smoke.json").read_text()),
+            now=now,
+        )
+        self.assertEqual(manifest.schema_version, "3.5.0")
+        self.assertEqual(manifest.mode, "harness_inference_probe")
+        self.assertEqual(manifest.comparison_class, "gemma-optiq-042-harness-route-smoke")
+        self.assertEqual(manifest.runtime_profile_revision, "4")
+        self.assertEqual(manifest.suite_id, "gemma-optiq-042-harness-route-smoke-v1")
+
     def test_valid_stage_two_benchmark_manifest_loads(self) -> None:
         now = datetime(2026, 7, 21, tzinfo=timezone.utc)
         manifest = validate_manifest(self._benchmark_manifest(), now=now)

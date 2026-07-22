@@ -125,6 +125,39 @@ class PolicyTest(unittest.TestCase):
                     policy.authorize(manifest, Operation.INVENTORY)
                 self.assertEqual(ctx.exception.code, "stage_forbidden")
 
+    def test_harness_smoke_manifest_authorizes_all_six_operations(self) -> None:
+        fixture = Path(__file__).parent / "fixtures" / "valid-stage-2-harness-smoke.json"
+        manifest = load_manifest(fixture, now=datetime(2026, 7, 22, tzinfo=timezone.utc))
+        policy = StageTwoPolicy()
+        for operation in Operation:
+            policy.authorize(manifest, operation)
+
+    def test_harness_smoke_rejects_operator_comparison_class(self) -> None:
+        data = json.loads((
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-smoke.json"
+        ).read_text())
+        data["comparison_class"] = "gemma-optiq-operator-route-smoke"
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=datetime(2026, 7, 22, tzinfo=timezone.utc))
+
+    def test_harness_smoke_rejects_profile_revision_two_or_three(self) -> None:
+        for revision in ("2", "3"):
+            with self.subTest(revision=revision):
+                data = json.loads((
+                    Path(__file__).parent / "fixtures" / "valid-stage-2-harness-smoke.json"
+                ).read_text())
+                data["runtime_profile_revision"] = revision
+                with self.assertRaises(ManifestError):
+                    validate_manifest(data, now=datetime(2026, 7, 22, tzinfo=timezone.utc))
+
+    def test_operator_smoke_still_rejects_harness_comparison_class(self) -> None:
+        data = json.loads((
+            Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json"
+        ).read_text())
+        data["comparison_class"] = "gemma-optiq-042-harness-route-smoke"
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=datetime(2026, 7, 20, tzinfo=timezone.utc))
+
     def test_benchmark_manifest_rejects_smoke_suite_under_policy(self) -> None:
         data = json.loads((
             Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json"
