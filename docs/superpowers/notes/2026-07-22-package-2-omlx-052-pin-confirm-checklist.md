@@ -88,7 +88,7 @@ thinking-capable model and refresh `start_command` in
 
 - [ ] Model directory exists and matches expected artifact identity (record
       SHA-256 of `config.json` or agreed hash set).
-- [ ] Replace provisional `start_command` with measured argv:
+- [x] Replace provisional `start_command` with measured argv:
 
 ```json
 [

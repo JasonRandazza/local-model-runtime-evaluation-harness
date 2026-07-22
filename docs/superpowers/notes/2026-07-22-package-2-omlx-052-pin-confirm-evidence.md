@@ -50,8 +50,8 @@ Provisional path exists:
 5. **Ownership mode locked:** `dedicated_serve` (harness-owned single-model
    serve on `:8100`; do not reclaim the observed multi-model pool without
    explicit in-session approval).
-6. **Pin JSON `start_command` still host/port-only** — Gate B Task 1 refreshes
-   argv with `--model-dir` for the locked model under `dedicated_serve`.
+6. **Pin JSON `start_command` refreshed** — Gate B Task 1 locked argv with
+   `--model-dir` for `Qwen3.6-35B-A3B-OptiQ-4bit` under `dedicated_serve`.
 
 ## Locked Gate B constants (Jason, 2026-07-22)
 

@@ -133,19 +133,7 @@ def collect_readiness(
                 model_present = pin.model_id in models
             except TransportError:
                 model_present = False
-    elif pin.ownership_mode == "attach_pool":
-        readiness_path = "attach_pool"
-        try:
-            health_ready = health_is_ready(transport.health(pin.base_url))
-        except TransportError:
-            health_ready = False
-        if health_ready:
-            try:
-                credential = matrix_local_credential()
-                models = transport.list_models(pin.base_url, credential)
-                model_present = pin.model_id in models
-            except TransportError:
-                model_present = False
+    # attach_pool is rejected by the pin loader; no READY path for it.
 
     return {
         "pin_id": pin.pin_id,
@@ -183,12 +171,8 @@ def build_gate_b_report(readiness: Mapping[str, object]) -> dict[str, object]:
     elif port_8100_free:
         decision = "READY_FOR_LIVE_AUTHORIZATION"
     elif ownership_mode == "attach_pool":
-        if not health_ready:
-            decision = "health_unavailable"
-        elif not model_present:
-            decision = "model_missing"
-        else:
-            decision = "READY_FOR_LIVE_AUTHORIZATION"
+        # Pin loader rejects attach_pool; treat as invalid if it appears.
+        decision = "pin_invalid"
     elif observe_busy_port:
         if not health_ready:
             decision = "health_unavailable"
