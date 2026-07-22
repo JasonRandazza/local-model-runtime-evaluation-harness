@@ -217,6 +217,59 @@ class StageTwoRuntimeProfileTest(unittest.TestCase):
                 with self.assertRaises(RuntimeProfileError):
                     RuntimeProfileRegistry(Path(temp)).get("gemma-4-12b-optiq-4bit", "2")
 
+    def _gemma_revision_three_fixture(self) -> dict:
+        source = (
+            self.root / "config" / "runtime-profiles" / "gemma-4-12b-optiq-4bit-r2.json"
+        )
+        data = json.loads(source.read_text())
+        data["revision"] = "3"
+        data["runtime_version"] = "0.4.2"
+        data["package_versions"] = {
+            "mlx-optiq": "0.4.2",
+            "mlx": "0.32.0",
+            "mlx-lm": "0.31.3",
+            "transformers": "5.12.1",
+        }
+        return data
+
+    def _write_gemma_revision_three_fixture(self, temp: str, data: dict | None = None) -> None:
+        payload = self._gemma_revision_three_fixture() if data is None else data
+        Path(temp, "gemma-4-12b-optiq-4bit-r3.json").write_text(json.dumps(payload))
+
+    def test_gemma_revision_three_profile_loads_with_optiq_042_pins(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            self._write_gemma_revision_three_fixture(temp)
+            profile = RuntimeProfileRegistry(Path(temp)).get("gemma-4-12b-optiq-4bit", "3")
+            self.assertEqual(profile.revision, "3")
+            self.assertEqual(profile.runtime_version, "0.4.2")
+            self.assertEqual(profile.package_versions["mlx-optiq"], "0.4.2")
+
+    def test_gemma_revision_three_rejects_runtime_version_033(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            data = self._gemma_revision_three_fixture()
+            data["runtime_version"] = "0.3.3"
+            self._write_gemma_revision_three_fixture(temp, data)
+            with self.assertRaises(RuntimeProfileError):
+                RuntimeProfileRegistry(Path(temp)).get("gemma-4-12b-optiq-4bit", "3")
+
+    def test_gemma_revision_three_rejects_wrong_mlx_optiq_package_version(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            data = self._gemma_revision_three_fixture()
+            data["package_versions"] = dict(data["package_versions"])
+            data["package_versions"]["mlx-optiq"] = "0.3.3"
+            self._write_gemma_revision_three_fixture(temp, data)
+            with self.assertRaises(RuntimeProfileError):
+                RuntimeProfileRegistry(Path(temp)).get("gemma-4-12b-optiq-4bit", "3")
+
+    def test_gemma_revision_three_rejects_serve_argument_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            data = self._gemma_revision_three_fixture()
+            data["serve_arguments"] = list(data["serve_arguments"])
+            data["serve_arguments"].append("--lab")
+            self._write_gemma_revision_three_fixture(temp, data)
+            with self.assertRaises(RuntimeProfileError):
+                RuntimeProfileRegistry(Path(temp)).get("gemma-4-12b-optiq-4bit", "3")
+
 
 if __name__ == "__main__":
     unittest.main()
