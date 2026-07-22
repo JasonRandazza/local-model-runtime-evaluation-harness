@@ -13,6 +13,7 @@ from local_model_runtime_evaluation.transport import LoopbackTransport, Transpor
 
 class Handler(BaseHTTPRequestHandler):
     authorization = ""
+    last_post_body: dict[str, object] = {}
     include_reasoning_details = True
     reasoning_tokens = 2
     stream_stall_seconds = 0.0
@@ -49,7 +50,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         Handler.authorization = self.headers.get("Authorization", "")
         length = int(self.headers.get("Content-Length", "0"))
-        json.loads(self.rfile.read(length))
+        Handler.last_post_body = json.loads(self.rfile.read(length))
         if Handler.response_header_trickle_interval:
             raw_headers = (
                 b"HTTP/1.1 200 OK\r\n"
@@ -163,6 +164,7 @@ class Handler(BaseHTTPRequestHandler):
 
 class TransportTest(unittest.TestCase):
     def setUp(self) -> None:
+        Handler.last_post_body = {}
         Handler.include_reasoning_details = True
         Handler.reasoning_tokens = 2
         Handler.stream_stall_seconds = 0.0
@@ -219,6 +221,26 @@ class TransportTest(unittest.TestCase):
             LoopbackTransport({self.base_url}).chat(
                 self.base_url, "VibeThinker-3B-MLX-oQ4", "hello", 16, None
             )
+
+    def test_chat_includes_optional_chat_template_kwargs_in_body(self) -> None:
+        LoopbackTransport({self.base_url}).chat(
+            self.base_url,
+            "VibeThinker-3B-MLX-oQ4",
+            "hello",
+            16,
+            None,
+            chat_template_kwargs={"enable_thinking": True},
+        )
+        self.assertEqual(
+            Handler.last_post_body.get("chat_template_kwargs"),
+            {"enable_thinking": True},
+        )
+
+    def test_chat_omits_chat_template_kwargs_when_absent(self) -> None:
+        LoopbackTransport({self.base_url}).chat(
+            self.base_url, "VibeThinker-3B-MLX-oQ4", "hello", 16, None,
+        )
+        self.assertNotIn("chat_template_kwargs", Handler.last_post_body)
 
     def test_routed_request_can_omit_direct_omlx_credential(self) -> None:
         transport = LoopbackTransport({self.base_url})

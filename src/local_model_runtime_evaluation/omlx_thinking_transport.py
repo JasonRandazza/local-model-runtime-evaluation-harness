@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from typing import Callable, Protocol
 
 from .credentials import Credential
@@ -23,6 +24,7 @@ class LoopbackClient(Protocol):
         max_tokens: int,
         credential: Credential | None,
         cancel: object | None = None,
+        chat_template_kwargs: Mapping[str, object] | None = None,
     ) -> object: ...
 
 
@@ -52,6 +54,7 @@ class OmlxThinkingTransport:
     model_id: str
     credential: Credential
     loopback: LoopbackClient
+    chat_template_kwargs: Mapping[str, object] = field(default_factory=dict)
 
     def __repr__(self) -> str:
         return (
@@ -76,7 +79,13 @@ class OmlxThinkingTransport:
             )
         resolved = credential or matrix_local_credential()
         client = loopback or LoopbackTransport({pin.base_url}, timeout_seconds=timeout_seconds)
-        return cls(pin.base_url, pin.model_id, resolved, client)
+        return cls(
+            pin.base_url,
+            pin.model_id,
+            resolved,
+            client,
+            dict(pin.required_chat_template_kwargs),
+        )
 
     def list_models(self) -> tuple[str, ...]:
         return self.loopback.list_models(self.base_url, self.credential)
@@ -88,6 +97,7 @@ class OmlxThinkingTransport:
             prompt,
             max_tokens,
             self.credential,
+            chat_template_kwargs=self.chat_template_kwargs or None,
         )
         streaming_semantics = (
             "incremental"

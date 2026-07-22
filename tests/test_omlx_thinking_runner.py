@@ -31,7 +31,7 @@ from local_model_runtime_evaluation.transport import TransportError, TransportRe
 
 class FakeLoopbackTransport:
     def __init__(self) -> None:
-        self.chat_calls: list[tuple[str, str, str, int, object | None]] = []
+        self.chat_calls: list[tuple[str, str, str, int, object | None, object | None]] = []
 
     def list_models(self, base_url: str, credential: object | None) -> tuple[str, ...]:
         return ("Qwen3.6-35B-A3B-OptiQ-4bit",)
@@ -44,8 +44,11 @@ class FakeLoopbackTransport:
         max_tokens: int,
         credential: object | None,
         cancel: object | None = None,
+        chat_template_kwargs: object | None = None,
     ) -> TransportResult:
-        self.chat_calls.append((base_url, model_id, prompt, max_tokens, credential))
+        self.chat_calls.append(
+            (base_url, model_id, prompt, max_tokens, credential, chat_template_kwargs)
+        )
         return TransportResult(
             content="visible answer",
             content_sha256="abc",
@@ -286,10 +289,11 @@ class ThinkingMeasureRunnerTest(unittest.TestCase):
 
         self.assertEqual(outcome.outcome, "ok")
         self.assertEqual(len(loopback.chat_calls), 1)
-        _, model_id, _, max_tokens, credential = loopback.chat_calls[0]
+        _, model_id, _, max_tokens, credential, kwargs = loopback.chat_calls[0]
         self.assertEqual(model_id, self.pin.model_id)
         self.assertEqual(max_tokens, THINKING_PREFLIGHT_MAX_TOKENS)
         self.assertEqual(credential.api_key(), MATRIX_OMLX_API_KEY)
+        self.assertEqual(dict(kwargs), {"enable_thinking": True})
 
     def test_run_smoke_requires_preflight(self) -> None:
         runner = self._runner(FakeChatTransport())

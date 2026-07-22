@@ -17,7 +17,7 @@ from local_model_runtime_evaluation.transport import TransportError, TransportRe
 @dataclass
 class FakeLoopback:
     list_models_calls: list[tuple[str, object | None]]
-    chat_calls: list[tuple[str, str, str, int, object | None]]
+    chat_calls: list[tuple[str, str, str, int, object | None, object | None]]
 
     def __init__(self) -> None:
         self.list_models_calls = []
@@ -35,8 +35,11 @@ class FakeLoopback:
         max_tokens: int,
         credential: object | None,
         cancel: object | None = None,
+        chat_template_kwargs: object | None = None,
     ) -> TransportResult:
-        self.chat_calls.append((base_url, model_id, prompt, max_tokens, credential))
+        self.chat_calls.append(
+            (base_url, model_id, prompt, max_tokens, credential, chat_template_kwargs)
+        )
         return TransportResult(
             content="visible answer",
             content_sha256="abc",
@@ -105,12 +108,19 @@ class OmlxThinkingTransportTest(unittest.TestCase):
         self.assertEqual(result.streaming_semantics, "incremental")
         self.assertEqual(result.content_span_seconds, 0.15)
         self.assertEqual(len(self.loopback.chat_calls), 1)
-        base_url, model_id, prompt, max_tokens, seen_credential = self.loopback.chat_calls[0]
+        base_url, model_id, prompt, max_tokens, seen_credential, kwargs = self.loopback.chat_calls[0]
         self.assertEqual(base_url, self.pin.base_url)
         self.assertEqual(model_id, self.pin.model_id)
         self.assertEqual(prompt, "hello")
         self.assertEqual(max_tokens, 512)
         self.assertIs(seen_credential, credential)
+        self.assertIsNone(kwargs)
+
+    def test_chat_forwards_required_chat_template_kwargs(self) -> None:
+        transport = OmlxThinkingTransport.for_pin(self.pin, loopback=self.loopback)
+        transport.chat("hello", 512)
+        kwargs = self.loopback.chat_calls[0][5]
+        self.assertEqual(dict(kwargs), {"enable_thinking": True})
 
     def test_for_pin_uses_matrix_local_credential(self) -> None:
         transport = OmlxThinkingTransport.for_pin(self.pin, loopback=self.loopback)

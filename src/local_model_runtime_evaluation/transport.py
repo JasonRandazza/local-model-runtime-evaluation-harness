@@ -6,6 +6,7 @@ import json
 import select
 import threading
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Callable
 from urllib.parse import urlparse
@@ -137,13 +138,20 @@ class LoopbackTransport:
     def chat(
         self, base_url: str, model_id: str, prompt: str, max_tokens: int,
         credential: Credential | None, cancel: threading.Event | None = None,
+        chat_template_kwargs: Mapping[str, object] | None = None,
     ) -> TransportResult:
         connection, path = self._connection(base_url)
-        payload = json.dumps({
-            "model": model_id, "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0, "max_tokens": max_tokens, "stream": True,
+        body: dict[str, object] = {
+            "model": model_id,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0,
+            "max_tokens": max_tokens,
+            "stream": True,
             "stream_options": {"include_usage": True},
-        }).encode()
+        }
+        if chat_template_kwargs:
+            body["chat_template_kwargs"] = dict(chat_template_kwargs)
+        payload = json.dumps(body).encode()
         started = time.monotonic()
         deadline = started + self.timeout_seconds
         first_token: float | None = None
