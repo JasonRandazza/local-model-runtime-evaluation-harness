@@ -45,7 +45,7 @@ port `8100` free.
 | **A** | Pin, runner, suite, qualification, fake-only tests | **Passed** (not live) |
 | **B** | Read-only identity + auth + lifecycle mode check | **Ready** (implementation closed; not live) |
 | **C** | Jason authorizes one unused run ID + short-lived smoke | **Passed** — sealed `omlx-thinking-20260722-004` |
-| **D** | Manager review of sealed Gate C smoke | **Ready** — `docs/package-2-omlx-thinking-gate-d.md` |
+| **D** | Manager review of sealed Gate C smoke | **Passed** — ACCEPT on `004` |
 
 Gate B is non-authorizing. It does not create a usable run ID or live manifest,
 issue thinking POSTs, start or stop oMLX, or reclaim a foreign `:8100` pool.
@@ -54,8 +54,9 @@ issue thinking POSTs, start or stop oMLX, or reclaim a foreign `:8100` pool.
 `docs/superpowers/verification/2026-07-22-package-2-gate-c-omlx-thinking-20260722-004.md`
 (consumed IDs `001`–`003` are historical FAIL / FAIL_CLEANUP only).
 
-**Gate D:** Manager-review surface ready — see `docs/package-2-omlx-thinking-gate-d.md`
-and checklist `docs/superpowers/notes/2026-07-22-package-2-gate-d-manager-review-checklist.md`.
+**Gate D:** **Passed** (ACCEPT 2026-07-22) — see
+`docs/package-2-omlx-thinking-gate-d.md` and
+`docs/superpowers/verification/2026-07-22-package-2-gate-d-manager-review-004.md`.
 Follow-ons D2 (expanded suite) and D3 (external-bench) remain deferred.
 
 ## Readiness CLI

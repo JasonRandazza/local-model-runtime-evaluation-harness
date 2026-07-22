@@ -2,12 +2,14 @@
 
 ## Current Decision
 
-`GATE_D_READY` (manager-review documentation only). Gate D lets Jason review
-sealed Gate C smoke evidence and close the Package 2 thinking-measure **smoke**
-lane. This gate does **not** issue POSTs, create run IDs, start or stop oMLX, or
-expand the suite.
+`GATE_D_PASSED` — Jason **ACCEPT** on sealed Gate C
+`omlx-thinking-20260722-004` (2026-07-22). Package 2 thinking-measure **smoke**
+lane is closed. This gate did not issue POSTs or create new run IDs.
 
 **Prerequisite:** Sealed Gate C PASS `omlx-thinking-20260722-004`.
+
+**Manager-review record:**
+`docs/superpowers/verification/2026-07-22-package-2-gate-d-manager-review-004.md`
 
 **Rollback:** Stage 2 OptiQ lanes and sealed `005`/`006` unchanged. Package 2
 Gate A/B/C evidence retained.
@@ -35,7 +37,7 @@ Gate A/B/C evidence retained.
 | **A** | Pin, runner, suite, fake-only tests | **Passed** |
 | **B** | Read-only readiness check | **Passed** (ready surface) |
 | **C** | Authorized live smoke | **Passed** — sealed `004` |
-| **D** | Manager review of sealed `004` | **Ready** (awaiting Jason’s ACCEPT / REJECT) |
+| **D** | Manager review of sealed `004` | **Passed** — ACCEPT 2026-07-22 |
 
 ## How to review
 

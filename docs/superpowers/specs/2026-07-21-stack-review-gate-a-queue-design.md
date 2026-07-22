@@ -215,7 +215,7 @@ sequenceDiagram
 **Gate A status:** landed (implementation and fake-only tests; not live authority).
 **Gate B status:** landed readiness surface.
 **Gate C status:** sealed PASS `omlx-thinking-20260722-004`.
-**Gate D status:** `GATE_D_READY` (manager-review docs; Jason ACCEPT/REJECT pending).
+**Gate D status:** **Passed** (Jason ACCEPT 2026-07-22 on sealed `004`).
 **Follow-ons:** D2 expanded suite; D3 external-bench (deferred).
 
 **Non-goals:** OptiQ retarget, same-artifact OptiQ↔oMLX
