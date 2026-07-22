@@ -186,5 +186,112 @@ class HarnessLifecycleStartTest(unittest.TestCase):
         self.assertEqual(stop_calls, [("omlX", "stop", "--force")])
 
 
+class HarnessLifecycleStopTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.spawn_calls: list[tuple[tuple[str, ...], Path]] = []
+        self.stop_runner_calls: list[tuple[str, ...]] = []
+        self.wait_port_free_calls: list[tuple[int, float]] = []
+        self.process_stop_calls: list[None] = []
+        self.fake_process = ManagedProcess(
+            pid=4242,
+            process_group_id=4242,
+            command=("optiq", "serve"),
+            _child=MagicMock(),
+        )
+        original_stop = self.fake_process.stop
+
+        def tracked_stop(timeout_seconds: float = 15) -> None:
+            self.process_stop_calls.append(None)
+            original_stop(timeout_seconds)
+
+        self.fake_process.stop = tracked_stop  # type: ignore[method-assign]
+
+    def _fake_spawner(self, command: tuple[str, ...], log_path: Path) -> ManagedProcess:
+        self.spawn_calls.append((command, log_path))
+        return self.fake_process
+
+    def _controller(self, **overrides: object) -> LifecycleController:
+        defaults: dict[str, object] = {
+            "free_memory": lambda: 50.0,
+            "port_free": lambda port: True,
+            "lab_closed": lambda: True,
+            "spawner": self._fake_spawner,
+            "stop_runner": lambda cmd: self.stop_runner_calls.append(cmd),
+            "wait_port_free": lambda port, timeout: self.wait_port_free_calls.append(
+                (port, timeout)
+            ),
+        }
+        defaults.update(overrides)
+        return LifecycleController(**defaults)
+
+    def _optiq_pin(self) -> ServerPin:
+        return ServerPin(
+            kind="optiq",
+            port=8080,
+            start_command=("optiq", "serve"),
+            stop_command=("optiq", "stop"),
+        )
+
+    def _osaurus_pin(self) -> ServerPin:
+        return ServerPin(
+            kind="osaurus",
+            port=1337,
+            start_command=("osaurus", "serve"),
+        )
+
+    def test_stop_noop_when_nothing_started(self) -> None:
+        controller = self._controller()
+        controller.stop()
+        self.assertEqual(controller.lifecycle_actions, 0)
+        self.assertEqual(self.stop_runner_calls, [])
+        self.assertEqual(self.wait_port_free_calls, [])
+        self.assertEqual(self.process_stop_calls, [])
+
+    def test_owned_start_then_stop_increments_actions_and_waits_port_free(self) -> None:
+        controller = self._controller()
+        pin = self._optiq_pin()
+        controller.start(pin)
+        controller.stop()
+        self.assertEqual(controller.lifecycle_actions, 2)
+        self.assertEqual(self.stop_runner_calls, [("optiq", "stop")])
+        self.assertEqual(self.wait_port_free_calls, [(8080, 30.0)])
+        self.assertEqual(self.process_stop_calls, [])
+        self.assertIsNone(controller.active_pin)
+        self.assertIsNone(controller.active_process)
+        self.assertFalse(controller.owned)
+
+    def test_owned_without_stop_command_uses_process_stop(self) -> None:
+        controller = self._controller()
+        pin = self._osaurus_pin()
+        controller.start(pin)
+        controller.stop()
+        self.assertEqual(controller.lifecycle_actions, 2)
+        self.assertEqual(self.stop_runner_calls, [])
+        self.assertEqual(self.wait_port_free_calls, [(1337, 30.0)])
+        self.assertEqual(len(self.process_stop_calls), 1)
+
+    def test_observe_only_osaurus_stop_does_not_kill(self) -> None:
+        controller = self._controller(port_free=lambda port: False)
+        pin = self._osaurus_pin()
+        controller.start(pin)
+        controller.stop()
+        self.assertEqual(controller.lifecycle_actions, 0)
+        self.assertEqual(self.stop_runner_calls, [])
+        self.assertEqual(self.process_stop_calls, [])
+        self.assertEqual(self.wait_port_free_calls, [])
+        self.assertIsNone(controller.active_pin)
+        self.assertIsNone(controller.active_process)
+        self.assertFalse(controller.owned)
+
+    def test_double_stop_after_clear_is_safe_noop(self) -> None:
+        controller = self._controller()
+        controller.start(self._optiq_pin())
+        controller.stop()
+        controller.stop()
+        self.assertEqual(controller.lifecycle_actions, 2)
+        self.assertEqual(len(self.stop_runner_calls), 1)
+        self.assertEqual(len(self.wait_port_free_calls), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

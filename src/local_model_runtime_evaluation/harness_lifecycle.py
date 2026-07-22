@@ -155,3 +155,20 @@ class LifecycleController:
         self._process = None
         self._owned = False
         self._started = True
+
+    def stop(self) -> None:
+        if not self._started:
+            return
+        if self._owned:
+            pin = self._pin
+            if pin is not None and pin.stop_command:
+                self._stop_runner(pin.stop_command)
+            elif self._process is not None:
+                self._process.stop()
+            if pin is not None:
+                self._wait_port_free(pin.port, DEFAULT_WAIT_PORT_FREE_SECONDS)
+            self.lifecycle_actions += 1
+        self._pin = None
+        self._process = None
+        self._owned = False
+        self._started = False
