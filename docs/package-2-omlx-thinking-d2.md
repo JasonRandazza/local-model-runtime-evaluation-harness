@@ -1,34 +1,43 @@
-# Package 2 D2: Expanded Thinking Measure (Gate A)
+# Package 2 D2: Expanded Thinking Measure
 
 ## Current Decision
 
-`D2_GATE_A_READY` — fake-only expanded measure suite + qualification wiring.
-**Not live.** Live D2 cohort remains separately gated.
+`D2_LIVE_READY` — live measure path prepared; **awaiting Jason’s exact run-ID
+authorization** before POSTs.
 
-**Prerequisite:** Package 2 Gate D ACCEPT on sealed smoke `omlx-thinking-20260722-004`.
+**Prerequisite:** `D2_GATE_A_READY` (fake-only) + Package 2 Gate D ACCEPT on smoke
+`omlx-thinking-20260722-004`.
 
-## Fixed Contract
+## Fixed Contract (live)
 
 | Item | Value |
 |---|---|
-| Comparison class | `omlx-thinking-measure-v1` |
-| Pin | `omlx-0.5.3-thinking` revision `1` (unchanged) |
-| Smoke suite (Gate C) | `omlx-thinking-smoke-v1` revision `1` — unchanged |
-| Measure suite (D2) | `omlx-thinking-measure-v1` revision `1` — **5** workloads |
-| Request budget | ≤8 serial including preflight |
-| Qualification | `ThinkingMeasureRunner.qualification_labels` via `qualify_thinking_metrics` |
+| Proposed run ID | `omlx-thinking-measure-20260722-001` (unused until authorized) |
+| Pin | `omlx-0.5.3-thinking` revision `1` |
+| Suite | `omlx-thinking-measure-v1` revision `1` (5 workloads) |
+| Requests | 1 preflight + 5 measure ≤ 8 |
+| Ownership | `dedicated_serve` + force-free cleanup |
+| CLI | `bin/lmre-omlx-thinking-live-measure` |
 
-## What landed
+## Preflight (host)
 
-- Suite: `suites/omlx-thinking-measure-v1.json`
-- Loader accepts smoke (2) or measure (5) by `suite_id`
-- Transport/runner plumb reasoning / visible token accounting + streaming semantics
-- Fake-only tests for loader, plumbing, and qualification rollup
+Gate B currently reports `READY_FOR_LIVE_AUTHORIZATION` with `:8100` free (checked
+2026-07-22). Re-check immediately before live:
 
-## Non-goals (this status)
+```sh
+./bin/lmre-omlx-thinking-gate-b-check
+# expect decision READY_FOR_LIVE_AUTHORIZATION and port_8100_free true
+```
 
-- Live D2 POSTs / new run IDs  
-- D3 external-bench  
+## Operator sequence (after exact-ID authorization)
+
+```sh
+cd /Users/jrazz/Dev/active/local-model-runtime-evaluation-harness
+./bin/lmre-omlx-thinking-gate-b-check
+PYTHONPATH=src /opt/homebrew/bin/python3 bin/lmre-omlx-thinking-live-measure
+```
+
+Run in **Terminal.app** (Metal). Do not start the oMLX menu-bar pool first.
 
 ## Related
 
@@ -36,4 +45,4 @@
 |---|---|
 | Design | `docs/superpowers/specs/2026-07-22-package-2-d2-expanded-thinking-measure-design.md` |
 | Plan | `docs/superpowers/plans/2026-07-22-package-2-d2-expanded-thinking-measure.md` |
-| Gate D | `docs/package-2-omlx-thinking-gate-d.md` |
+| Gate A status (prior) | Fake-only measure suite + qualification wiring |

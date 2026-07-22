@@ -1,0 +1,297 @@
+#!/usr/bin/env python3
+"""Authorized Package 2 D2 live thinking measure (one-shot).
+
+Run ID must be Jason-authorized in the current session before use.
+Uses measure suite (5 workloads) + force-free oMLX cleanup.
+"""
+from __future__ import annotations
+
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+from local_model_runtime_evaluation.harness_lifecycle import LifecycleController
+from local_model_runtime_evaluation.matrix_lifecycle import (
+    port_is_free,
+    run_stop_command,
+)
+from local_model_runtime_evaluation.omlx_thinking_pin import (
+    OmlxThinkingPin,
+    OmlxThinkingSuite,
+    default_measure_suite_path,
+    default_pin_path,
+)
+from local_model_runtime_evaluation.omlx_thinking_runner import ThinkingMeasureRunner
+from local_model_runtime_evaluation.omlx_thinking_transport import (
+    OmlxThinkingTransport,
+)
+from local_model_runtime_evaluation.resources import HostResourceProbe
+
+AUTHORIZED_RUN_ID = "omlx-thinking-measure-20260722-001"
+READY_WAIT_SECONDS = 1200
+CHAT_TIMEOUT_SECONDS = 300
+STOP_GRACE_SECONDS = 45
+KILL_WAIT_SECONDS = 30
+REPO = Path(__file__).resolve().parents[1]
+EVIDENCE_DIR = REPO / "docs" / "superpowers" / "verification"
+LOG_DIR = REPO / ".harness-lifecycle" / AUTHORIZED_RUN_ID
+
+
+def _health_ok() -> bool:
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:8100/health", timeout=2) as response:
+            payload = json.loads(response.read().decode())
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError):
+        return False
+    status = str(payload.get("status", "")).lower()
+    return status in {"ok", "healthy"}
+
+
+def wait_ready(pin, process) -> None:  # noqa: ANN001
+    deadline = time.monotonic() + READY_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        if process is not None and not process.is_alive:
+            raise RuntimeError("owned oMLX process exited before ready")
+        if not port_is_free(8100) and _health_ok():
+            return
+        time.sleep(2.0)
+    raise RuntimeError(f"oMLX did not become healthy within {READY_WAIT_SECONDS}s")
+
+
+def wait_port_free_long(port: int, timeout_seconds: float) -> None:
+    from local_model_runtime_evaluation.matrix_lifecycle import LifecycleError
+
+    deadline = time.monotonic() + max(float(timeout_seconds), float(STOP_GRACE_SECONDS))
+    while time.monotonic() < deadline:
+        if port_is_free(port):
+            return
+        time.sleep(0.25)
+    raise LifecycleError(f"port {port} did not free in time")
+
+
+def _listener_pids(port: int) -> list[int]:
+    try:
+        completed = subprocess.run(
+            ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return []
+    pids: list[int] = []
+    for line in completed.stdout.splitlines():
+        line = line.strip()
+        if line.isdigit():
+            pids.append(int(line))
+    return pids
+
+
+def _signal_pids(pids: list[int], sig: signal.Signals) -> None:
+    for pid in pids:
+        try:
+            os.kill(pid, sig)
+        except ProcessLookupError:
+            continue
+        except PermissionError:
+            continue
+
+
+def force_free_omlx_port(port: int = 8100) -> None:
+    from local_model_runtime_evaluation.matrix_lifecycle import LifecycleError
+
+    try:
+        run_stop_command(("omlX", "stop"))
+    except Exception:
+        pass
+    deadline = time.monotonic() + STOP_GRACE_SECONDS
+    while time.monotonic() < deadline:
+        if port_is_free(port):
+            return
+        time.sleep(0.5)
+    pids = _listener_pids(port)
+    _signal_pids(pids, signal.SIGTERM)
+    deadline = time.monotonic() + KILL_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        if port_is_free(port):
+            return
+        time.sleep(0.5)
+    pids = _listener_pids(port)
+    _signal_pids(pids, signal.SIGKILL)
+    deadline = time.monotonic() + KILL_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        if port_is_free(port):
+            return
+        time.sleep(0.5)
+    raise LifecycleError(f"port {port} did not free after stop+SIGKILL")
+
+
+def _outcome_dict(item: object) -> dict[str, object]:
+    return {
+        "workload_id": getattr(item, "workload_id", None),
+        "repetition": getattr(item, "repetition", None),
+        "outcome": getattr(item, "outcome", None),
+        "reasoning_tokens": getattr(item, "reasoning_tokens", None),
+        "visible_output_tokens": getattr(item, "visible_output_tokens", None),
+        "token_accounting_status": getattr(item, "token_accounting_status", None),
+        "streaming_semantics": getattr(item, "streaming_semantics", None),
+        "finish_reason": getattr(item, "finish_reason", None),
+    }
+
+
+def main() -> int:
+    if AUTHORIZED_RUN_ID != "omlx-thinking-measure-20260722-001":
+        print("refusing unexpected run id", file=sys.stderr)
+        return 2
+
+    if not port_is_free(8100):
+        print(
+            "refusing to start: port 8100 is busy. Free it first "
+            "(kill the listener PID), then re-run.",
+            file=sys.stderr,
+        )
+        return 3
+
+    pin = OmlxThinkingPin.load(default_pin_path())
+    suite = OmlxThinkingSuite.load(default_measure_suite_path())
+    probe = HostResourceProbe()
+    controller = LifecycleController(
+        free_memory=lambda: float(probe.free_memory_percent()),
+        port_free=port_is_free,
+        lab_closed=lambda: True,
+        wait_ready=wait_ready,
+        wait_port_free=wait_port_free_long,
+        stop_runner=lambda _cmd: force_free_omlx_port(8100),
+        log_dir=LOG_DIR,
+    )
+
+    def transport_factory() -> OmlxThinkingTransport:
+        return OmlxThinkingTransport.for_pin(
+            pin,
+            timeout_seconds=CHAT_TIMEOUT_SECONDS,
+        )
+
+    runner = ThinkingMeasureRunner(
+        pin,
+        suite,
+        transport_factory=transport_factory,
+        controller=controller,
+        port_free=port_is_free,
+        repetitions_per_workload=1,
+    )
+
+    started = datetime.now(timezone.utc).isoformat()
+    error: str | None = None
+    inference_ok = False
+    cleanup_ok = False
+    qualification: dict[str, str] = {}
+    try:
+        preflight = runner.run_preflight()
+        smoke = runner.run_smoke()
+        qualification = dict(runner.qualification_labels)
+        outcomes = {
+            "preflight": _outcome_dict(preflight),
+            "measure": [_outcome_dict(item) for item in smoke],
+        }
+        inference_ok = (
+            preflight.outcome == "ok"
+            and all(item.outcome == "ok" for item in smoke)
+        )
+    except Exception as exc:  # noqa: BLE001
+        error = f"{type(exc).__name__}: {exc}"
+        preflight_rec = runner.preflight_outcome
+        outcomes = {
+            "preflight": _outcome_dict(preflight_rec) if preflight_rec else None,
+            "measure": [_outcome_dict(item) for item in runner.smoke_outcomes],
+        }
+        qualification = dict(runner.qualification_labels) if runner.smoke_outcomes else {}
+        inference_ok = False
+    finally:
+        try:
+            runner.cleanup()
+            cleanup_ok = port_is_free(8100)
+            if not cleanup_ok:
+                force_free_omlx_port(8100)
+                cleanup_ok = port_is_free(8100)
+            if not cleanup_ok:
+                raise RuntimeError("cleanup returned but port 8100 still busy")
+        except Exception as cleanup_exc:  # noqa: BLE001
+            cleanup_ok = port_is_free(8100)
+            cleanup_msg = f"cleanup: {type(cleanup_exc).__name__}: {cleanup_exc}"
+            error = cleanup_msg if error is None else f"{error}; {cleanup_msg}"
+
+    if inference_ok and cleanup_ok:
+        decision = "PASS"
+    elif inference_ok and not cleanup_ok:
+        decision = "FAIL_CLEANUP"
+    else:
+        decision = "FAIL"
+
+    ended = datetime.now(timezone.utc).isoformat()
+    report = {
+        "package": "omlx-thinking-measure-v1",
+        "gate": "D2_LIVE",
+        "run_id": AUTHORIZED_RUN_ID,
+        "decision": decision,
+        "inference_ok": inference_ok,
+        "cleanup_ok": cleanup_ok,
+        "started_at": started,
+        "ended_at": ended,
+        "pin_id": pin.pin_id,
+        "pin_revision": pin.revision,
+        "version": pin.version,
+        "model_id": pin.model_id,
+        "ownership_mode": pin.ownership_mode,
+        "suite_id": suite.suite_id,
+        "suite_revision": suite.revision,
+        "service_lifecycle_actions": runner.lifecycle_actions,
+        "qualification_labels": qualification,
+        "outcomes": outcomes,
+        "error": error,
+        "port_8100_free_after": port_is_free(8100),
+        "stop_grace_seconds": STOP_GRACE_SECONDS,
+        "authorization": (
+            "Jason authorized Package 2 D2 live thinking measure "
+            f"for exact run ID {AUTHORIZED_RUN_ID} on 2026-07-22"
+        ),
+    }
+
+    EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
+    json_path = EVIDENCE_DIR / f"2026-07-22-package-2-d2-{AUTHORIZED_RUN_ID}.json"
+    md_path = EVIDENCE_DIR / f"2026-07-22-package-2-d2-{AUTHORIZED_RUN_ID}.md"
+    json_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    md_path.write_text(
+        "\n".join(
+            [
+                f"# Package 2 D2 Live — `{AUTHORIZED_RUN_ID}`",
+                "",
+                f"- Decision: **{decision}**",
+                f"- Pin: `{pin.pin_id}` revision `{pin.revision}` (oMLX `{pin.version}`)",
+                f"- Model: `{pin.model_id}`",
+                f"- Suite: `{suite.suite_id}` revision `{suite.revision}`",
+                f"- Lifecycle actions: `{runner.lifecycle_actions}`",
+                f"- Qualification: `{qualification}`",
+                f"- Port 8100 free after: `{port_is_free(8100)}`",
+                f"- Error: `{error}`",
+                "",
+                "```json",
+                json.dumps(report, indent=2),
+                "```",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    print(json.dumps(report, indent=2))
+    return 0 if decision == "PASS" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
