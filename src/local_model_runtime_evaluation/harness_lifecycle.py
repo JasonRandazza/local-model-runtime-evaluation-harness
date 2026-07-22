@@ -168,15 +168,23 @@ class LifecycleController:
         try:
             self._wait_ready(pin, process)
         except Exception as error:
-            if self._owned:
-                self._stop_owned_after_ready_failure()
-            self._clear_started_state()
-            raise HarnessLifecycleError(
+            cleanup_error: Exception | None = None
+            try:
+                if self._owned:
+                    self._stop_owned_process()
+            except Exception as exc:
+                cleanup_error = exc
+            finally:
+                self._clear_started_state()
+            ready_error = HarnessLifecycleError(
                 str(error) if str(error) else "ready check failed",
                 code="ready_failed",
-            ) from error
+            )
+            if cleanup_error is not None:
+                raise ready_error from cleanup_error
+            raise ready_error from error
 
-    def _stop_owned_after_ready_failure(self) -> None:
+    def _stop_owned_process(self) -> None:
         pin = self._pin
         if pin is not None and pin.stop_command:
             self._stop_runner(pin.stop_command)
@@ -196,14 +204,7 @@ class LifecycleController:
         if not self._started:
             return
         if self._owned:
-            pin = self._pin
-            if pin is not None and pin.stop_command:
-                self._stop_runner(pin.stop_command)
-            elif self._process is not None:
-                self._process.stop()
-            if pin is not None:
-                self._wait_port_free(pin.port, DEFAULT_WAIT_PORT_FREE_SECONDS)
-            self.lifecycle_actions += 1
+            self._stop_owned_process()
         self._pin = None
         self._process = None
         self._owned = False

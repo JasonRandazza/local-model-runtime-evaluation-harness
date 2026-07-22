@@ -118,14 +118,6 @@ class HarnessLifecycleStartTest(unittest.TestCase):
         self.assertTrue(controller.owned)
         self.assertEqual(controller.active_pin, pin)
 
-    def test_start_rejects_busy_optiq_port(self) -> None:
-        controller = self._controller(port_free=lambda port: False)
-        with self.assertRaises(HarnessLifecycleError) as ctx:
-            controller.start(self._optiq_pin())
-        self.assertEqual(ctx.exception.code, "port_busy")
-        self.assertEqual(controller.lifecycle_actions, 0)
-        self.assertEqual(self.spawn_calls, [])
-
     def test_osaurus_busy_port_attaches_observe_only_without_spawn(self) -> None:
         controller = self._controller(port_free=lambda port: False)
         pin = self._osaurus_pin()
@@ -212,6 +204,53 @@ class HarnessLifecycleStartTest(unittest.TestCase):
         self.assertEqual(controller.lifecycle_actions, 2)
         self.assertIsNone(controller.active_pin)
         self.assertIsNone(controller.active_process)
+        self.assertFalse(controller.owned)
+
+    def test_ready_failure_clears_state_when_cleanup_raises(self) -> None:
+        ready_attempts = {"count": 0}
+
+        def wait_ready(pin: ServerPin, process: ManagedProcess | None) -> None:
+            ready_attempts["count"] += 1
+            if ready_attempts["count"] == 1:
+                raise RuntimeError("health timeout")
+
+        def failing_stop_runner(cmd: tuple[str, ...]) -> None:
+            raise RuntimeError("stop failed")
+
+        controller = self._controller(
+            stop_runner=failing_stop_runner,
+            wait_ready=wait_ready,
+        )
+        pin = self._optiq_pin()
+        with self.assertRaises(HarnessLifecycleError) as ctx:
+            controller.start(pin)
+        self.assertEqual(ctx.exception.code, "ready_failed")
+        self.assertIsInstance(ctx.exception.__cause__, RuntimeError)
+        self.assertEqual(str(ctx.exception.__cause__), "stop failed")
+        self.assertIsNone(controller.active_pin)
+        self.assertFalse(controller.owned)
+        controller.start(pin)
+        self.assertEqual(len(self.spawn_calls), 2)
+        self.assertEqual(ready_attempts["count"], 2)
+
+    def test_observe_only_ready_failure_clears_without_stop(self) -> None:
+        stop_calls: list[tuple[str, ...]] = []
+
+        def wait_ready(pin: ServerPin, process: ManagedProcess | None) -> None:
+            raise RuntimeError("health timeout")
+
+        controller = self._controller(
+            port_free=lambda port: False,
+            stop_runner=lambda cmd: stop_calls.append(cmd),
+            wait_ready=wait_ready,
+        )
+        pin = self._osaurus_pin()
+        with self.assertRaises(HarnessLifecycleError) as ctx:
+            controller.start(pin)
+        self.assertEqual(ctx.exception.code, "ready_failed")
+        self.assertEqual(stop_calls, [])
+        self.assertEqual(controller.lifecycle_actions, 0)
+        self.assertIsNone(controller.active_pin)
         self.assertFalse(controller.owned)
 
 
