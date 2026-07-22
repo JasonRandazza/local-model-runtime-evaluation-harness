@@ -21,9 +21,9 @@ class OmlxThinkingPinTest(unittest.TestCase):
 
     def test_loads_canonical_pin(self) -> None:
         pin = OmlxThinkingPin.load(self.path)
-        self.assertEqual(pin.pin_id, "omlx-0.5.2-thinking")
+        self.assertEqual(pin.pin_id, "omlx-0.5.3-thinking")
         self.assertEqual(pin.revision, "1")
-        self.assertEqual(pin.version, "0.5.2")
+        self.assertEqual(pin.version, "0.5.3")
         self.assertEqual(pin.base_url, "http://127.0.0.1:8100/v1")
         self.assertEqual(pin.comparison_class, "omlx-thinking-measure-v1")
         self.assertEqual(pin.model_id, "Qwen3.6-35B-A3B-OptiQ-4bit")

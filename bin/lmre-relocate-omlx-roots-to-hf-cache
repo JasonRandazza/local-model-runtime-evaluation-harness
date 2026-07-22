@@ -1,0 +1,69 @@
+#!/bin/zsh
+# Move real model trees out of config/matrix/omlx-roots into
+# ~/.cache/huggingface/hub and leave project paths as symlinks.
+# Run once in your own Terminal (Cursor cannot write ~/.cache).
+set -euo pipefail
+
+HF="${HOME}/.cache/huggingface/hub"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)/config/matrix/omlx-roots"
+PROJ="${ROOT}/optiq_4bit"
+
+relocate() {
+  local src="$1"
+  local dest="$2"
+  echo "=== ${src} -> ${dest} ==="
+  if [[ ! -e "${src}" ]]; then
+    echo "missing src, skip"
+    return 0
+  fi
+  if [[ -L "${src}" ]]; then
+    echo "already symlink -> $(readlink "${src}")"
+    return 0
+  fi
+  if [[ -e "${dest}" && ! -L "${dest}" ]]; then
+    echo "ERROR: dest exists as real directory: ${dest}" >&2
+    exit 1
+  fi
+  if [[ -L "${dest}" ]]; then
+    echo "removing old dest symlink -> $(readlink "${dest}")"
+    rm "${dest}"
+  fi
+  mkdir -p "$(dirname "${dest}")"
+  mv "${src}" "${dest}"
+  ln -s "${dest}" "${src}"
+  echo "ok"
+}
+
+relocate \
+  "${PROJ}/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit" \
+  "${HF}/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit"
+
+relocate \
+  "${PROJ}/mlx-community/Ornith-1.0-35B-OptiQ-4bit" \
+  "${HF}/mlx-community/Ornith-1.0-35B-OptiQ-4bit"
+
+relocate \
+  "${PROJ}/Jundot/Qwen3.6-35B-A3B-oQ4-mtp" \
+  "${HF}/Jundot/Qwen3.6-35B-A3B-oQ4-mtp"
+
+relocate \
+  "${PROJ}/georgeis55/Ornith-1.0-35B-MLX-oQ4" \
+  "${HF}/georgeis55/Ornith-1.0-35B-MLX-oQ4"
+
+# Lane shortcuts: one hop to HF cache
+ln -sfn "${HF}/mlx-community/Ornith-1.0-35B-OptiQ-4bit" \
+  "${ROOT}/ornith_optiq_4bit/mlx-community__Ornith-1.0-35B-OptiQ-4bit"
+ln -sfn "${HF}/georgeis55/Ornith-1.0-35B-MLX-oQ4" \
+  "${ROOT}/ornith_oq4/Ornith-1.0-35B-MLX-oQ4"
+ln -sfn "${HF}/Jundot/Qwen3.6-35B-A3B-oQ4-mtp" \
+  "${ROOT}/qwen_oq4/Qwen3.6-35B-A3B-oQ4-mtp"
+ln -sfn "${HF}/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit" \
+  "${ROOT}/qwen_optiq_4bit/mlx-community__Qwen3.6-35B-A3B-OptiQ-4bit"
+
+echo
+echo "Project omlx-roots size:"
+du -sh "${ROOT}"
+echo "Pin path resolves:"
+ls -ld "${HF}/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit"
+test -f "${HF}/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit/config.json"
+echo "done"

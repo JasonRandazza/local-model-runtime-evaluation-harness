@@ -59,19 +59,19 @@ class OmlxThinkingGateBCheckTest(unittest.TestCase):
         self.pin = OmlxThinkingPin.load(default_pin_path())
 
     def test_parse_omlx_version_accepts_plain_and_prefixed_output(self) -> None:
-        self.assertEqual(parse_omlx_version("0.5.2\n"), "0.5.2")
-        self.assertEqual(parse_omlx_version("omlX version 0.5.2"), "0.5.2")
+        self.assertEqual(parse_omlx_version("0.5.3\n"), "0.5.3")
+        self.assertEqual(parse_omlx_version("omlX version 0.5.3"), "0.5.3")
         self.assertIsNone(parse_omlx_version("unknown"))
 
     def test_probe_omlx_version_uses_injected_runner(self) -> None:
         version = probe_omlx_version(
             command_runner=lambda _command: SimpleNamespace(
                 returncode=0,
-                stdout="omlX version 0.5.2\n",
+                stdout="omlX version 0.5.3\n",
                 stderr="",
             ),
         )
-        self.assertEqual(version, "0.5.2")
+        self.assertEqual(version, "0.5.3")
 
     def test_health_is_ready_accepts_ok_and_healthy(self) -> None:
         self.assertTrue(health_is_ready({"status": "ok"}))
@@ -81,7 +81,7 @@ class OmlxThinkingGateBCheckTest(unittest.TestCase):
     def test_ready_when_pin_version_ok_and_port_free(self) -> None:
         readiness = collect_readiness(
             self.pin,
-            installed_version="0.5.2",
+            installed_version="0.5.3",
             port_free=lambda _port: True,
             transport=FakeTransport(),
             observe_busy_port=False,
@@ -110,7 +110,7 @@ class OmlxThinkingGateBCheckTest(unittest.TestCase):
         )
         readiness = collect_readiness(
             self.pin,
-            installed_version="0.5.2",
+            installed_version="0.5.3",
             port_free=lambda _port: False,
             transport=transport,
             observe_busy_port=True,
@@ -126,7 +126,7 @@ class OmlxThinkingGateBCheckTest(unittest.TestCase):
     def test_port_busy_without_observe_is_fail_closed(self) -> None:
         readiness = collect_readiness(
             self.pin,
-            installed_version="0.5.2",
+            installed_version="0.5.3",
             port_free=lambda _port: False,
             transport=FakeTransport(),
             observe_busy_port=False,
@@ -142,7 +142,7 @@ class OmlxThinkingGateBCheckTest(unittest.TestCase):
         )
         readiness = collect_readiness(
             self.pin,
-            installed_version="0.5.2",
+            installed_version="0.5.3",
             port_free=lambda _port: False,
             transport=transport,
             observe_busy_port=True,
@@ -155,7 +155,7 @@ class OmlxThinkingGateBCheckTest(unittest.TestCase):
         transport = FakeTransport(health={"status": "degraded"})
         readiness = collect_readiness(
             self.pin,
-            installed_version="0.5.2",
+            installed_version="0.5.3",
             port_free=lambda _port: False,
             transport=transport,
             observe_busy_port=True,
@@ -180,7 +180,7 @@ class OmlxThinkingGateBCheckTest(unittest.TestCase):
         )
         readiness = collect_readiness(
             wrong_pin,
-            installed_version="0.5.2",
+            installed_version="0.5.3",
             port_free=lambda _port: True,
             transport=FakeTransport(),
         )
@@ -190,7 +190,7 @@ class OmlxThinkingGateBCheckTest(unittest.TestCase):
     def test_report_never_includes_post_or_run_id_fields(self) -> None:
         readiness = collect_readiness(
             self.pin,
-            installed_version="0.5.2",
+            installed_version="0.5.3",
             port_free=lambda _port: True,
             transport=FakeTransport(),
         )
@@ -228,7 +228,7 @@ class OmlxThinkingGateBCheckTest(unittest.TestCase):
         self.assertEqual(gate_b_mod.APPROVED_OWNERSHIP_MODE, PIN_OWNERSHIP_MODE)
         self.assertEqual(gate_b_mod.APPROVED_MODEL_ID, PIN_MODEL_ID)
         pin = OmlxThinkingPin.load(default_pin_path())
-        self.assertEqual(pin.version, "0.5.2")
+        self.assertEqual(pin.version, "0.5.3")
         self.assertEqual(pin.ownership_mode, "dedicated_serve")
         self.assertEqual(pin.model_id, "Qwen3.6-35B-A3B-OptiQ-4bit")
 

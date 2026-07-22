@@ -18,8 +18,8 @@ evidence on `mlx-optiq 0.3.3` / Gemma revision `2`.
 
 | Item | Required value |
 |---|---|
-| Pin | `omlx-0.5.2-thinking` revision `1` |
-| oMLX version | `0.5.2` (exact) |
+| Pin | `omlx-0.5.3-thinking` revision `1` |
+| oMLX version | `0.5.3` (exact) |
 | Comparison class | `omlx-thinking-measure-v1` |
 | Suite | `omlx-thinking-smoke-v1` revision `1` |
 | Base URL | `http://127.0.0.1:8100/v1` |
@@ -58,7 +58,7 @@ issue thinking POSTs, start or stop oMLX, or reclaim a foreign `:8100` pool.
 
 Optional flags:
 
-- `--pin-path` — override pin JSON (default: `config/omlx-pins/omlx-0.5.2-thinking-r1.json`)
+- `--pin-path` — override pin JSON (default: `config/omlx-pins/omlx-0.5.3-thinking-r1.json`)
 - `--observe-busy-port` / `--no-observe-busy-port` — when port `8100` is busy, probe
   `GET /health` and authenticated `GET /v1/models` without reclaim (default: observe on)
 
@@ -73,7 +73,7 @@ reports `http_post_attempts: 0`, `inference_request_attempts: 0`, and
 |---|---|
 | `READY_FOR_LIVE_AUTHORIZATION` | Pin, version, and dedicated-serve preconditions satisfied; port `8100` free |
 | `pin_invalid` | Pin JSON fails fail-closed loader or mismatches locked constants |
-| `version_mismatch` | Disk `omlX --version` ≠ `0.5.2` |
+| `version_mismatch` | Disk `omlX --version` ≠ `0.5.3` |
 | `port_busy` | Port `8100` occupied and `--no-observe-busy-port` (no diagnostic probe) |
 | `port_busy_foreign_pool` | Port busy; health and inventory probe succeeded but port not free (dedicated serve blocked) |
 | `health_unavailable` | Port busy; `/health` not `ok`/`healthy` |

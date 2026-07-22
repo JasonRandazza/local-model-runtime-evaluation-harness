@@ -8,9 +8,9 @@ from .omlx_thinking_measure import preflight_budget_ok
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
-PIN_ID = "omlx-0.5.2-thinking"
+PIN_ID = "omlx-0.5.3-thinking"
 PIN_REVISION = "1"
-PIN_VERSION = "0.5.2"
+PIN_VERSION = "0.5.3"
 PIN_BASE_URL = "http://127.0.0.1:8100/v1"
 COMPARISON_CLASS = "omlx-thinking-measure-v1"
 PIN_MODEL_ID = "Qwen3.6-35B-A3B-OptiQ-4bit"
@@ -67,7 +67,7 @@ class OmlxThinkingPinError(ValueError):
 
 
 def default_pin_path() -> Path:
-    return REPOSITORY_ROOT / "config" / "omlx-pins" / "omlx-0.5.2-thinking-r1.json"
+    return REPOSITORY_ROOT / "config" / "omlx-pins" / "omlx-0.5.3-thinking-r1.json"
 
 
 def default_suite_path() -> Path:
