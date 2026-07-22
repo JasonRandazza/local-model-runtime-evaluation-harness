@@ -12,6 +12,10 @@ from .omlx_thinking_measure import (
     preflight_budget_ok,
 )
 from .omlx_thinking_pin import OmlxThinkingPin, OmlxThinkingSuite
+from .omlx_thinking_transport import (
+    OmlxThinkingTransport,
+    ThinkingTransportFactory,
+)
 from .transport import TransportError
 
 OMLX_THINKING_PORT = 8100
@@ -61,18 +65,54 @@ def omlx_server_pin_from_pin(pin: OmlxThinkingPin) -> ServerPin:
     )
 
 
+def default_transport_factory(pin: OmlxThinkingPin) -> ThinkingTransportFactory:
+    def factory() -> OmlxThinkingTransport:
+        return OmlxThinkingTransport.for_pin(pin)
+
+    return factory
+
+
+def _chat_from_transport_factory(
+    pin: OmlxThinkingPin,
+    transport_factory: ThinkingTransportFactory | None,
+) -> ChatTransport:
+    if transport_factory is None:
+        raise ThinkingMeasureError(
+            "ThinkingMeasureRunner requires chat or transport_factory",
+            code="missing_chat_transport",
+        )
+    transport = transport_factory()
+
+    def chat(base_url: str, prompt: str, max_tokens: int) -> ThinkingChatResult:
+        if base_url != pin.base_url:
+            raise TransportError("endpoint is not approved", reason="endpoint_forbidden")
+        result = transport.chat(prompt, max_tokens)
+        return ThinkingChatResult(
+            visible_text=result.visible_text,
+            finish_reason=result.finish_reason,
+        )
+
+    return chat
+
+
 class ThinkingMeasureRunner:
     def __init__(
         self,
         pin: OmlxThinkingPin,
         suite: OmlxThinkingSuite,
-        chat: ChatTransport,
+        chat: ChatTransport | None = None,
         *,
+        transport_factory: ThinkingTransportFactory | None = None,
         controller: LifecycleController | None = None,
         controller_factory: ControllerFactory | None = None,
         port_free: Callable[[int], bool] | None = None,
         repetitions_per_workload: int = 1,
     ) -> None:
+        if chat is None and transport_factory is None:
+            raise ThinkingMeasureError(
+                "ThinkingMeasureRunner requires chat or transport_factory",
+                code="missing_chat_transport",
+            )
         if controller is None and controller_factory is None:
             raise ThinkingMeasureError(
                 "ThinkingMeasureRunner requires controller or controller_factory",
@@ -85,7 +125,7 @@ class ThinkingMeasureRunner:
             )
         self._pin = pin
         self._suite = suite
-        self._chat = chat
+        self._chat = chat or _chat_from_transport_factory(pin, transport_factory)
         self._controller = controller or controller_factory()
         self._port_free = port_free or self._controller._port_free
         self._repetitions = repetitions_per_workload

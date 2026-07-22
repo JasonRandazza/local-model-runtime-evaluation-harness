@@ -23,7 +23,43 @@ from local_model_runtime_evaluation.omlx_thinking_pin import (
     default_pin_path,
     default_suite_path,
 )
-from local_model_runtime_evaluation.transport import TransportError
+from local_model_runtime_evaluation.matrix_servers import MATRIX_OMLX_API_KEY
+from local_model_runtime_evaluation.omlx_thinking_transport import OmlxThinkingTransport
+from local_model_runtime_evaluation.transport import TransportError, TransportResult
+
+
+class FakeLoopbackTransport:
+    def __init__(self) -> None:
+        self.chat_calls: list[tuple[str, str, str, int, object | None]] = []
+
+    def list_models(self, base_url: str, credential: object | None) -> tuple[str, ...]:
+        return ("Qwen3.6-35B-A3B-OptiQ-4bit",)
+
+    def chat(
+        self,
+        base_url: str,
+        model_id: str,
+        prompt: str,
+        max_tokens: int,
+        credential: object | None,
+        cancel: object | None = None,
+    ) -> TransportResult:
+        self.chat_calls.append((base_url, model_id, prompt, max_tokens, credential))
+        return TransportResult(
+            content="visible answer",
+            content_sha256="abc",
+            ttft_seconds=0.1,
+            total_seconds=0.2,
+            completion_tokens=8,
+            finish_reason="stop",
+            http_status=200,
+            stream_valid=True,
+            content_event_count=1,
+            last_content_seconds=0.15,
+            reasoning_tokens=3,
+            visible_output_tokens=5,
+            token_accounting_status="EXACT_VISIBLE",
+        )
 
 
 class FakeChatTransport:
@@ -216,6 +252,34 @@ class ThinkingMeasureRunnerTest(unittest.TestCase):
                 FakeChatTransport(),
             )
         self.assertEqual(ctx.exception.code, "missing_controller")
+
+    def test_requires_chat_or_transport_factory(self) -> None:
+        with self.assertRaises(ThinkingMeasureError) as ctx:
+            ThinkingMeasureRunner(
+                self.pin,
+                self.suite,
+                controller=self._lifecycle(),
+            )
+        self.assertEqual(ctx.exception.code, "missing_chat_transport")
+
+    def test_transport_factory_runs_preflight_with_model_id(self) -> None:
+        loopback = FakeLoopbackTransport()
+        factory = lambda: OmlxThinkingTransport.for_pin(self.pin, loopback=loopback)
+        runner = ThinkingMeasureRunner(
+            self.pin,
+            self.suite,
+            transport_factory=factory,
+            controller=self._lifecycle(),
+        )
+
+        outcome = runner.run_preflight()
+
+        self.assertEqual(outcome.outcome, "ok")
+        self.assertEqual(len(loopback.chat_calls), 1)
+        _, model_id, _, max_tokens, credential = loopback.chat_calls[0]
+        self.assertEqual(model_id, self.pin.model_id)
+        self.assertEqual(max_tokens, THINKING_PREFLIGHT_MAX_TOKENS)
+        self.assertEqual(credential.api_key(), MATRIX_OMLX_API_KEY)
 
     def test_run_smoke_requires_preflight(self) -> None:
         runner = self._runner(FakeChatTransport())
