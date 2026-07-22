@@ -195,9 +195,9 @@ def build_gate_b_report(readiness: Mapping[str, object]) -> dict[str, object]:
         elif not model_present:
             decision = "model_missing"
         else:
-            decision = "READY_FOR_LIVE_AUTHORIZATION"
+            decision = "port_busy_foreign_pool"
     else:
-        decision = "port_busy_without_model"
+        decision = "port_busy"
 
     checks = {
         "pin_valid": pin_valid,

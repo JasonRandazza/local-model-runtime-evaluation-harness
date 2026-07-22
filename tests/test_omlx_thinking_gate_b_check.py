@@ -103,7 +103,7 @@ class OmlxThinkingGateBCheckTest(unittest.TestCase):
         self.assertEqual(report["decision"], "version_mismatch")
         self.assertFalse(report["checks"]["version_match"])
 
-    def test_observe_mode_ready_when_port_busy_and_model_present(self) -> None:
+    def test_observe_mode_not_ready_when_port_busy_and_model_present(self) -> None:
         transport = FakeTransport(
             health={"status": "healthy"},
             models=(PIN_MODEL_ID, "other-model"),
@@ -116,8 +116,9 @@ class OmlxThinkingGateBCheckTest(unittest.TestCase):
             observe_busy_port=True,
         )
         report = build_gate_b_report(readiness)
-        self.assertEqual(report["decision"], "READY_FOR_LIVE_AUTHORIZATION")
+        self.assertEqual(report["decision"], "port_busy_foreign_pool")
         self.assertFalse(readiness["port_8100_free"])
+        self.assertTrue(readiness["health_ready"])
         self.assertTrue(readiness["model_present"])
         self.assertEqual(transport.health_calls, 1)
         self.assertEqual(transport.list_models_calls, 1)
@@ -131,7 +132,7 @@ class OmlxThinkingGateBCheckTest(unittest.TestCase):
             observe_busy_port=False,
         )
         report = build_gate_b_report(readiness)
-        self.assertEqual(report["decision"], "port_busy_without_model")
+        self.assertEqual(report["decision"], "port_busy")
         self.assertFalse(readiness["model_present"])
 
     def test_model_missing_when_port_busy_and_inventory_lacks_pin_model(self) -> None:
