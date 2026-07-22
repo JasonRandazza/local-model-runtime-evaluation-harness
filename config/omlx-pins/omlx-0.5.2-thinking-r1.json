@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0.0",
+  "pin_id": "omlx-0.5.2-thinking",
+  "revision": "1",
+  "version": "0.5.2",
+  "base_url": "http://127.0.0.1:8100/v1",
+  "comparison_class": "omlx-thinking-measure-v1",
+  "extra_body_allowlist": [],
+  "start_command": [
+    "omlX",
+    "serve",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8100"
+  ],
+  "stop_command": [
+    "omlX",
+    "stop"
+  ]
+}
