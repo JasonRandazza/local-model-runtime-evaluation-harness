@@ -16,23 +16,30 @@
 - Do not commit `config/matrix/omlx-roots/**` or `.harness-lifecycle/**`
 - Do not overwrite sealed Gate C evidence
 
+
+
 ## File map
 
-| Area | Files |
-|---|---|
-| Status | Create `docs/package-2-omlx-thinking-gate-d.md` |
-| Checklist | Create `docs/superpowers/notes/2026-07-22-package-2-gate-d-manager-review-checklist.md` |
+
+| Area        | Files                                                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------------------- |
+| Status      | Create `docs/package-2-omlx-thinking-gate-d.md`                                                         |
+| Checklist   | Create `docs/superpowers/notes/2026-07-22-package-2-gate-d-manager-review-checklist.md`                 |
 | Cross-links | Update `docs/package-2-omlx-thinking-gate-b.md`, `docs/architecture.md`, queue design Package 2 section |
 
+
 ---
+
+
 
 ### Task 1: Gate D status surface
 
 **Files:**
+
 - Create: `docs/package-2-omlx-thinking-gate-d.md`
 
-- [ ] **Step 1:** Write status `GATE_D_READY`, fixed contract table, gate boundaries (A–D), link to sealed `004`, state D2/D3 follow-ons, state that manager review is separately recorded.
-- [ ] **Step 2:** Commit
+- [x] **Step 1:** Write status `GATE_D_READY`, fixed contract table, gate boundaries (A–D), link to sealed `004`, state D2/D3 follow-ons, state that manager review is separately recorded.
+- [x] **Step 2:** Commit
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -44,13 +51,16 @@ EOF
 
 ---
 
+
+
 ### Task 2: Manager-review checklist
 
 **Files:**
+
 - Create: `docs/superpowers/notes/2026-07-22-package-2-gate-d-manager-review-checklist.md`
 
-- [ ] **Step 1:** Checklist covering all design-required checks; decision codes ACCEPT / ACCEPT_WITH_NOTES / REJECT; pointer to where Jason records the review.
-- [ ] **Step 2:** Commit
+- [x] **Step 1:** Checklist covering all design-required checks; decision codes ACCEPT / ACCEPT_WITH_NOTES / REJECT; pointer to where Jason records the review.
+- [x] **Step 2:** Commit
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -62,15 +72,18 @@ EOF
 
 ---
 
+
+
 ### Task 3: Cross-link architecture and Gate B / queue
 
 **Files:**
+
 - Modify: `docs/package-2-omlx-thinking-gate-b.md` (Gate D row → Ready / reviewable)
 - Modify: `docs/architecture.md` (Package 2 Gate D sentence)
 - Modify: `docs/superpowers/specs/2026-07-21-stack-review-gate-a-queue-design.md` (Package 2 Gate D pointer)
 
-- [ ] **Step 1:** Update status rows and related-doc tables only; no live authority language.
-- [ ] **Step 2:** Commit
+- [x] **Step 1:** Update status rows and related-doc tables only; no live authority language.
+- [x] **Step 2:** Commit
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -82,14 +95,21 @@ EOF
 
 ---
 
+
+
 ## Verification
 
-- [ ] Grep shows Gate D status + checklist + design linked from Gate B and architecture
-- [ ] No new Python modules or live scripts in this plan
-- [ ] Sealed `004` evidence untouched
+- [x] Grep shows Gate D status + checklist + design linked from Gate B and architecture
+- [x] No new Python modules or live scripts in this plan (`05b4bcc` / `dd5e978` docs only)
+- [x] Sealed `004` evidence untouched (still present; Gate D ACCEPT is a separate file)
+
+**Verification run:** 2026-07-22 — links confirmed in `docs/package-2-omlx-thinking-gate-b.md`,
+`docs/architecture.md`, and queue design; manager-review ACCEPT recorded at
+`docs/superpowers/verification/2026-07-22-package-2-gate-d-manager-review-004.md`.
 
 ## Out of scope (explicit)
 
-- Filling the manager-review ACCEPT record (Jason / current-session review)
+- ~~Filling the manager-review ACCEPT record~~ — **done** (`dd5e978`, Jason ACCEPT)
 - D2 expanded suite, D3 external-bench
 - Live re-smoke
+

@@ -113,3 +113,7 @@ does not authorize live work while the port remains busy.
 | Pin-confirm checklist | `docs/superpowers/notes/2026-07-22-package-2-omlx-052-pin-confirm-checklist.md` |
 | Pin-confirm evidence | `docs/superpowers/notes/2026-07-22-package-2-omlx-052-pin-confirm-evidence.md` |
 | Queue design | `docs/superpowers/specs/2026-07-21-stack-review-gate-a-queue-design.md` |
+| Gate D status | `docs/package-2-omlx-thinking-gate-d.md` |
+| Gate D design | `docs/superpowers/specs/2026-07-22-package-2-omlx-thinking-gate-d-design.md` |
+| Gate D checklist | `docs/superpowers/notes/2026-07-22-package-2-gate-d-manager-review-checklist.md` |
+| Gate D ACCEPT | `docs/superpowers/verification/2026-07-22-package-2-gate-d-manager-review-004.md` |
