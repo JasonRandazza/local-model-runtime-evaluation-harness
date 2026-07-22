@@ -189,6 +189,15 @@ sequenceDiagram
 **Pin-confirm checklist:**
 `docs/superpowers/notes/2026-07-22-package-2-omlx-052-pin-confirm-checklist.md`
 
+**Pin-confirm evidence (2026-07-22):**
+`docs/superpowers/notes/2026-07-22-package-2-omlx-052-pin-confirm-evidence.md`
+
+**Gate B development plan:**
+`docs/superpowers/plans/2026-07-22-package-2-omlx-thinking-gate-b.md`
+
+**Gate B readiness surface (not live):**
+`docs/package-2-omlx-thinking-gate-b.md`
+
 **Implications note:**
 `docs/superpowers/notes/2026-07-21-omlx-0.5.2-implications.md`
 

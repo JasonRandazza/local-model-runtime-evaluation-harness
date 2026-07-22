@@ -77,12 +77,14 @@ Gate A pin JSON uses a host/port-only placeholder. Pin-confirm must pin a
 thinking-capable model and refresh `start_command` in
 `config/omlx-pins/omlx-0.5.2-thinking-r1.json`.
 
-**Provisional thinking model (re-measure at pin-confirm):**
+**Locked model (Jason, 2026-07-22 — re-measure dirs/hashes at pin-confirm):**
 
-| Field | Provisional value |
+| Field | Locked value |
 |---|---|
-| Model id | `mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit` |
+| Model id | `Qwen3.6-35B-A3B-OptiQ-4bit` |
 | Model path | `/Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit` |
+| Ownership mode | `dedicated_serve` (port `8100` must be free before harness serve) |
+| Rejected | `ThinkingCap-Qwen3.6-27B-OptiQ-4bit` (not comparable) |
 
 - [ ] Model directory exists and matches expected artifact identity (record
       SHA-256 of `config.json` or agreed hash set).
@@ -172,9 +174,18 @@ port_8100_free_after_stop: yes / no
 - [ ] Do **not** add `omlx-thinking-measure-v1` to policy allowlists during
       pin-confirm.
 - [ ] Do **not** create run IDs, manifests, or POST smoke until Jason
-      separately authorizes Package 2 Gate B in the current session.
+      separately authorizes Package 2 live Gate C+ in the current session.
 - [ ] Live thinking-measure cohort uses harness `ThinkingMeasureRunner` +
       Slice 1a lifecycle; records honest `service_lifecycle_actions > 0`.
+- [x] Gate B readiness implementation landed — read-only check only:
+
+```sh
+./bin/lmre-omlx-thinking-gate-b-check
+```
+
+See `docs/package-2-omlx-thinking-gate-b.md`. `READY_FOR_LIVE_AUTHORIZATION`
+requires port `8100` free under `dedicated_serve`; observing a foreign pool is
+diagnostic only.
 
 ---
 
@@ -184,5 +195,8 @@ port_8100_free_after_stop: yes / no
 |---|---|
 | Design | `docs/superpowers/specs/2026-07-22-package-2-omlx-thinking-measure-design.md` |
 | Gate A plan | `docs/superpowers/plans/2026-07-22-package-2-omlx-thinking-measure-gate-a.md` |
+| Gate B surface | `docs/package-2-omlx-thinking-gate-b.md` |
+| Gate B plan | `docs/superpowers/plans/2026-07-22-package-2-omlx-thinking-gate-b.md` |
+| Pin-confirm evidence | `docs/superpowers/notes/2026-07-22-package-2-omlx-052-pin-confirm-evidence.md` |
 | oMLX 0.5.2 implications | `docs/superpowers/notes/2026-07-21-omlx-0.5.2-implications.md` |
 | Slice 1a lifecycle | `src/local_model_runtime_evaluation/harness_lifecycle.py` |
