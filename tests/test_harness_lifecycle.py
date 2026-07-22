@@ -185,6 +185,35 @@ class HarnessLifecycleStartTest(unittest.TestCase):
         controller.start(pin)
         self.assertEqual(stop_calls, [("omlX", "stop", "--force")])
 
+    def test_ready_failure_rolls_back_owned_process(self) -> None:
+        stop_calls: list[tuple[str, ...]] = []
+        wait_port_free_calls: list[tuple[int, float]] = []
+        wait_ready_calls: list[tuple[ServerPin, ManagedProcess | None]] = []
+
+        def wait_ready(pin: ServerPin, process: ManagedProcess | None) -> None:
+            wait_ready_calls.append((pin, process))
+            raise RuntimeError("health timeout")
+
+        controller = self._controller(
+            stop_runner=lambda cmd: stop_calls.append(cmd),
+            wait_port_free=lambda port, timeout: wait_port_free_calls.append(
+                (port, timeout)
+            ),
+            wait_ready=wait_ready,
+        )
+        pin = self._optiq_pin()
+        with self.assertRaises(HarnessLifecycleError) as ctx:
+            controller.start(pin)
+        self.assertEqual(ctx.exception.code, "ready_failed")
+        self.assertEqual(len(self.spawn_calls), 1)
+        self.assertEqual(wait_ready_calls, [(pin, self.fake_process)])
+        self.assertEqual(stop_calls, [("optiq", "stop")])
+        self.assertEqual(wait_port_free_calls, [(8080, 30.0)])
+        self.assertEqual(controller.lifecycle_actions, 2)
+        self.assertIsNone(controller.active_pin)
+        self.assertIsNone(controller.active_process)
+        self.assertFalse(controller.owned)
+
 
 class HarnessLifecycleStopTest(unittest.TestCase):
     def setUp(self) -> None:

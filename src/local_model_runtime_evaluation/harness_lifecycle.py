@@ -149,12 +149,48 @@ class LifecycleController:
         self._owned = True
         self._started = True
         self.lifecycle_actions += 1
+        self._invoke_wait_ready(pin, process)
 
     def _attach_observe_only(self, pin: ServerPin) -> None:
         self._pin = pin
         self._process = None
         self._owned = False
         self._started = True
+        self._invoke_wait_ready(pin, None)
+
+    def _invoke_wait_ready(
+        self,
+        pin: ServerPin,
+        process: ManagedProcess | None,
+    ) -> None:
+        if self._wait_ready is None:
+            return
+        try:
+            self._wait_ready(pin, process)
+        except Exception as error:
+            if self._owned:
+                self._stop_owned_after_ready_failure()
+            self._clear_started_state()
+            raise HarnessLifecycleError(
+                str(error) if str(error) else "ready check failed",
+                code="ready_failed",
+            ) from error
+
+    def _stop_owned_after_ready_failure(self) -> None:
+        pin = self._pin
+        if pin is not None and pin.stop_command:
+            self._stop_runner(pin.stop_command)
+        elif self._process is not None:
+            self._process.stop()
+        if pin is not None:
+            self._wait_port_free(pin.port, DEFAULT_WAIT_PORT_FREE_SECONDS)
+        self.lifecycle_actions += 1
+
+    def _clear_started_state(self) -> None:
+        self._pin = None
+        self._process = None
+        self._owned = False
+        self._started = False
 
     def stop(self) -> None:
         if not self._started:
