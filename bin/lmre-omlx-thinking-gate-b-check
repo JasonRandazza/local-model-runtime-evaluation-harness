@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+set -euo pipefail
+
+SCRIPT_DIR="${0:A:h}"
+REPOSITORY_ROOT="${SCRIPT_DIR:h}"
+
+export PYTHONPATH="${REPOSITORY_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
+exec /opt/homebrew/bin/python3 -m local_model_runtime_evaluation.omlx_thinking_gate_b_check "$@"
