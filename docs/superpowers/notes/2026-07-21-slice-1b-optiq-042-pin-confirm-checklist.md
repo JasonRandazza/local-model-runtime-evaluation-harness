@@ -95,9 +95,9 @@ profile_updated: yes / no
 ## 3. Start OptiQ; confirm Lab closed and `/health` ok
 
 - [ ] OptiQ Lab remains closed (no Lab UI owning port `8080`).
-- [ ] Start OptiQ with the revision `3` profile `serve_arguments` (not the
-      rollback `bin/lmre-stage2-operator-serve-gemma` launcher, which stays on
-      `0.3.3` for historical manifests).
+- [ ] Start OptiQ with argv from `config/runtime-profiles/gemma-4-12b-optiq-4bit-r3.json`
+      `serve_arguments` — not `bin/lmre-stage2-operator-serve-gemma` (rollback
+      launcher; stays on `0.3.3` for historical manifests).
 - [ ] Leave the process foreground unless a later Slice 1c unattended path
       explicitly replaces this step.
 - [ ] Confirm launched argv matches profile `serve_arguments` (pinned `0.4.2`
@@ -139,15 +139,26 @@ curl -sS http://127.0.0.1:1337/v1/models
 - [ ] Compare against provisional revision `3` values. Google chat-template sync
       in OptiQ `0.4.1`+ may change `:no-think` handling or inventory strings —
       do not assume revision `2` IDs survived.
-- [ ] If any ID drifted, update `routed_model_id`, `direct_model_identities`,
-      and `rejected_local_model_ids` in the profile JSON **and** parser
-      constants before any Gate B authorization.
+- [ ] If any ID drifted from revision `2` shared parser values, update
+      `routed_model_id`, `direct_model_identities`, and
+      `rejected_local_model_ids` in `gemma-4-12b-optiq-4bit-r3.json` **and**
+      add revision-3-only parser constants (e.g. `_GEMMA_R3_ROUTED_NO_THINK`,
+      `_GEMMA_R3_DIRECT_NO_THINK`, `_GEMMA_R3_ROUTED_BARE_PATH`,
+      `_GEMMA_R3_REJECTED_LOCAL_MODEL_IDS`) wired **only** in
+      `_parse_gemma_revision_three`.
+- [ ] **Do not** mutate shared symbols still used by `_parse_gemma_revision_two`:
+      `_GEMMA_ROUTED_NO_THINK`, `_GEMMA_DIRECT_NO_THINK`, `_GEMMA_ROUTED_BARE_PATH`,
+      or `_GEMMA_ARTIFACT_HASHES`. Revision `2` / sealed `005`–`006` rollback
+      depends on those values remaining unchanged.
+- [ ] If measured IDs match revision `2` shared constants, profile JSON may stay
+      provisional; no parser change required before Gate B authorization.
 
 ```text
 direct_ids_observed:
 routed_id_observed:
 matches_provisional_r3: yes / no
 profile_identity_updated: yes / no
+parser_r3_constants_added: yes / no / n/a
 ```
 
 **Rejected locals / substitutes (update if inventory shape changed):**
@@ -177,15 +188,21 @@ shasum -a 256 \
   "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit/model-00002-of-00002.safetensors"
 ```
 
-- [ ] If any hash differs from revision `3` provisional values, update
-      `artifact_hashes` in the profile JSON and `_GEMMA_ARTIFACT_HASHES` in
-      `stage_two_profiles.py`.
-- [ ] Re-run non-live profile tests after any constant update.
+- [ ] If any hash differs from revision `2` shared values, update
+      `artifact_hashes` in `gemma-4-12b-optiq-4bit-r3.json` **and** add
+      `_GEMMA_R3_ARTIFACT_HASHES` in `stage_two_profiles.py`, wired **only** in
+      `_parse_gemma_revision_three`.
+- [ ] **Do not** mutate `_GEMMA_ARTIFACT_HASHES` — `_parse_gemma_revision_two`
+      and sealed `005`–`006` rollback still pin the revision `2` hash map.
+- [ ] If measured hashes match revision `2` shared values, profile JSON may stay
+      provisional; no parser change required.
+- [ ] Re-run non-live profile tests after any revision-3-only constant update.
 
 ```text
 model_revision:
 hashes_changed: yes / no
 profile_hash_updated: yes / no
+parser_r3_constants_added: yes / no / n/a
 ```
 
 ---
