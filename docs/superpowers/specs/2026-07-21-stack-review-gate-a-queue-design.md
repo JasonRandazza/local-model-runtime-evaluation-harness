@@ -24,7 +24,8 @@ campaign.
 ## Artifact shape
 
 - **Thin queue + deep Package 1:** one design locks the queue; Package 1 is fully
-  specified in three Gate A slices; Package 2 is a stub only.
+  specified in three Gate A slices; Package 2 Gate A is landed (fake-only; live
+  pin-confirm and Gate B separately gated).
 - Exactly **two** packages in the queue (no parked third comparison matrix item).
 
 ## Hard boundaries
@@ -173,18 +174,31 @@ sequenceDiagram
 
 **Gate A operator doc:** `docs/stage-2-harness-unattended-gate-a.md`
 
-## Package 2 — stub only
+## Package 2 — oMLX 0.5.2 thinking-model measurement
 
 **Name:** oMLX `0.5.2` thinking-model measurement revisit.
 
 **Depends on:** Slice 1a (harness can start/stop oMLX).
 
-**Intent (stub):** Design later so thinking models can be measured without false
-preflight failure (oMLX external-bench token-budget fix and related `0.5.2`
-changes). Full design is **out of scope** for this document.
+**Design (expanded from stub):**
+`docs/superpowers/specs/2026-07-22-package-2-omlx-thinking-measure-design.md`
 
-**Non-goals for the stub:** OptiQ retarget, live authorization, same-artifact
-OptiQ↔oMLX matrix campaign, preference/RAG expansion.
+**Gate A implementation plan:**
+`docs/superpowers/plans/2026-07-22-package-2-omlx-thinking-measure-gate-a.md`
+
+**Pin-confirm checklist:**
+`docs/superpowers/notes/2026-07-22-package-2-omlx-052-pin-confirm-checklist.md`
+
+**Implications note:**
+`docs/superpowers/notes/2026-07-21-omlx-0.5.2-implications.md`
+
+**Intent:** Measure thinking models without false preflight failure (oMLX
+`0.5.2` token-budget / external-bench fixes + harness-side classification).
+
+**Gate A status:** landed (implementation and fake-only tests; not live authority).
+
+**Non-goals:** OptiQ retarget, live authorization, same-artifact OptiQ↔oMLX
+matrix campaign, preference/RAG expansion.
 
 ## Package 1 success criteria
 
@@ -203,7 +217,8 @@ OptiQ↔oMLX matrix campaign, preference/RAG expansion.
 - OptiQ Lab as a substitute for pinned `optiq serve`.
 - Killing foreign Osaurus.
 - Mixing pre- and post–template-sync Gemma evidence in one comparison class.
-- Implementing Package 2 beyond this stub.
+- Live Package 2 Gate B / thinking-measure POSTs (pin-confirm and Gate B remain
+  separately gated).
 - Expanding preference/matrix/overhead campaigns in Package 1 (reuse patterns
   only).
 
@@ -232,7 +247,7 @@ reviewed, and Jason separately authorizes Gate B+.
 
 - No TBD/TODO/FIXME placeholders.
 - Queue length and slice order match brainstorm locks (exactly two packages;
-  1a→1b→1c; Package 2 stub).
+  1a→1b→1c; Package 2 Gate A landed).
 - Boundaries consistent: planning-only; `005`/`006` rollback; plugin `0.3.0`
   unchanged; Lab closed; no foreign Osaurus stop; provider edit forbidden.
 - Deliberate tension with current Stage 2 operator-owned lifecycle is stated as
