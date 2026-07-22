@@ -41,7 +41,11 @@ _WORKLOADS = (
         "stage2b-status-tool-json",
     ),
 )
-_APPROVED_SUITE_IDS = frozenset({"optiq-route-smoke-v1", "gemma-optiq-route-smoke-v1"})
+_APPROVED_SUITE_IDS = frozenset({
+    "optiq-route-smoke-v1",
+    "gemma-optiq-route-smoke-v1",
+    "gemma-optiq-042-harness-route-smoke-v1",
+})
 _SCHEDULE = (
     SmokeRequest("short-chat", "direct", False, 1, 0),
     SmokeRequest("short-chat", "routed", False, 2, 0),

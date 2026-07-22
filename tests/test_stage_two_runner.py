@@ -16,6 +16,8 @@ from local_model_runtime_evaluation.resources import ResourcePolicy
 from local_model_runtime_evaluation.runner import RunnerError, StageZeroRunner
 from local_model_runtime_evaluation.stage_two import StageTwoEngine
 from local_model_runtime_evaluation.stage_two_factory import build_stage_two_engine
+from local_model_runtime_evaluation.stage_two_harness_lifecycle import HarnessOptiQController
+from local_model_runtime_evaluation.stage_two_host import OperatorOptiQController
 from local_model_runtime_evaluation.stage_two_inference import StageTwoInferenceEngine
 
 
@@ -115,6 +117,22 @@ class StageTwoRunnerTest(unittest.TestCase):
             frozenset(inference_manifest.routes.values()),
         )
         self.assertEqual(inference_engine.transport._read.timeout_seconds, 120)
+
+    def test_factory_builds_harness_inference_engine_for_schema_350(self) -> None:
+        root = Path(__file__).parents[1]
+        harness_manifest = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-smoke.json",
+            now=datetime(2026, 7, 22, tzinfo=timezone.utc),
+        )
+        with tempfile.TemporaryDirectory() as output_temp:
+            engine = build_stage_two_engine(root, harness_manifest, Path(output_temp))
+
+        self.assertIsInstance(engine, StageTwoInferenceEngine)
+        self.assertIsInstance(engine.controller, HarnessOptiQController)
+        self.assertNotIsInstance(engine.controller, OperatorOptiQController)
+        self.assertEqual(engine.profile.revision, "4")
+        self.assertEqual(engine.profile.service_ownership, "harness")
+        self.assertEqual(engine.suite.suite_id, "gemma-optiq-042-harness-route-smoke-v1")
 
     def test_factory_rejects_mixed_schema_and_mode_before_constructing_transport(self) -> None:
         root = Path(__file__).parents[1]

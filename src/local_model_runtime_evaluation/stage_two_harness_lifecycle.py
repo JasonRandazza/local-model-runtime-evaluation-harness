@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Callable
 
@@ -15,9 +16,25 @@ from .harness_lifecycle import (
     WaitPortFree,
     WaitReady,
 )
+from .matrix_lifecycle import ManagedProcess
+from .stage_two import ProcessOwnership, StageTwoError
 from .stage_two_profiles import RuntimeProfile
 
 OPTIQ_PORT = PORT_BY_KIND["optiq"]
+
+
+def _command_sha256(command: tuple[str, ...]) -> str:
+    return hashlib.sha256(" ".join(command).encode("utf-8")).hexdigest()
+
+
+def _process_identity(process: ManagedProcess) -> ProcessOwnership:
+    return ProcessOwnership(
+        process.pid,
+        process.pid,
+        process.process_group_id,
+        "harness-owned",
+        _command_sha256(process.command),
+    )
 
 
 def optiq_server_pin_from_profile(profile: RuntimeProfile) -> ServerPin:
@@ -49,7 +66,13 @@ class HarnessOptiQController:
         wait_port_free: WaitPortFree | None = None,
         wait_ready: WaitReady | None = None,
         log_dir: Path | None = None,
+        profile: RuntimeProfile | None = None,
+        server_pin: ServerPin | None = None,
     ) -> None:
+        self._server_pin = server_pin or (
+            optiq_server_pin_from_profile(profile) if profile is not None else None
+        )
+        self._identity: ProcessOwnership | None = None
         if controller is not None:
             self._controller = controller
             self._port_free = controller._port_free
@@ -111,3 +134,44 @@ class HarnessOptiQController:
                 f"port {OPTIQ_PORT} must be free twice after harness stop",
                 code="port_not_free",
             )
+        self._identity = None
+
+    def capture(self) -> ProcessOwnership:
+        if self._server_pin is None:
+            raise StageTwoError(
+                "operator_identity_failed",
+                "harness OptiQ server pin is unavailable",
+            )
+        self.ensure_started(self._server_pin)
+        process = self._controller.active_process
+        if process is None:
+            raise StageTwoError(
+                "operator_identity_failed",
+                "harness OptiQ process is unavailable after start",
+            )
+        identity = _process_identity(process)
+        self._identity = identity
+        return identity
+
+    def matches(self, identity: ProcessOwnership) -> bool:
+        process = self._controller.active_process
+        return (
+            self._identity == identity
+            and process is not None
+            and self._controller.owned
+            and identity.pid == process.pid
+        )
+
+    def assert_stopped(self, identity: ProcessOwnership) -> None:
+        if self._identity is not None and identity != self._identity:
+            raise StageTwoError(
+                "operator_shutdown_pending",
+                "harness OptiQ identity does not match recorded service",
+            )
+        try:
+            self.ensure_stopped()
+        except HarnessLifecycleError as error:
+            raise StageTwoError(
+                "operator_shutdown_pending",
+                "harness OptiQ stop verification failed",
+            ) from error

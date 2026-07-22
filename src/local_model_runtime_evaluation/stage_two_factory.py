@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .harness_lifecycle import default_lab_closed
+from .matrix_lifecycle import port_is_free
 from .resources import HostResourceProbe, snapshot_from_health
 from .stage_two import StageTwoEngine
 from .stage_two_benchmark import (
@@ -18,6 +20,7 @@ from .stage_two_inference import (
     StageTwoInferenceEngine,
 )
 from .stage_two_inference_transport import StageTwoInferenceTransport
+from .stage_two_harness_lifecycle import HarnessOptiQController
 from .stage_two_host import (
     HostValidator, MacProcessBackend, OperatorOptiQController, StageTwoReadOnlyTransport,
 )
@@ -38,6 +41,26 @@ def _validate_stage_two_inference_manifest(manifest) -> None:
         and manifest.runtime_profile_id == "gemma-4-12b-optiq-4bit"
         and manifest.runtime_profile_revision == "2"
         and manifest.suite_id == "gemma-optiq-route-smoke-v1"
+        and manifest.suite_revision == "1"
+        and manifest.repetitions == 1
+        and manifest.route_order == "counterbalanced"
+        and tuple(manifest.operations) == _STAGE_2B_1_OPERATIONS
+        and dict(manifest.routes or {}) == _STAGE_2B_1_ROUTES
+        and dict(manifest.limits or {}) == _STAGE_2B_1_LIMITS
+    )
+    if not fixed_contract:
+        raise ValueError("unsupported Stage 2 mode")
+
+
+def _validate_stage_two_harness_manifest(manifest) -> None:
+    fixed_contract = (
+        manifest.stage == 2
+        and manifest.schema_version == "3.5.0"
+        and manifest.mode == "harness_inference_probe"
+        and manifest.comparison_class == "gemma-optiq-042-harness-route-smoke"
+        and manifest.runtime_profile_id == "gemma-4-12b-optiq-4bit"
+        and manifest.runtime_profile_revision == "4"
+        and manifest.suite_id == "gemma-optiq-042-harness-route-smoke-v1"
         and manifest.suite_revision == "1"
         and manifest.repetitions == 1
         and manifest.route_order == "counterbalanced"
@@ -77,6 +100,8 @@ def build_stage_two_engine(
         _validate_stage_two_inference_manifest(manifest)
     elif contract == ("3.4.0", "operator_route_benchmark"):
         _validate_stage_two_benchmark_manifest(manifest)
+    elif contract == ("3.5.0", "harness_inference_probe"):
+        _validate_stage_two_harness_manifest(manifest)
     elif contract != ("3.1.0", "operator_route_probe"):
         raise ValueError("unsupported Stage 2 mode")
     profile = RuntimeProfileRegistry(repository_root / "config" / "runtime-profiles").get(
@@ -98,6 +123,27 @@ def build_stage_two_engine(
             return snapshot_from_health(HostResourceProbe().free_memory_percent(), health, None)
 
         return StageTwoBenchmarkEngine(
+            manifest, profile, suite, output_root, resources,
+            lambda: HostValidator(profile, PROVIDER_CONFIG).validate(),
+            controller, transport, lock.owner,
+        )
+    if contract == ("3.5.0", "harness_inference_probe"):
+        suite = StageTwoSmokeSuite.load(
+            repository_root / "suites" / "gemma-optiq-042-harness-route-smoke-v1.json"
+        )
+        transport = StageTwoInferenceTransport(set(manifest.routes.values()), timeout_seconds=120)
+        controller = HarnessOptiQController(
+            free_memory=lambda: HostResourceProbe().free_memory_percent(),
+            port_free=port_is_free,
+            lab_closed=default_lab_closed,
+            profile=profile,
+        )
+        lock = RunLock(output_root)
+
+        def resources(health: dict[str, object]):
+            return snapshot_from_health(HostResourceProbe().free_memory_percent(), health, None)
+
+        return StageTwoInferenceEngine(
             manifest, profile, suite, output_root, resources,
             lambda: HostValidator(profile, PROVIDER_CONFIG).validate(),
             controller, transport, lock.owner,

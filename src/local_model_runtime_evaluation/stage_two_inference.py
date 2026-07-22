@@ -154,8 +154,9 @@ class StageTwoInferenceEngine:
         lock_owner: Callable[[], str | None],
     ) -> None:
         self._validate_contract(manifest, profile, suite)
+        self._harness = self._is_harness_contract(manifest)
         self.manifest = manifest
-        self.profile = _STAGE_2B_1_PROFILE
+        self.profile = profile if self._harness else _STAGE_2B_1_PROFILE
         self.suite = suite
         self.output_root = output_root
         self.resource_probe = resource_probe
@@ -171,11 +172,59 @@ class StageTwoInferenceEngine:
         self.observations: list[SmokeObservation] = []
 
     @staticmethod
+    def _is_harness_contract(manifest: BenchmarkManifest) -> bool:
+        return (
+            manifest.schema_version == "3.5.0"
+            and manifest.mode == "harness_inference_probe"
+        )
+
+    @staticmethod
     def _validate_contract(
         manifest: BenchmarkManifest,
         profile: RuntimeProfile,
         suite: StageTwoSmokeSuite,
     ) -> None:
+        if StageTwoInferenceEngine._is_harness_contract(manifest):
+            valid_manifest = (
+                manifest.stage == 2
+                and manifest.schema_version == "3.5.0"
+                and manifest.mode == "harness_inference_probe"
+                and manifest.comparison_class == "gemma-optiq-042-harness-route-smoke"
+                and manifest.runtime_profile_id == "gemma-4-12b-optiq-4bit"
+                and manifest.runtime_profile_revision == "4"
+                and manifest.suite_id == "gemma-optiq-042-harness-route-smoke-v1"
+                and manifest.suite_revision == "1"
+                and manifest.repetitions == 1
+                and manifest.route_order == "counterbalanced"
+                and tuple(manifest.operations) == _STAGE_2B_1_OPERATIONS
+                and dict(manifest.routes or {}) == _STAGE_2B_1_ROUTES
+                and dict(manifest.limits or {}) == _STAGE_2B_1_LIMITS
+            )
+            if not valid_manifest:
+                raise ValueError("StageTwoInferenceEngine requires the fixed Stage 2 harness contract")
+            valid_profile = (
+                profile.profile_id == "gemma-4-12b-optiq-4bit"
+                and profile.revision == "4"
+                and profile.service_ownership == "harness"
+                and profile.runtime_version == "0.4.2"
+            )
+            valid_suite = (
+                suite.suite_id == "gemma-optiq-042-harness-route-smoke-v1"
+                and suite.revision == "1"
+                and suite.temperature == 0
+                and suite.streaming is True
+                and tuple(
+                    (item.workload_id, item.prompt, item.max_tokens, item.response_contract)
+                    for item in suite.workloads
+                ) == _STAGE_2B_1_WORKLOADS
+                and tuple(
+                    (item.workload_id, item.route, item.measured, item.sequence, item.repetition)
+                    for item in suite.schedule()
+                ) == _STAGE_2B_1_SCHEDULE
+            )
+            if not valid_profile or not valid_suite:
+                raise ValueError("StageTwoInferenceEngine requires the fixed Stage 2 harness contract")
+            return
         valid_manifest = (
             manifest.stage == 2
             and manifest.schema_version == "3.3.0"
@@ -210,6 +259,12 @@ class StageTwoInferenceEngine:
         )
         if not valid_profile or not valid_suite:
             raise ValueError("StageTwoInferenceEngine requires the fixed Stage 2B-1 contract")
+
+    def _service_lifecycle_actions(self) -> int:
+        if not self._harness:
+            return 0
+        actions = getattr(self.controller, "lifecycle_actions", None)
+        return int(actions) if isinstance(actions, int) else 0
 
     @staticmethod
     def _external_call(callback: Callable[[], object]) -> tuple[bool, object | None]:
@@ -456,14 +511,14 @@ class StageTwoInferenceEngine:
             self.bundle.write_json("preflight.json", {
             "ok": True,
             "stage": 2,
-            "mode": "operator_inference_probe",
+            "mode": self.manifest.mode,
             "provider_identity": dict(validation.provider_identity),
             "route_identity": "PASS",
             "resource_gate": "PASS",
             "model_load_attempts": 0,
             "inference_request_attempts": 0,
             "http_post_attempts": 0,
-            "service_lifecycle_actions": 0,
+            "service_lifecycle_actions": self._service_lifecycle_actions(),
             })
             self.lifecycle.transition(run_id, RunStatus.ENDPOINT_IDENTITY, "Stage 2B-1 route identity proven")
             state = self.lifecycle.transition(run_id, RunStatus.READY, "Stage 2B-1 inference probe ready")
@@ -498,7 +553,7 @@ class StageTwoInferenceEngine:
             "model_load_attempts": 0,
             "inference_request_attempts": 0,
             "http_post_attempts": 0,
-            "service_lifecycle_actions": 0,
+            "service_lifecycle_actions": self._service_lifecycle_actions(),
         }
 
     def _gate_before_post(self, cancel: threading.Event, sequence: int) -> dict[str, object]:
@@ -672,7 +727,10 @@ class StageTwoInferenceEngine:
             })
             self.bundle.write_json("smoke-summary.json", summary)
             self.lifecycle.transition(run_id, RunStatus.ARTIFACT_VALIDATION, "Stage 2B-1 evidence reconciled")
-            final = self.lifecycle.transition(run_id, RunStatus.AWAITING_REVIEW, "operator shutdown required")
+            final = self.lifecycle.transition(
+                run_id, RunStatus.AWAITING_REVIEW,
+                "harness shutdown required" if self._harness else "operator shutdown required",
+            )
             return {
                 "run_id": run_id,
                 "state": final.status.value,
@@ -681,7 +739,7 @@ class StageTwoInferenceEngine:
                 "inference_request_attempts": self.inference_request_attempts,
                 "http_post_attempts": self.http_post_attempts,
                 "model_load_attempts": 0,
-                "service_lifecycle_actions": 0,
+                "service_lifecycle_actions": self._service_lifecycle_actions(),
                 "manager_review_required": True,
             }
         except Exception as error:
@@ -957,7 +1015,7 @@ class StageTwoInferenceEngine:
         return {
             "run_id": self.manifest.run_id,
             "stage": 2,
-            "mode": "operator_inference_probe",
+            "mode": self.manifest.mode,
             "comparison_class": self.manifest.comparison_class,
             "runtime_profile_id": self.profile.profile_id,
             "runtime_profile_revision": self.profile.revision,
@@ -972,7 +1030,7 @@ class StageTwoInferenceEngine:
             "inference_request_attempts": 8,
             "http_post_attempts": 8,
             "model_load_attempts": 0,
-            "service_lifecycle_actions": 0,
+            "service_lifecycle_actions": self._service_lifecycle_actions(),
             "operator_shutdown_verified": "PASS",
             "manager_review_required": True,
         }
@@ -984,7 +1042,7 @@ class StageTwoInferenceEngine:
         return {
             "run_id": self.manifest.run_id,
             "stage": 2,
-            "mode": "operator_inference_probe",
+            "mode": self.manifest.mode,
             "comparison_class": self.manifest.comparison_class,
             "runtime_profile_id": self.profile.profile_id,
             "runtime_profile_revision": self.profile.revision,
@@ -998,7 +1056,7 @@ class StageTwoInferenceEngine:
             "inference_request_attempts": post_attempts,
             "http_post_attempts": post_attempts,
             "model_load_attempts": 0,
-            "service_lifecycle_actions": 0,
+            "service_lifecycle_actions": self._service_lifecycle_actions(),
             "operator_shutdown_verified": "PASS",
             "manager_review_required": True,
         }

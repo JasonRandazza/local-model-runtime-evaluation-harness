@@ -153,6 +153,18 @@ class HarnessOptiQControllerTest(unittest.TestCase):
         )
         self.assertEqual(pin.stop_command, ("/tools/optiq", "stop"))
 
+    def test_capture_matches_and_assert_stopped_expose_operator_compatible_identity(self) -> None:
+        controller = self._controller()
+        pin = self._optiq_pin()
+        controller._server_pin = pin
+        identity = controller.capture()
+        self.assertEqual(identity.pid, self.fake_process.pid)
+        self.assertEqual(identity.process_group_id, self.fake_process.process_group_id)
+        self.assertTrue(controller.matches(identity))
+        controller.assert_stopped(identity)
+        self.assertGreaterEqual(controller.lifecycle_actions, 2)
+        self.assertFalse(controller.matches(identity))
+
 
 if __name__ == "__main__":
     unittest.main()

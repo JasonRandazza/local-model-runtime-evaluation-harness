@@ -24,6 +24,26 @@ from local_model_runtime_evaluation.stage_two_smoke_suite import StageTwoSmokeSu
 from local_model_runtime_evaluation.transport import TransportResult
 
 
+class FakeHarnessController:
+    def __init__(self) -> None:
+        self.lifecycle_actions = 0
+        self.identity = ProcessOwnership(4242, 4242, 4242, "harness-owned", "c" * 64)
+        self.running = False
+
+    def capture(self) -> ProcessOwnership:
+        self.lifecycle_actions += 1
+        self.running = True
+        return self.identity
+
+    def matches(self, identity: ProcessOwnership) -> bool:
+        return self.running and identity == self.identity
+
+    def assert_stopped(self, identity: ProcessOwnership) -> None:
+        if self.running:
+            self.lifecycle_actions += 1
+            self.running = False
+
+
 class FakeController:
     def __init__(self) -> None:
         self.identity = ProcessOwnership(4242, 4000, 4242, "started", "command")
@@ -1063,6 +1083,54 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
             self._assert_sanitized(context)
             self.assertEqual(len(transport.chat_calls), 1)
             self.assertEqual(engine.lifecycle.read(self.manifest.run_id).status.value, "failed")
+
+    def test_harness_preflight_and_cleanup_record_controller_lifecycle_actions(self) -> None:
+        harness_manifest = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-smoke.json",
+            now=datetime(2026, 7, 22, tzinfo=timezone.utc),
+        )
+        harness_profile = RuntimeProfileRegistry(self.root / "config" / "runtime-profiles").get(
+            harness_manifest.runtime_profile_id, harness_manifest.runtime_profile_revision,
+        )
+        harness_suite = StageTwoSmokeSuite.load(
+            self.root / "suites" / "gemma-optiq-042-harness-route-smoke-v1.json"
+        )
+        harness_validation = HostValidation(
+            runtime_identity={
+                "version": harness_profile.runtime_version,
+                "packages": dict(harness_profile.package_versions),
+            },
+            artifact_identity={
+                "revision": harness_profile.model_revision,
+                "hashes": dict(harness_profile.artifact_hashes),
+            },
+            provider_identity={
+                "provider_id": "Optiq", "enabled": True,
+                "custom_header_count": 0, "secret_header_key_count": 0,
+            },
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            controller = FakeHarnessController()
+            transport = FakeTransport()
+            engine = StageTwoInferenceEngine(
+                harness_manifest, harness_profile, harness_suite, output,
+                lambda _health: ResourceSnapshot(MemoryPressure.NORMAL, (), None),
+                lambda: harness_validation, controller, transport,
+                lambda: harness_manifest.run_id,
+            )
+            preflight = engine.preflight()
+            self.assertGreater(preflight["service_lifecycle_actions"], 0)
+            preflight_evidence = json.loads(
+                (output / harness_manifest.run_id / "preflight.json").read_text(encoding="utf-8")
+            )
+            self.assertGreater(preflight_evidence["service_lifecycle_actions"], 0)
+            engine.lifecycle.transition(
+                harness_manifest.run_id, RunStatus.CANCELLED, "harness cancelled for cleanup test",
+            )
+            cleanup = engine.cleanup()
+            self.assertGreater(cleanup["service_lifecycle_actions"], 0)
+            self.assertFalse(controller.running)
 
 
 if __name__ == "__main__":
