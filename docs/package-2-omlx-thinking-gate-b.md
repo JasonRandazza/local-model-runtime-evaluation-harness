@@ -57,7 +57,7 @@ issue thinking POSTs, start or stop oMLX, or reclaim a foreign `:8100` pool.
 **Gate D:** **Passed** (ACCEPT 2026-07-22) — see
 `docs/package-2-omlx-thinking-gate-d.md` and
 `docs/superpowers/verification/2026-07-22-package-2-gate-d-manager-review-004.md`.
-Follow-ons: **D2** Gate A ready (`docs/package-2-omlx-thinking-d2.md`, not live);
+Follow-ons: **D2** live PASSED (`omlx-thinking-measure-20260722-001`);
 **D3** external-bench remains deferred.
 
 ## Readiness CLI

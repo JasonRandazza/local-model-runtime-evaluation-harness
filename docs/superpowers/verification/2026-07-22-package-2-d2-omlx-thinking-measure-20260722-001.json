@@ -1,0 +1,91 @@
+{
+  "package": "omlx-thinking-measure-v1",
+  "gate": "D2_LIVE",
+  "run_id": "omlx-thinking-measure-20260722-001",
+  "decision": "PASS",
+  "inference_ok": true,
+  "cleanup_ok": true,
+  "started_at": "2026-07-22T18:50:56.012376+00:00",
+  "ended_at": "2026-07-22T18:52:05.430102+00:00",
+  "pin_id": "omlx-0.5.3-thinking",
+  "pin_revision": "1",
+  "version": "0.5.3",
+  "model_id": "Qwen3.6-35B-A3B-OptiQ-4bit",
+  "ownership_mode": "dedicated_serve",
+  "suite_id": "omlx-thinking-measure-v1",
+  "suite_revision": "1",
+  "service_lifecycle_actions": 2,
+  "qualification_labels": {
+    "ttft": "QUALIFIED_INCREMENTAL_DELIVERY",
+    "decode": "SUPPRESSED_AMBIGUOUS_TOKEN_ACCOUNTING"
+  },
+  "outcomes": {
+    "preflight": {
+      "workload_id": null,
+      "repetition": 0,
+      "outcome": "ok",
+      "reasoning_tokens": null,
+      "visible_output_tokens": null,
+      "token_accounting_status": "INCOMPARABLE_TOKEN_ACCOUNTING",
+      "streaming_semantics": "incremental",
+      "finish_reason": "stop"
+    },
+    "measure": [
+      {
+        "workload_id": "thinking-short-reason",
+        "repetition": 1,
+        "outcome": "ok",
+        "reasoning_tokens": null,
+        "visible_output_tokens": null,
+        "token_accounting_status": "INCOMPARABLE_TOKEN_ACCOUNTING",
+        "streaming_semantics": "incremental",
+        "finish_reason": "stop"
+      },
+      {
+        "workload_id": "thinking-plan-and-answer",
+        "repetition": 1,
+        "outcome": "ok",
+        "reasoning_tokens": null,
+        "visible_output_tokens": null,
+        "token_accounting_status": "INCOMPARABLE_TOKEN_ACCOUNTING",
+        "streaming_semantics": "incremental",
+        "finish_reason": "stop"
+      },
+      {
+        "workload_id": "thinking-multi-step",
+        "repetition": 1,
+        "outcome": "ok",
+        "reasoning_tokens": null,
+        "visible_output_tokens": null,
+        "token_accounting_status": "INCOMPARABLE_TOKEN_ACCOUNTING",
+        "streaming_semantics": "incremental",
+        "finish_reason": "stop"
+      },
+      {
+        "workload_id": "thinking-compare-tradeoffs",
+        "repetition": 1,
+        "outcome": "ok",
+        "reasoning_tokens": null,
+        "visible_output_tokens": null,
+        "token_accounting_status": "INCOMPARABLE_TOKEN_ACCOUNTING",
+        "streaming_semantics": "incremental",
+        "finish_reason": "stop"
+      },
+      {
+        "workload_id": "thinking-token-pressure",
+        "repetition": 1,
+        "outcome": "ok",
+        "reasoning_tokens": null,
+        "visible_output_tokens": null,
+        "token_accounting_status": "INCOMPARABLE_TOKEN_ACCOUNTING",
+        "streaming_semantics": "incremental",
+        "finish_reason": "stop"
+      }
+    ]
+  },
+  "error": null,
+  "port_8100_free_after": true,
+  "stop_grace_seconds": 45,
+  "authorization": "Jason authorized Package 2 D2 live thinking measure for exact run ID omlx-thinking-measure-20260722-001 on 2026-07-22",
+  "notes": "Sealed PASS. Decode suppressed because stream usage lacked reasoning_tokens / EXACT_VISIBLE accounting — fail-closed qualification, not a request failure. Do not overwrite."
+}

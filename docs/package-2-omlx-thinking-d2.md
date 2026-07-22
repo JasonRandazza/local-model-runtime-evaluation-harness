@@ -2,42 +2,30 @@
 
 ## Current Decision
 
-`D2_LIVE_READY` — live measure path prepared; **awaiting Jason’s exact run-ID
-authorization** before POSTs.
+`D2_LIVE_PASSED` — sealed live PASS on
+`omlx-thinking-measure-20260722-001` (2026-07-22).
 
-**Prerequisite:** `D2_GATE_A_READY` (fake-only) + Package 2 Gate D ACCEPT on smoke
-`omlx-thinking-20260722-004`.
+**Evidence:**
+`docs/superpowers/verification/2026-07-22-package-2-d2-omlx-thinking-measure-20260722-001.md`
 
-## Fixed Contract (live)
+## Fixed Contract (sealed)
 
 | Item | Value |
 |---|---|
-| Proposed run ID | `omlx-thinking-measure-20260722-001` (unused until authorized) |
+| Run ID | `omlx-thinking-measure-20260722-001` |
 | Pin | `omlx-0.5.3-thinking` revision `1` |
-| Suite | `omlx-thinking-measure-v1` revision `1` (5 workloads) |
-| Requests | 1 preflight + 5 measure ≤ 8 |
-| Ownership | `dedicated_serve` + force-free cleanup |
-| CLI | `bin/lmre-omlx-thinking-live-measure` |
+| Suite | `omlx-thinking-measure-v1` revision `1` |
+| Decision | `PASS` (`inference_ok` + `cleanup_ok`) |
+| TTFT | `QUALIFIED_INCREMENTAL_DELIVERY` |
+| Decode | `SUPPRESSED_AMBIGUOUS_TOKEN_ACCOUNTING` (no `reasoning_tokens` in stream usage) |
 
-## Preflight (host)
+## Residual / follow-on
 
-Gate B currently reports `READY_FOR_LIVE_AUTHORIZATION` with `:8100` free (checked
-2026-07-22). Re-check immediately before live:
+Exact visible-token decode qualification needs oMLX to emit
+`completion_tokens_details.reasoning_tokens` (or equivalent) on the chat stream.
+That is a measurement-depth follow-on, not a reopen of this PASS.
 
-```sh
-./bin/lmre-omlx-thinking-gate-b-check
-# expect decision READY_FOR_LIVE_AUTHORIZATION and port_8100_free true
-```
-
-## Operator sequence (after exact-ID authorization)
-
-```sh
-cd /Users/jrazz/Dev/active/local-model-runtime-evaluation-harness
-./bin/lmre-omlx-thinking-gate-b-check
-PYTHONPATH=src /opt/homebrew/bin/python3 bin/lmre-omlx-thinking-live-measure
-```
-
-Run in **Terminal.app** (Metal). Do not start the oMLX menu-bar pool first.
+**D3** (external-bench) remains deferred.
 
 ## Related
 
@@ -45,4 +33,5 @@ Run in **Terminal.app** (Metal). Do not start the oMLX menu-bar pool first.
 |---|---|
 | Design | `docs/superpowers/specs/2026-07-22-package-2-d2-expanded-thinking-measure-design.md` |
 | Plan | `docs/superpowers/plans/2026-07-22-package-2-d2-expanded-thinking-measure.md` |
-| Gate A status (prior) | Fake-only measure suite + qualification wiring |
+| Live CLI | `bin/lmre-omlx-thinking-live-measure` |
+| Gate D smoke ACCEPT | `docs/superpowers/verification/2026-07-22-package-2-gate-d-manager-review-004.md` |
