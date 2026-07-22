@@ -7,6 +7,7 @@ import unittest
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from local_model_runtime_evaluation.manifest import load_manifest
 from local_model_runtime_evaluation.resources import MemoryPressure, ResourceSnapshot
@@ -293,6 +294,39 @@ class StageTwoBenchmarkFactoryTest(unittest.TestCase):
         bad_manifest = replace(manifest, suite_id="gemma-optiq-route-smoke-v1")
         with self.assertRaisesRegex(ValueError, "unsupported Stage 2 mode"):
             build_stage_two_engine(root, bad_manifest, Path(tempfile.mkdtemp()))
+
+    def test_factory_rejects_revision_three_on_live_gemma_schemas(self) -> None:
+        root = Path(__file__).parents[1]
+        smoke = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json",
+            now=datetime(2026, 7, 20, tzinfo=timezone.utc),
+        )
+        benchmark = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-benchmark-gemma.json",
+            now=datetime(2026, 7, 21, 12, tzinfo=timezone.utc),
+        )
+        with patch("local_model_runtime_evaluation.stage_two_factory.RuntimeProfileRegistry") as registry, patch(
+            "local_model_runtime_evaluation.stage_two_factory.StageTwoSmokeSuite.load"
+        ) as smoke_suite, patch(
+            "local_model_runtime_evaluation.stage_two_factory.StageTwoBenchmarkSuite.load"
+        ) as benchmark_suite, patch(
+            "local_model_runtime_evaluation.stage_two_factory.StageTwoInferenceTransport"
+        ) as transport, patch(
+            "local_model_runtime_evaluation.stage_two_factory.OperatorOptiQController"
+        ) as controller:
+            for manifest in (
+                replace(smoke, runtime_profile_revision="3"),
+                replace(benchmark, runtime_profile_revision="3"),
+            ):
+                with self.subTest(schema_version=manifest.schema_version):
+                    with self.assertRaisesRegex(ValueError, "unsupported Stage 2 mode"):
+                        build_stage_two_engine(root, manifest, Path(tempfile.mkdtemp()))
+
+        registry.assert_not_called()
+        smoke_suite.assert_not_called()
+        benchmark_suite.assert_not_called()
+        transport.assert_not_called()
+        controller.assert_not_called()
 
 
 if __name__ == "__main__":

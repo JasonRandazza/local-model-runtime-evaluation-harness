@@ -94,6 +94,37 @@ class PolicyTest(unittest.TestCase):
         for operation in Operation:
             policy.authorize(manifest, operation)
 
+    def test_gemma_live_authorizing_schemas_reject_profile_revision_three(self) -> None:
+        smoke = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json",
+            now=datetime(2026, 7, 20, tzinfo=timezone.utc),
+        )
+        benchmark_data = json.loads((
+            Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json"
+        ).read_text())
+        benchmark_data.update({
+            "schema_version": "3.4.0",
+            "mode": "operator_route_benchmark",
+            "comparison_class": "gemma-optiq-operator-route-benchmark",
+            "suite_id": "gemma-optiq-route-benchmark-v1",
+            "limits": {
+                "request_timeout_seconds": 120,
+                "memory_stop_level": "warning",
+                "maximum_in_flight_requests": 1,
+                "total_request_limit": 72,
+            },
+        })
+        benchmark = validate_manifest(benchmark_data, now=datetime(2026, 7, 21, tzinfo=timezone.utc))
+        policy = StageTwoPolicy()
+        for manifest in (
+            replace(smoke, runtime_profile_revision="3"),
+            replace(benchmark, runtime_profile_revision="3"),
+        ):
+            with self.subTest(schema_version=manifest.schema_version):
+                with self.assertRaises(PolicyError) as ctx:
+                    policy.authorize(manifest, Operation.INVENTORY)
+                self.assertEqual(ctx.exception.code, "stage_forbidden")
+
     def test_benchmark_manifest_rejects_smoke_suite_under_policy(self) -> None:
         data = json.loads((
             Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json"
