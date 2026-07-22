@@ -40,6 +40,10 @@ class ManagedProcess:
     command: tuple[str, ...]
     _child: subprocess.Popen[bytes]
 
+    @property
+    def is_alive(self) -> bool:
+        return self._child.poll() is None
+
     def stop(self, timeout_seconds: float = 15) -> None:
         try:
             os.killpg(self.process_group_id, signal.SIGTERM)

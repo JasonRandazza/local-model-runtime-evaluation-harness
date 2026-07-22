@@ -200,6 +200,10 @@ class LifecycleController:
         self._owned = False
         self._started = False
 
+    def release_without_stop(self) -> None:
+        """Drop harness ownership without sending stop to a possibly foreign listener."""
+        self._clear_started_state()
+
     def stop(self) -> None:
         if not self._started:
             return

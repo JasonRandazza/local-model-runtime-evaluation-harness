@@ -10,6 +10,7 @@ from local_model_runtime_evaluation.harness_lifecycle import (
     ServerPin,
 )
 from local_model_runtime_evaluation.matrix_lifecycle import ManagedProcess
+from local_model_runtime_evaluation.stage_two import ProcessOwnership, StageTwoError
 from local_model_runtime_evaluation.stage_two_harness_lifecycle import (
     HarnessOptiQController,
     optiq_server_pin_from_profile,
@@ -29,6 +30,7 @@ class HarnessOptiQControllerTest(unittest.TestCase):
             command=("optiq", "serve"),
             _child=MagicMock(),
         )
+        self.fake_process._child.poll.return_value = None
 
     def _fake_spawner(self, command: tuple[str, ...], log_path: Path) -> ManagedProcess:
         self.spawn_calls.append((command, log_path))
@@ -154,16 +156,79 @@ class HarnessOptiQControllerTest(unittest.TestCase):
         self.assertEqual(pin.stop_command, ("/tools/optiq", "stop"))
 
     def test_capture_matches_and_assert_stopped_expose_operator_compatible_identity(self) -> None:
-        controller = self._controller()
+        listening = False
+
+        def port_free(port: int) -> bool:
+            self.port_free_calls.append(port)
+            return not listening
+
+        controller = self._controller(port_free=port_free)
         pin = self._optiq_pin()
         controller._server_pin = pin
         identity = controller.capture()
         self.assertEqual(identity.pid, self.fake_process.pid)
         self.assertEqual(identity.process_group_id, self.fake_process.process_group_id)
+        listening = True
         self.assertTrue(controller.matches(identity))
+        listening = False
         controller.assert_stopped(identity)
         self.assertGreaterEqual(controller.lifecycle_actions, 2)
         self.assertFalse(controller.matches(identity))
+
+    def test_matches_false_when_process_dead_and_port_busy(self) -> None:
+        listening = False
+
+        def port_free(port: int) -> bool:
+            return not listening
+
+        controller = self._controller(port_free=port_free)
+        controller._server_pin = self._optiq_pin()
+        identity = controller.capture()
+        listening = True
+        self.fake_process._child.poll.return_value = 0
+        self.assertFalse(controller.matches(identity))
+
+    def test_matches_false_when_not_owned_and_port_busy(self) -> None:
+        listening = False
+
+        def port_free(port: int) -> bool:
+            return not listening
+
+        controller = self._controller(port_free=port_free)
+        controller._server_pin = self._optiq_pin()
+        identity = controller.capture()
+        listening = True
+        controller._controller._owned = False
+        self.assertFalse(controller.matches(identity))
+
+    def test_assert_stopped_not_owned_port_busy_skips_stop_runner(self) -> None:
+        port_busy = False
+
+        def port_free(port: int) -> bool:
+            return not port_busy
+
+        controller = self._controller(port_free=port_free)
+        controller.ensure_started(self._optiq_pin())
+        identity = ProcessOwnership(
+            self.fake_process.pid,
+            self.fake_process.pid,
+            self.fake_process.process_group_id,
+            "harness-owned",
+            "deadbeef" * 8,
+        )
+        controller._identity = identity
+        controller._controller._owned = False
+        port_busy = True
+        with self.assertRaises(StageTwoError):
+            controller.assert_stopped(identity)
+        self.assertEqual(self.stop_runner_calls, [])
+
+    def test_ensure_stopped_dead_process_port_free_skips_stop_runner(self) -> None:
+        controller = self._controller()
+        controller.ensure_started(self._optiq_pin())
+        self.fake_process._child.poll.return_value = 0
+        controller.ensure_stopped()
+        self.assertEqual(self.stop_runner_calls, [])
 
 
 if __name__ == "__main__":

@@ -264,7 +264,12 @@ class StageTwoInferenceEngine:
         if not self._harness:
             return 0
         actions = getattr(self.controller, "lifecycle_actions", None)
-        return int(actions) if isinstance(actions, int) else 0
+        if not isinstance(actions, int):
+            raise StageTwoError(
+                "harness_lifecycle_actions_unavailable",
+                "harness controller missing lifecycle_actions",
+            )
+        return actions
 
     @staticmethod
     def _external_call(callback: Callable[[], object]) -> tuple[bool, object | None]:

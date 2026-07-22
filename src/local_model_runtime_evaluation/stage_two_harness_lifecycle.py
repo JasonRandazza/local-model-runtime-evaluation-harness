@@ -127,9 +127,29 @@ class HarnessOptiQController:
             )
         self._controller.start(pin)
 
+    def _can_stop_owned_process(self) -> bool:
+        if not self._controller.owned:
+            return False
+        process = self._controller.active_process
+        if process is None:
+            return False
+        if self._identity is not None and process.pid != self._identity.pid:
+            return False
+        return process.is_alive
+
     def ensure_stopped(self) -> None:
-        self._controller.stop()
-        if not self._port_free(OPTIQ_PORT) or not self._port_free(OPTIQ_PORT):
+        if self._can_stop_owned_process():
+            self._controller.stop()
+        elif self._controller.owned or self._controller.active_process is not None:
+            self._controller.release_without_stop()
+        else:
+            self._controller.stop()
+        if not self._port_free(OPTIQ_PORT):
+            raise HarnessLifecycleError(
+                f"port {OPTIQ_PORT} is still busy after harness clearance",
+                code="port_busy",
+            )
+        if not self._port_free(OPTIQ_PORT):
             raise HarnessLifecycleError(
                 f"port {OPTIQ_PORT} must be free twice after harness stop",
                 code="port_not_free",
@@ -154,13 +174,18 @@ class HarnessOptiQController:
         return identity
 
     def matches(self, identity: ProcessOwnership) -> bool:
+        if self._identity != identity:
+            return False
+        if not self._controller.owned:
+            return False
         process = self._controller.active_process
-        return (
-            self._identity == identity
-            and process is not None
-            and self._controller.owned
-            and identity.pid == process.pid
-        )
+        if process is None or identity.pid != process.pid:
+            return False
+        if not process.is_alive:
+            return False
+        if self._port_free(OPTIQ_PORT):
+            return False
+        return True
 
     def assert_stopped(self, identity: ProcessOwnership) -> None:
         if self._identity is not None and identity != self._identity:
