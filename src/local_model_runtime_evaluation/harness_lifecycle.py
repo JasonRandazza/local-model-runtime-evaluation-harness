@@ -6,7 +6,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Literal
 
-from .matrix_lifecycle import ManagedProcess, run_stop_command, spawn_pinned
+from .matrix_lifecycle import (
+    ManagedProcess,
+    run_stop_command,
+    spawn_pinned,
+    wait_port_free as matrix_wait_port_free,
+)
 
 ServerKind = Literal["optiq", "omlx", "osaurus"]
 
@@ -21,6 +26,10 @@ PORT_BY_KIND: dict[ServerKind, int] = {
 Spawner = Callable[[tuple[str, ...], Path], ManagedProcess]
 PortFree = Callable[[int], bool]
 StopRunner = Callable[[tuple[str, ...]], None]
+WaitPortFree = Callable[[int, float], None]
+
+DEFAULT_OMLX_STOP_COMMAND = ("omlX", "stop")
+DEFAULT_WAIT_PORT_FREE_SECONDS = 30.0
 
 
 def default_lab_closed() -> bool:
@@ -67,6 +76,7 @@ class LifecycleController:
         lab_closed: Callable[[], bool],
         spawner: Spawner | None = None,
         stop_runner: StopRunner | None = None,
+        wait_port_free: WaitPortFree | None = None,
         wait_ready: WaitReady | None = None,
         log_dir: Path | None = None,
     ) -> None:
@@ -76,6 +86,7 @@ class LifecycleController:
         self._lab_closed = lab_closed
         self._spawner = spawner or spawn_pinned
         self._stop_runner = stop_runner or (lambda cmd: run_stop_command(cmd))
+        self._wait_port_free = wait_port_free or matrix_wait_port_free
         self._wait_ready = wait_ready
         self._log_dir = log_dir or Path.cwd() / ".harness-lifecycle"
         self.lifecycle_actions = 0
@@ -112,12 +123,25 @@ class LifecycleController:
                 "OptiQ Lab is open",
                 code="lab_open",
             )
-        if pin.kind != "osaurus" and not self._port_free(pin.port):
-            raise HarnessLifecycleError(
-                f"port {pin.port} is busy",
-                code="port_busy",
-            )
-        # Task 3: osaurus with busy port attaches observe-only without spawning.
+        if pin.kind == "osaurus":
+            if self._port_free(pin.port):
+                self._attach_owned(pin)
+            else:
+                self._attach_observe_only(pin)
+            return
+        if not self._port_free(pin.port):
+            if pin.kind == "omlx":
+                stop_command = pin.stop_command or DEFAULT_OMLX_STOP_COMMAND
+                self._stop_runner(stop_command)
+                self._wait_port_free(pin.port, DEFAULT_WAIT_PORT_FREE_SECONDS)
+            else:
+                raise HarnessLifecycleError(
+                    f"port {pin.port} is busy",
+                    code="port_busy",
+                )
+        self._attach_owned(pin)
+
+    def _attach_owned(self, pin: ServerPin) -> None:
         log_path = self._log_dir / f"{pin.kind}.log"
         process = self._spawner(pin.start_command, log_path)
         self._pin = pin
@@ -125,3 +149,9 @@ class LifecycleController:
         self._owned = True
         self._started = True
         self.lifecycle_actions += 1
+
+    def _attach_observe_only(self, pin: ServerPin) -> None:
+        self._pin = pin
+        self._process = None
+        self._owned = False
+        self._started = True
