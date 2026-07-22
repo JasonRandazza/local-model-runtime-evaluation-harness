@@ -163,6 +163,16 @@ sequenceDiagram
 
 **Depends on:** slices 1a and 1b.
 
+**Gate A status:** landed (implementation and fake-only tests; not live authority).
+
+**Gate A implementation plan:**
+`docs/superpowers/plans/2026-07-22-slice-1c-harness-unattended-gate-a.md`
+
+**Provider verify-only / reconnect tap note:**
+`docs/superpowers/notes/2026-07-22-slice-1c-provider-reconnect-note.md`
+
+**Gate A operator doc:** `docs/stage-2-harness-unattended-gate-a.md`
+
 ## Package 2 — stub only
 
 **Name:** oMLX `0.5.2` thinking-model measurement revisit.

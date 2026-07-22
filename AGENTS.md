@@ -23,7 +23,9 @@ The repository defines current executable reality. Consult the Deep Wiki for dur
 
 Run the Python and Swift test suites after relevant changes. Preserve the legacy benchmark reference unchanged.
 
-## Stage 2A Boundary
+## Stage 2A Boundary (operator-owned lane)
+
+Applies to runtime profile revision `3` / schema `3.1.0` operator-route observation only. The harness-unattended lane (schema `3.5.0`, profile revision `4`) is governed separately below.
 
 - Revision `2` and both previous Stage 2 run IDs remain consumed historical evidence. Never overwrite, resume, or reauthorize them.
 - Revision `3` is observation-only. The operator owns the foreground OptiQ service through `bin/lmre-stage2-operator-serve`, explicitly retries or reconnects the existing Osaurus `Optiq` provider, and stops the launcher with `Ctrl+C` after the worker reaches `awaiting_review`.
@@ -38,7 +40,9 @@ Run the Python and Swift test suites after relevant changes. Preserve the legacy
 - Plugin `0.3.0` is the active unchanged reviewed contract. Rebuild, reinstall, replacement, or rollback still requires explicit current-session approval.
 - This implementation does not authorize a live manifest or run. Gate B and explicit authorization of a new unused run ID remain required. Stage 2B POST, inference, and benchmark authority does not exist.
 
-## Stage 2B-1 Boundary
+## Stage 2B-1 Boundary (operator-owned lane)
+
+Applies to schemas `3.2.0` / `3.3.0` and profile revision `2` (and historical revision `1` evidence). The harness-unattended lane (`3.5.0` / profile revision `4`) is governed separately below.
 
 - Current decision: `GATE_A_FINDINGS_CLOSED` (Jason, 2026-07-20). Gate A
   remediation for the five findings is accepted. Slice 2 Gemma retarget is in
@@ -61,23 +65,33 @@ Run the Python and Swift test suites after relevant changes. Preserve the legacy
   evidenced by `005`. Stage 2B-2 Gate A is `GATE_A_PASSED`; live 2B-2 Gate B–D
   remain separately gated.
 - Do not create additional run IDs or manifests without Jason's separate
-  current-session authorization. Do not operate OptiQ/Osaurus lifecycle from
+  current-session authorization. For **this operator-owned lane**, do not operate OptiQ/Osaurus lifecycle from
   the harness. Do not install a Coordinator prompt or issue inference without
   the operator sequence in `docs/stage-2b1-gate-a.md`.
 - Stage 2B-1 is one bounded inference-path acceptance cohort, not a benchmark. It permits exactly eight serial inference requests and eight HTTP POSTs only after separately completed Gate B, Jason's explicit current-session authorization of one exact unused ID, and a short-lived manifest for that exact ID.
 - Historical authorizing shape (evidence only): schema `3.2.0`, comparison class `optiq-operator-route-smoke`, profile `vibethinker-3b-optiq-4bit` revision `3`, suite `optiq-route-smoke-v1` revision `1`, launcher `bin/lmre-stage2-operator-serve`. New live authorization must use schema `3.3.0` with comparison class `gemma-optiq-operator-route-smoke`, profile `gemma-4-12b-optiq-4bit` revision `2`, suite `gemma-optiq-route-smoke-v1` revision `1`, and launcher `bin/lmre-stage2-operator-serve-gemma`. The required routed ID is the exact inventory string `optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think`. Revision `1` remains historical evidence only.
 - The only permitted routes are `http://127.0.0.1:8080/v1` and `http://127.0.0.1:1337/v1`. Limits are 120 seconds per request, warning-level memory stop, one in-flight request, and eight total requests.
 - Gate A, templates, package tests, and documentation are non-live. They must not create a usable ID or manifest, install a prompt, start or stop OptiQ, reconnect or edit a provider, or issue an endpoint request.
-- Jason remains the sole owner of the foreground OptiQ service lifecycle and existing-provider reconnect. The harness never starts, stops, signals, restarts, configures, loads, or unloads OptiQ or Osaurus.
+- For **this operator-owned lane**, Jason remains the sole owner of the foreground OptiQ service lifecycle and existing-provider reconnect. The harness never starts, stops, signals, restarts, configures, loads, or unloads OptiQ or Osaurus on schemas `3.3.0` / profile revision `2`.
 - Preserve the accepted Stage 2A revision-3 baseline as rollback (`bin/lmre-stage2-operator-serve`). Plugin `0.3.0` and its six one-time-approval tools remain unchanged; do not rebuild or reinstall it. Stage 2B-2 remains separately gated.
 
-## Stage 2B-2 Boundary
+## Stage 2B-2 Boundary (operator-owned lane)
 
-- Current decision: `GATE_A_PASSED` (Jason, 2026-07-21). Gate A implementation and review are closed: schema `3.4.0`, mode `operator_route_benchmark`, comparison class `gemma-optiq-operator-route-benchmark`, suite `gemma-optiq-route-benchmark-v1` revision `1`, profile `gemma-4-12b-optiq-4bit` revision `2`, seventy-two serial POSTs (twelve warm-ups excluded, sixty measured), `StageTwoBenchmarkEngine`, and non-authorizing template `manifests/stage-2-optiq-route-benchmark.json.template`. Gate B, Gate C (manifest authorization), Gate D (live benchmark), Coordinator prompt installation, and manager review remain separately gated and still require Jason's current-session authorization.
+Applies to schema `3.4.0` and profile revision `2`. The harness-unattended lane (`3.5.0` / profile revision `4`) is governed separately below.
+
+- Current decision: `GATE_A_PASSED` (Jason, 2026-07-21). Gate A implementation and review are closed. Gate B reported `READY_FOR_MANIFEST_AUTHORIZATION` this session. Jason authorized unused run `stage2-20260721-006` (short-lived manifest `manifests/stage-2-optiq-route-benchmark-006.json`). Cohort `stage2-20260721-006` cleaned as sealed **PASS** (72/72 POSTs; inference_path_acceptance and behavioral_contract_acceptance `PASS`; checksum_validation `PASS`; manager-reviewed). Schema `3.4.0`, mode `operator_route_benchmark`, comparison class `gemma-optiq-operator-route-benchmark`, suite `gemma-optiq-route-benchmark-v1` revision `1`, profile `gemma-4-12b-optiq-4bit` revision `2`. Run ID `006` is consumed — do not reuse. Do not authorize a new Stage 2B-2 run ID without Jason's separate current-session authorization.
 - Prerequisite evidence: Stage 2B-1 cohort `stage2-20260721-005` sealed **PASS** (schema `3.3.0` / profile revision `2`). Do not derive Stage 2B-2 statistics from the eight-POST smoke cohort. Do not reuse consumed run IDs (`001`–`005` or any prior Stage 2 run).
-- Do not create additional run IDs or live manifests without Jason's separate current-session authorization. Do not operate OptiQ/Osaurus lifecycle from the harness. Do not install a Coordinator prompt into Osaurus or issue inference without the operator sequence in `docs/stage-2b2-gate-a.md`.
+- Do not create additional run IDs or live manifests without Jason's separate current-session authorization. For **this operator-owned lane**, do not operate OptiQ/Osaurus lifecycle from the harness. Do not install a Coordinator prompt into Osaurus or issue inference without the operator sequence in `docs/stage-2b2-gate-a.md`.
 - Stage 2B-2 is one bounded route benchmark cohort, not path smoke. It permits exactly seventy-two serial inference requests and seventy-two HTTP POSTs only after separately completed Gate B, Jason's explicit current-session authorization of one exact unused ID, and a short-lived `3.4.0` manifest for that exact ID.
 - The only permitted routes are `http://127.0.0.1:8080/v1` and `http://127.0.0.1:1337/v1`. Limits are 120 seconds per request, warning-level memory stop, one in-flight request, and seventy-two total requests. Expected routed ID is the exact inventory string `optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think`.
 - Gate A docs, templates, package tests, and the repo Coordinator draft (`docs/stage-2b2-coordinator-prompt.md`) are non-live. They must not create a usable ID or manifest, install a prompt into Osaurus, start or stop OptiQ, reconnect or edit a provider, or issue an endpoint request.
-- Jason remains the sole owner of the foreground OptiQ service lifecycle and existing-provider reconnect. The harness never starts, stops, signals, restarts, configures, loads, or unloads OptiQ or Osaurus.
+- For **this operator-owned lane**, Jason remains the sole owner of the foreground OptiQ service lifecycle and existing-provider reconnect. The harness never starts, stops, signals, restarts, configures, loads, or unloads OptiQ or Osaurus on schema `3.4.0` / profile revision `2`.
 - Preserve Stage 2B-1 `3.3.0` smoke and Stage 2A revision-3 as rollback. Plugin `0.3.0` unchanged; do not rebuild or reinstall it.
+
+## Stage 2 Harness-Unattended Boundary (Slice 1c)
+
+- Current decision: `GATE_A_PASSED` (implementation and fake-only tests only; **not live**). Schema `3.5.0`, mode `harness_inference_probe`, comparison class `gemma-optiq-042-harness-route-smoke`, profile `gemma-4-12b-optiq-4bit` revision `4`, suite `gemma-optiq-042-harness-route-smoke-v1` revision `1`. See `docs/stage-2-harness-unattended-gate-a.md`.
+- The harness **may** start and stop OptiQ via Slice 1a `LifecycleController` for this lane only. It records honest `service_lifecycle_actions > 0`. Cleanup requires harness-owned stop proof (port `8080` free twice), not operator `Ctrl+C`.
+- Provider *edit* is forbidden (`provider_activation: verify_routed_id_only`). The harness verifies the exact routed inventory ID after OptiQ is up. If reconnect is required and no safe non-editing API exists, at most **one** operator reconnect tap is documented — prefer eliminating it later. See `docs/superpowers/notes/2026-07-22-slice-1c-provider-reconnect-note.md`.
+- Do not create run IDs or live manifests, upgrade OptiQ on disk, edit Osaurus providers, rebuild plugin `0.3.0`, or issue live POSTs without Jason's separate current-session authorization for Gate B–D.
+- Operator-owned rollback unchanged: Stage 2A revision `3`, Stage 2B-1 schema `3.3.0` / profile revision `2` (sealed `005`), Stage 2B-2 schema `3.4.0` / profile revision `2` (sealed `006`). Those lanes still require operator OptiQ lifecycle and `service_lifecycle_actions: 0`.

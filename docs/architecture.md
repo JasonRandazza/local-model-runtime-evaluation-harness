@@ -118,6 +118,25 @@ The contract fixes `gemma-4-12b-optiq-4bit` revision `2`, `gemma-optiq-route-ben
 
 Gate A decision is `GATE_A_PASSED`. Cohort `stage2-20260721-006` sealed **PASS** (72/72 POSTs; both acceptance axes; checksums; manager-reviewed). That ID is consumed. New Stage 2B-2 live authorization still requires Gate B, Jason's exact unused-ID approval, a short-lived `3.4.0` manifest, manual shutdown, cleanup, and manager review. Stage 2B-1 PASS on `stage2-20260721-005` remains the smoke prerequisite; see `docs/stage-2b2-gate-a.md`.
 
+## Stage 2 Harness-Unattended Lane (Slice 1c)
+
+Package 1 / Slice 1c adds a parallel **harness-owned** Stage 2 smoke lane. The harness starts and stops OptiQ via Slice 1a `LifecycleController`, records honest `service_lifecycle_actions > 0`, and cleans up without operator `Ctrl+C`. Operator-owned schemas `3.3.0` / `3.4.0` and sealed `005` / `006` remain rollback.
+
+```text
+Benchmark Coordinator
+  -> one approval-gated native tool at a time
+  -> fixed Stage 2 harness smoke worker
+  -> harness-owned OptiQ via LifecycleController
+  -> read-only Osaurus provider identity + routed inventory verify
+  -> direct and routed serialized inference smoke requests (8 POSTs)
+  -> harness ensure_stopped (port 8080 free twice)
+  -> sanitized acceptance evidence + manager review
+```
+
+The contract fixes schema `3.5.0`, mode `harness_inference_probe`, comparison class `gemma-optiq-042-harness-route-smoke`, profile `gemma-4-12b-optiq-4bit` revision `4`, suite `gemma-optiq-042-harness-route-smoke-v1` revision `1`, `service_ownership: harness`, and `provider_activation: verify_routed_id_only`. Provider *edit* remains forbidden; the harness verifies the exact routed inventory ID after OptiQ is up. If reconnect is required and no safe non-editing API exists, at most one operator reconnect tap is documented — see `docs/superpowers/notes/2026-07-22-slice-1c-provider-reconnect-note.md`.
+
+Gate A is `GATE_A_PASSED` (implementation only; not live). Gate B–D, run IDs, disk OptiQ upgrade, and live POSTs remain separately gated. See `docs/stage-2-harness-unattended-gate-a.md`.
+
 ## Shared Harness Lifecycle (Slice 1a)
 
-Package 1 / Slice 1a Gate A is landed in `harness_lifecycle.py`: a shared controller that starts and stops exactly one pinned OptiQ (`8080`), oMLX (`8100`), or Osaurus (`1337`) server under a 20% RAM floor, with fail-closed ownership rules, optional ready wait, and fake-only tests. Stage 2 operator-owned lanes above remain unchanged. Slice 1b Gate A is landed: `gemma-4-12b-optiq-4bit` revision `3` pins `mlx-optiq 0.4.2` with provisional constants cloned from revision `2`; live pin-confirm (upgrade, identity probe, hash refresh) is operator-owned and separately gated — see `docs/superpowers/notes/2026-07-21-slice-1b-optiq-042-pin-confirm-checklist.md`. Slice 1c (Stage 2 unattended wiring) remains deferred. Design and queue: `docs/superpowers/specs/2026-07-21-stack-review-gate-a-queue-design.md`; plans: `docs/superpowers/plans/2026-07-21-slice-1a-harness-lifecycle-gate-a.md`, `docs/superpowers/plans/2026-07-21-slice-1b-optiq-042-pin-gate-a.md`.
+Package 1 / Slice 1a Gate A is landed in `harness_lifecycle.py`: a shared controller that starts and stops exactly one pinned OptiQ (`8080`), oMLX (`8100`), or Osaurus (`1337`) server under a 20% RAM floor, with fail-closed ownership rules, optional ready wait, and fake-only tests. Stage 2 operator-owned lanes above remain unchanged. Slice 1b Gate A is landed: `gemma-4-12b-optiq-4bit` revision `3` pins `mlx-optiq 0.4.2` with provisional constants cloned from revision `2`; live pin-confirm (upgrade, identity probe, hash refresh) is operator-owned and separately gated — see `docs/superpowers/notes/2026-07-21-slice-1b-optiq-042-pin-confirm-checklist.md`. Slice 1c Gate A is landed: schema `3.5.0` harness-unattended smoke wiring with profile revision `4`, honest lifecycle action counts, and provider verify-only policy — see `docs/stage-2-harness-unattended-gate-a.md` and `docs/superpowers/notes/2026-07-22-slice-1c-provider-reconnect-note.md`. Design and queue: `docs/superpowers/specs/2026-07-21-stack-review-gate-a-queue-design.md`; plans: `docs/superpowers/plans/2026-07-21-slice-1a-harness-lifecycle-gate-a.md`, `docs/superpowers/plans/2026-07-21-slice-1b-optiq-042-pin-gate-a.md`, `docs/superpowers/plans/2026-07-22-slice-1c-harness-unattended-gate-a.md`.

@@ -281,6 +281,21 @@ class StageTwoInferenceEngine:
     def _event(self, event: str, **details: object) -> None:
         self.bundle.append_jsonl("service-events.jsonl", {"event": event, **details})
 
+    def _validate_provider_activation(self) -> None:
+        activation = self.profile.provider_activation
+        if activation == "verify_routed_id_only":
+            if not self._harness:
+                raise StageTwoError(
+                    "provider_activation_failed",
+                    "verify_routed_id_only requires the harness-unattended contract",
+                )
+            return
+        if activation != "operator_reconnect_required":
+            raise StageTwoError(
+                "provider_activation_failed",
+                "unsupported provider activation policy",
+            )
+
     def _validate_host(self, validation: HostValidation) -> None:
         if validation.runtime_identity.get("version") != self.profile.runtime_version:
             raise StageTwoError("runtime_identity_failed", "mlx-optiq runtime version differs from profile")
@@ -290,6 +305,7 @@ class StageTwoInferenceEngine:
             raise StageTwoError("artifact_identity_failed", "OptiQ model revision differs from profile")
         if validation.artifact_identity.get("hashes") != self.profile.artifact_hashes:
             raise StageTwoError("artifact_identity_failed", "OptiQ artifact hashes differ from profile")
+        self._validate_provider_activation()
         provider = validation.provider_identity
         if provider.get("provider_id") != self.profile.osaurus_provider_id or provider.get("enabled") is not True:
             raise StageTwoError("provider_identity_failed", "approved Osaurus provider is unavailable")
@@ -513,7 +529,7 @@ class StageTwoInferenceEngine:
             ],
             "request_count": len(self.suite.schedule()),
             })
-            self.bundle.write_json("preflight.json", {
+            preflight_record: dict[str, object] = {
             "ok": True,
             "stage": 2,
             "mode": self.manifest.mode,
@@ -524,7 +540,10 @@ class StageTwoInferenceEngine:
             "inference_request_attempts": 0,
             "http_post_attempts": 0,
             "service_lifecycle_actions": self._service_lifecycle_actions(),
-            })
+            }
+            if self.profile.provider_activation is not None:
+                preflight_record["provider_activation"] = self.profile.provider_activation
+            self.bundle.write_json("preflight.json", preflight_record)
             self.lifecycle.transition(run_id, RunStatus.ENDPOINT_IDENTITY, "Stage 2B-1 route identity proven")
             state = self.lifecycle.transition(run_id, RunStatus.READY, "Stage 2B-1 inference probe ready")
         except Exception as error:
