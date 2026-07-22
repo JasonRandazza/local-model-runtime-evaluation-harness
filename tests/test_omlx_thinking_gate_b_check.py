@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import json
 import unittest
 from io import StringIO
@@ -164,20 +165,7 @@ class OmlxThinkingGateBCheckTest(unittest.TestCase):
         self.assertEqual(report["decision"], "health_unavailable")
 
     def test_pin_invalid_when_ownership_mode_wrong(self) -> None:
-        wrong_pin = OmlxThinkingPin(
-            self.pin.pin_id,
-            self.pin.revision,
-            self.pin.version,
-            self.pin.base_url,
-            self.pin.comparison_class,
-            self.pin.model_id,
-            self.pin.model_dir,
-            "attach_pool",
-            self.pin.api_key_source,
-            self.pin.extra_body_allowlist,
-            self.pin.start_command,
-            self.pin.stop_command,
-        )
+        wrong_pin = dataclasses.replace(self.pin, ownership_mode="attach_pool")
         readiness = collect_readiness(
             wrong_pin,
             installed_version="0.5.3",
