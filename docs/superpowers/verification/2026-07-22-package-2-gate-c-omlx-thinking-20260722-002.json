@@ -1,0 +1,16 @@
+{
+  "package": "omlx-thinking-measure-v1",
+  "gate": "C",
+  "run_id": "omlx-thinking-20260722-002",
+  "decision": "FAIL",
+  "inference_ok": false,
+  "cleanup_ok": false,
+  "pin_id": "omlx-0.5.3-thinking",
+  "version": "0.5.3",
+  "model_id": "Qwen3.6-35B-A3B-OptiQ-4bit",
+  "service_lifecycle_actions": 0,
+  "error": "LifecycleError: port 8100 did not free in time; cleanup: ThinkingMeasureError: port 8100 is still busy after stop",
+  "root_cause": "omlX stop reported stopped but PID 32761 (leftover from 001) kept listening on 8100 with Qwen loaded",
+  "gate_b_decision": "port_busy_foreign_pool",
+  "authorization": "Jason authorized omlx-thinking-20260722-002 on 2026-07-22"
+}

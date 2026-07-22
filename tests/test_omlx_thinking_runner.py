@@ -217,7 +217,8 @@ class ThinkingMeasureRunnerTest(unittest.TestCase):
 
         self.assertEqual(self.stop_runner_calls, [self.pin.stop_command])
         self.assertGreaterEqual(lifecycle.lifecycle_actions, 2)
-        self.assertEqual(self.port_free_calls, [OMLX_THINKING_PORT])
+        # stop path probes port_free for escalation, then cleanup verifies free
+        self.assertEqual(self.port_free_calls, [OMLX_THINKING_PORT, OMLX_THINKING_PORT])
 
     def test_cleanup_fails_closed_when_port_still_busy(self) -> None:
         def port_free(port: int) -> bool:

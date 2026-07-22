@@ -1,0 +1,19 @@
+{
+  "package": "omlx-thinking-measure-v1",
+  "gate": "C",
+  "run_id": "omlx-thinking-20260722-003",
+  "decision": "FAIL_CLEANUP",
+  "inference_ok": true,
+  "cleanup_ok": false,
+  "service_lifecycle_actions": 1,
+  "outcomes": {
+    "preflight": "ok",
+    "smoke": [
+      {"workload_id": "thinking-short-reason", "repetition": 1, "outcome": "ok"},
+      {"workload_id": "thinking-plan-and-answer", "repetition": 1, "outcome": "ok"}
+    ]
+  },
+  "error": "cleanup: LifecycleError: port 8100 did not free in time",
+  "root_cause": "omlX stop does not free listener; 180s wait was the hang",
+  "leftover_pid": 43145
+}

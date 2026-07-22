@@ -328,6 +328,28 @@ class HarnessLifecycleStopTest(unittest.TestCase):
         self.assertIsNone(controller.active_process)
         self.assertFalse(controller.owned)
 
+    def test_stop_escalates_to_process_when_port_stays_busy(self) -> None:
+        port_busy = {"value": True}
+
+        def port_free(port: int) -> bool:
+            return not port_busy["value"]
+
+        def tracked_process_stop(timeout_seconds: float = 15) -> None:
+            self.process_stop_calls.append(None)
+            port_busy["value"] = False
+
+        self.fake_process.stop = tracked_process_stop  # type: ignore[method-assign]
+        controller = self._controller(port_free=port_free)
+        pin = self._optiq_pin()
+        # start requires free port
+        port_busy["value"] = False
+        controller.start(pin)
+        port_busy["value"] = True
+        controller.stop()
+        self.assertEqual(self.stop_runner_calls, [("optiq", "stop")])
+        self.assertEqual(len(self.process_stop_calls), 1)
+        self.assertEqual(controller.lifecycle_actions, 2)
+
     def test_owned_without_stop_command_uses_process_stop(self) -> None:
         controller = self._controller()
         pin = self._osaurus_pin()

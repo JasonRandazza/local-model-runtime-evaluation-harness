@@ -186,10 +186,19 @@ class LifecycleController:
 
     def _stop_owned_process(self) -> None:
         pin = self._pin
+        process = self._process
         if pin is not None and pin.stop_command:
             self._stop_runner(pin.stop_command)
-        elif self._process is not None:
-            self._process.stop()
+        elif process is not None:
+            process.stop()
+        # oMLX CLI stop can report success while the serve listener remains.
+        # Escalate to the owned process group when the port is still busy.
+        if (
+            pin is not None
+            and process is not None
+            and not self._port_free(pin.port)
+        ):
+            process.stop()
         if pin is not None:
             self._wait_port_free(pin.port, DEFAULT_WAIT_PORT_FREE_SECONDS)
         self.lifecycle_actions += 1

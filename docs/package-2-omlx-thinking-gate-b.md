@@ -44,11 +44,15 @@ port `8100` free.
 |---|---|---|
 | **A** | Pin, runner, suite, qualification, fake-only tests | **Passed** (not live) |
 | **B** | Read-only identity + auth + lifecycle mode check | **Ready** (implementation closed; not live) |
-| **C** | Jason authorizes one unused run ID + short-lived manifest | Not authorized |
-| **D** | Thinking smoke POSTs, harness cleanup, manager review | Not authorized |
+| **C** | Jason authorizes one unused run ID + short-lived smoke | **Passed** — sealed `omlx-thinking-20260722-004` |
+| **D** | Broader thinking measure / manager review beyond smoke | Not authorized |
 
 Gate B is non-authorizing. It does not create a usable run ID or live manifest,
 issue thinking POSTs, start or stop oMLX, or reclaim a foreign `:8100` pool.
+
+**Gate C sealed evidence:**
+`docs/superpowers/verification/2026-07-22-package-2-gate-c-omlx-thinking-20260722-004.md`
+(consumed IDs `001`–`003` are historical FAIL / FAIL_CLEANUP only).
 
 ## Readiness CLI
 

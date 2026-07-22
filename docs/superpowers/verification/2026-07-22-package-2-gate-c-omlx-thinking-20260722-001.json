@@ -1,0 +1,38 @@
+{
+  "package": "omlx-thinking-measure-v1",
+  "gate": "C",
+  "run_id": "omlx-thinking-20260722-001",
+  "decision": "FAIL_CLEANUP",
+  "inference_ok": true,
+  "cleanup_ok": false,
+  "started_at": "2026-07-22T17:42:23.068759+00:00",
+  "ended_at": "2026-07-22T17:43:15.637308+00:00",
+  "pin_id": "omlx-0.5.3-thinking",
+  "pin_revision": "1",
+  "version": "0.5.3",
+  "model_id": "Qwen3.6-35B-A3B-OptiQ-4bit",
+  "ownership_mode": "dedicated_serve",
+  "suite_id": "omlx-thinking-smoke-v1",
+  "suite_revision": "1",
+  "service_lifecycle_actions": 1,
+  "outcomes": {
+    "preflight": "ok",
+    "smoke": [
+      {
+        "workload_id": "thinking-short-reason",
+        "repetition": 1,
+        "outcome": "ok"
+      },
+      {
+        "workload_id": "thinking-plan-and-answer",
+        "repetition": 1,
+        "outcome": "ok"
+      }
+    ]
+  },
+  "error": "cleanup: LifecycleError: port 8100 did not free in time",
+  "port_8100_free_after": false,
+  "root_cause": "DEFAULT_WAIT_PORT_FREE_SECONDS=30 too short for 35B unload after omlX stop",
+  "fix": "live smoke injects wait_port_free floor of 180s; next cohort needs new authorized run ID",
+  "authorization": "Jason authorized Package 2 Gate C live thinking smoke for exact run ID omlx-thinking-20260722-001 on 2026-07-22"
+}
