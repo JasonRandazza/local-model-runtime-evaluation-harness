@@ -280,6 +280,53 @@ class StageTwoRuntimeProfileTest(unittest.TestCase):
         self.assertEqual(profile.runtime_version, "0.4.2")
         self.assertEqual(profile.package_versions["mlx-optiq"], "0.4.2")
 
+    def _gemma_revision_four_fixture(self) -> dict:
+        data = self._gemma_revision_three_fixture()
+        data["revision"] = "4"
+        data["service_ownership"] = "harness"
+        data["provider_activation"] = "verify_routed_id_only"
+        return data
+
+    def _write_gemma_revision_four_fixture(self, temp: str, data: dict | None = None) -> None:
+        payload = self._gemma_revision_four_fixture() if data is None else data
+        Path(temp, "gemma-4-12b-optiq-4bit-r4.json").write_text(json.dumps(payload))
+
+    def test_gemma_revision_four_profile_loads_with_harness_ownership(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            self._write_gemma_revision_four_fixture(temp)
+            profile = RuntimeProfileRegistry(Path(temp)).get("gemma-4-12b-optiq-4bit", "4")
+            self.assertEqual(profile.revision, "4")
+            self.assertEqual(profile.runtime_version, "0.4.2")
+            self.assertEqual(profile.package_versions["mlx-optiq"], "0.4.2")
+            self.assertEqual(profile.service_ownership, "harness")
+            self.assertEqual(profile.provider_activation, "verify_routed_id_only")
+
+    def test_gemma_revision_four_rejects_operator_ownership(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            data = self._gemma_revision_four_fixture()
+            data["service_ownership"] = "operator"
+            data["provider_activation"] = "operator_reconnect_required"
+            self._write_gemma_revision_four_fixture(temp, data)
+            with self.assertRaises(RuntimeProfileError):
+                RuntimeProfileRegistry(Path(temp)).get("gemma-4-12b-optiq-4bit", "4")
+
+    def test_gemma_revision_three_still_requires_operator_ownership(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            data = self._gemma_revision_three_fixture()
+            data["service_ownership"] = "harness"
+            data["provider_activation"] = "verify_routed_id_only"
+            self._write_gemma_revision_three_fixture(temp, data)
+            with self.assertRaises(RuntimeProfileError):
+                RuntimeProfileRegistry(Path(temp)).get("gemma-4-12b-optiq-4bit", "3")
+
+    def test_gemma_registry_loads_revision_four_from_config(self) -> None:
+        root = self.root / "config" / "runtime-profiles"
+        profile = RuntimeProfileRegistry(root).get("gemma-4-12b-optiq-4bit", "4")
+        self.assertEqual(profile.revision, "4")
+        self.assertEqual(profile.runtime_version, "0.4.2")
+        self.assertEqual(profile.service_ownership, "harness")
+        self.assertEqual(profile.provider_activation, "verify_routed_id_only")
+
 
 if __name__ == "__main__":
     unittest.main()
