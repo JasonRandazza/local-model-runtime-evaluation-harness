@@ -119,6 +119,22 @@ class QualifyThinkingMetricsTest(unittest.TestCase):
         self.assertEqual(labels["ttft"], "QUALIFIED_INCREMENTAL_DELIVERY")
         self.assertEqual(labels["decode"], "SUPPRESSED_AMBIGUOUS_TOKEN_ACCOUNTING")
 
+    def test_qualified_when_incremental_and_derived_reasoning_content(self) -> None:
+        labels = qualify_thinking_metrics((
+            _sample(token_accounting_status="DERIVED_REASONING_CONTENT"),
+            _sample(token_accounting_status="DERIVED_REASONING_CONTENT"),
+        ))
+        self.assertEqual(labels["ttft"], "QUALIFIED_INCREMENTAL_DELIVERY")
+        self.assertEqual(labels["decode"], "QUALIFIED_REASONING_CONTENT_SPLIT")
+
+    def test_suppresses_decode_when_exact_and_derived_mixed(self) -> None:
+        labels = qualify_thinking_metrics((
+            _sample(token_accounting_status="EXACT_VISIBLE"),
+            _sample(token_accounting_status="DERIVED_REASONING_CONTENT"),
+        ))
+        self.assertEqual(labels["ttft"], "QUALIFIED_INCREMENTAL_DELIVERY")
+        self.assertEqual(labels["decode"], "SUPPRESSED_AMBIGUOUS_TOKEN_ACCOUNTING")
+
     def test_suppresses_when_streaming_buffered(self) -> None:
         labels = qualify_thinking_metrics((
             _sample(streaming_semantics="buffered"),

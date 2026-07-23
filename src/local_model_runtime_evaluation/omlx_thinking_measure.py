@@ -76,11 +76,20 @@ def qualify_thinking_metrics(
         and item.content_span_seconds > 0
         for item in measured
     )
+    derived = all(
+        item.token_accounting_status == "DERIVED_REASONING_CONTENT"
+        and item.visible_output_tokens is not None
+        and item.visible_output_tokens > 0
+        and item.content_span_seconds > 0
+        for item in measured
+    )
+    if exact_visible:
+        decode = "QUALIFIED_EXACT_VISIBLE_TOKENS"
+    elif derived:
+        decode = "QUALIFIED_REASONING_CONTENT_SPLIT"
+    else:
+        decode = "SUPPRESSED_AMBIGUOUS_TOKEN_ACCOUNTING"
     return {
         "ttft": "QUALIFIED_INCREMENTAL_DELIVERY",
-        "decode": (
-            "QUALIFIED_EXACT_VISIBLE_TOKENS"
-            if exact_visible
-            else "SUPPRESSED_AMBIGUOUS_TOKEN_ACCOUNTING"
-        ),
+        "decode": decode,
     }

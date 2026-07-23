@@ -7,6 +7,7 @@ from typing import Callable, Protocol
 from .credentials import Credential
 from .matrix_servers import MATRIX_OMLX_API_KEY
 from .omlx_thinking_pin import OmlxThinkingPin
+from .token_counter import try_model_dir_token_counter
 from .transport import LoopbackTransport, TransportError
 
 ChatTransport = Callable[[str, str, int], "ThinkingChatResponse"]
@@ -78,7 +79,15 @@ class OmlxThinkingTransport:
                 reason="unsupported_api_key_source",
             )
         resolved = credential or matrix_local_credential()
-        client = loopback or LoopbackTransport({pin.base_url}, timeout_seconds=timeout_seconds)
+        if loopback is None:
+            counter = try_model_dir_token_counter(pin.model_dir)
+            client: LoopbackClient = LoopbackTransport(
+                {pin.base_url},
+                timeout_seconds=timeout_seconds,
+                token_counter=counter,
+            )
+        else:
+            client = loopback
         return cls(
             pin.base_url,
             pin.model_id,

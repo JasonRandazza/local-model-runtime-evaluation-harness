@@ -57,7 +57,7 @@ def resolve_token_accounting(
 
 Precedence: usage reasoning → `EXACT_VISIBLE`; else counter derive → `DERIVED_REASONING_CONTENT` / `INCOMPARABLE` per design.
 
-- [ ] TDD + commit: `Add token accounting resolver for derived reasoning_content.`
+- [x] TDD + commit: `Add token accounting resolver for derived reasoning_content.`
 
 ---
 
@@ -67,8 +67,8 @@ Precedence: usage reasoning → `EXACT_VISIBLE`; else counter derive → `DERIVE
 - Modify: `transport.py` — `LoopbackTransport.__init__(..., token_counter=None)`; accumulate reasoning deltas; call resolver
 - Test: `tests/test_transport.py` — override stream with reasoning + content deltas
 
-- [ ] TDD: derived path with FakeTokenCounter; exact path still wins; mismatch → incomparable; TTFT ignores reasoning-only first deltas
-- [ ] Commit: `Derive chat token accounting from streamed reasoning_content.`
+- [x] TDD: derived path with FakeTokenCounter; exact path still wins; mismatch → incomparable; TTFT ignores reasoning-only first deltas
+- [x] Commit: `Derive chat token accounting from streamed reasoning_content.`
 
 ---
 
@@ -80,9 +80,9 @@ Precedence: usage reasoning → `EXACT_VISIBLE`; else counter derive → `DERIVE
 - Tests: `tests/test_omlx_thinking_measure.py`
 - Docs: D4 status + follow-on rows
 
-- [ ] TDD decode label + mixed cohort suppress
-- [ ] Docs `D4_GATE_A_READY`
-- [ ] Commit: `Qualify derived reasoning-content decode and document D4 Gate A.`
+- [x] TDD decode label + mixed cohort suppress
+- [x] Docs `D4_GATE_A_READY`
+- [x] Commit: `Qualify derived reasoning-content decode and document D4 Gate A.`
 
 ## Verification
 
