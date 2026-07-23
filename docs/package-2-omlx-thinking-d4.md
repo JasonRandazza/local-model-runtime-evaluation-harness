@@ -32,8 +32,8 @@
 
 ## Next
 
-**D3** (external-bench) remains deferred; may proceed after this sealed D4 PASS.
-Do not reuse run ID `004`.
+**D3** (external-bench) Gate A ready — fake-only runner and docs landed; live
+cohort separately gated. Do not reuse run ID `004`.
 
 ## Related
 

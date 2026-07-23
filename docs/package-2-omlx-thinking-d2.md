@@ -28,7 +28,7 @@ Exact visible-token decode qualification needs oMLX to emit
 see `docs/package-2-omlx-thinking-d4.md`. Not a reopen of sealed D2 `001` or
 request-pin `003` PASS.
 
-**D3** (external-bench) remains deferred.
+**D3** (external-bench) Gate A ready — live separately gated.
 
 **Request-pin live:** sealed PASS on `omlx-thinking-measure-20260722-003`
 (pin r2 + measure suite r2) — see

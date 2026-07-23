@@ -98,7 +98,9 @@ criterion** for this parity cohort.
 
 ## Informational throughput (external bench)
 
-{_format_rows_table(rows)}Compare `completion_tokens`, `gen_tps`, and related fields against harness
+{_format_rows_table(rows)}
+
+Compare `completion_tokens`, `gen_tps`, and related fields against harness
 measure completion-token-class totals in `{reference_run_id}` for context only.
 Discrepancies are expected given TTFT and decode-path differences above.
 """
