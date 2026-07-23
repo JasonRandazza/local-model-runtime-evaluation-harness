@@ -18,7 +18,12 @@ Osaurus-native builds that emit long `reasoning_content` preambles can still rea
 (Ornith JANG needed ~1400 completion tokens on the short prompt). Revisions `1`–`2` remain historical.
 Free-form Approach 3 cells are a later goal — not implemented here.
 
-**Multi-family quality/overhead (keep for later):** preference, RAG, and routing-overhead recipes for Ornith/Qwen are in-tree — see [preference.md](preference.md), [rag.md](rag.md), and [overhead.md](overhead.md). Live multi-family matrix screens and those follow-on campaigns wait until the Gemma harness frame is fully built out; then return here for proper cross-family testing.
+**Multi-family quality (next):** preference and RAG recipes are in-tree — see
+[preference.md](preference.md) and [rag.md](rag.md). Live preference/RAG should
+consume the sealed native PASS cells documented in
+`docs/superpowers/verification/2026-07-23-native-triple-overhead-live-evidence.md`.
+Routing overhead for all three families is already sealed in that note; see
+[overhead.md](overhead.md) for operator procedure.
 
 ## Prerequisites
 
