@@ -26,20 +26,32 @@ class PreferenceConfigTests(unittest.TestCase):
         self.assertEqual(len(suite.prompts), 6)
         self.assertEqual(len({p.prompt_id for p in suite.prompts}), 6)
         cells = default_preference_cells()
-        self.assertEqual(len(cells), 4)
-        self.assertIn("optiq_4bit__omlx", cells)
+        self.assertEqual(len(cells), 3)
+        self.assertEqual(
+            cells,
+            ("jang_4m__osaurus", "oq4_fp16__omlx", "optiq_4bit__optiq"),
+        )
 
     def test_defaults_load_gemma_family(self) -> None:
         defaults = load_preference_defaults()
         self.assertEqual(defaults.family_id, "gemma-4-12b-qat")
-        self.assertEqual(len(defaults.cells), 4)
-        self.assertIn("optiq_4bit__omlx", defaults.cells)
+        self.assertEqual(len(defaults.cells), 3)
+        self.assertEqual(
+            defaults.cells,
+            ("jang_4m__osaurus", "oq4_fp16__omlx", "optiq_4bit__optiq"),
+        )
 
     def test_resolve_family_override_ornith(self) -> None:
         selection = resolve_preference_selection(family_id="ornith-35b", cells=None)
         self.assertEqual(selection.family_id, "ornith-35b")
-        self.assertEqual(len(selection.cells), 4)
-        self.assertTrue(all(c.startswith("ornith_") for c in selection.cells))
+        self.assertEqual(
+            selection.cells,
+            (
+                "ornith_jang_4m__osaurus",
+                "ornith_oq4__omlx",
+                "ornith_optiq_4bit__optiq",
+            ),
+        )
 
     def test_resolve_family_override_qwen(self) -> None:
         selection = resolve_preference_selection(family_id="qwen36-35b-a3b", cells=None)
@@ -49,7 +61,6 @@ class PreferenceConfigTests(unittest.TestCase):
             (
                 "qwen_mxfp4__osaurus",
                 "qwen_oq4__omlx",
-                "qwen_optiq_4bit__omlx",
                 "qwen_optiq_4bit__optiq",
             ),
         )

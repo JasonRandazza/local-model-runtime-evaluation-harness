@@ -24,7 +24,6 @@ Cell ids come from `--cells` or the selected family’s recipe in `config/prefer
   "cells": [
     "jang_4m__osaurus",
     "oq4_fp16__omlx",
-    "optiq_4bit__omlx",
     "optiq_4bit__optiq"
   ]
 }
@@ -36,7 +35,7 @@ Cell ids come from `--cells` or the selected family’s recipe in `config/prefer
 ./bin/lmre-preference collect --dry-config --family ornith-35b
 ```
 
-Ornith recipe (four screen 12/12 cells): `ornith_jang_4m__omlx`, `ornith_oq4__omlx`, `ornith_optiq_4bit__omlx`, `ornith_optiq_4bit__optiq`.
+Ornith recipe (native triple PASS cells): `ornith_jang_4m__osaurus`, `ornith_oq4__omlx`, `ornith_optiq_4bit__optiq`.
 
 ### Qwen override
 
@@ -44,11 +43,11 @@ Ornith recipe (four screen 12/12 cells): `ornith_jang_4m__omlx`, `ornith_oq4__om
 ./bin/lmre-preference collect --dry-config --family qwen36-35b-a3b
 ```
 
-Qwen recipe (four screen PASS cells from `qwen36-35b-a3b-3x3-screen-20260720-201114`): `qwen_mxfp4__osaurus`, `qwen_oq4__omlx`, `qwen_optiq_4bit__omlx`, `qwen_optiq_4bit__optiq`.
+Qwen recipe (native triple PASS cells): `qwen_mxfp4__osaurus`, `qwen_oq4__omlx`, `qwen_optiq_4bit__optiq`.
 
 ### Pair count
 
-Four cells → **6 unordered pairs per prompt** (**36** judgments across the six-prompt suite). Historical **3-cell** Gemma preference runs remain valid artifacts; review and tally read `cell_ids` from each run’s `raw.json`.
+Three native cells → **3 unordered pairs per prompt** (**18** judgments across the six-prompt suite). Historical **4-cell** preference runs remain valid artifacts; review and tally read `cell_ids` from each run’s `raw.json`.
 
 ## Prerequisites
 
@@ -70,13 +69,13 @@ Unit tests use fakes only — no live Osaurus, oMLX, or OptiQ contact.
 
 ## Validate config (dry-config)
 
-Gemma default (four cells):
+Gemma default (three native cells):
 
 ```bash
 ./bin/lmre-preference collect --dry-config
 ```
 
-Prints JSON with `ok: true`, `"family_id": "gemma-4-12b-qat"`, four default cell ids (including `optiq_4bit__omlx`), and `prompts: 6`. No network or server start.
+Prints JSON with `ok: true`, `"family_id": "gemma-4-12b-qat"`, the three native cell ids, and `prompts: 6`. No network or server start.
 
 Ornith four-cell recipe:
 

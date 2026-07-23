@@ -35,8 +35,11 @@ class PreferenceCliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         payload = json.loads(buffer.getvalue())
         self.assertEqual(payload["family_id"], "gemma-4-12b-qat")
-        self.assertEqual(len(payload["cells"]), 4)
-        self.assertIn("optiq_4bit__omlx", payload["cells"])
+        self.assertEqual(len(payload["cells"]), 3)
+        self.assertEqual(
+            payload["cells"],
+            ["jang_4m__osaurus", "oq4_fp16__omlx", "optiq_4bit__optiq"],
+        )
 
     def test_collect_dry_config_family_ornith(self) -> None:
         buffer = io.StringIO()
@@ -45,7 +48,14 @@ class PreferenceCliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         payload = json.loads(buffer.getvalue())
         self.assertEqual(payload["family_id"], "ornith-35b")
-        self.assertEqual(len(payload["cells"]), 4)
+        self.assertEqual(
+            payload["cells"],
+            [
+                "ornith_jang_4m__osaurus",
+                "ornith_oq4__omlx",
+                "ornith_optiq_4bit__optiq",
+            ],
+        )
 
     def test_collect_dry_config_family_qwen(self) -> None:
         buffer = io.StringIO()
@@ -54,13 +64,12 @@ class PreferenceCliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         payload = json.loads(buffer.getvalue())
         self.assertEqual(payload["family_id"], "qwen36-35b-a3b")
-        self.assertEqual(len(payload["cells"]), 4)
+        self.assertEqual(len(payload["cells"]), 3)
         self.assertEqual(
             payload["cells"],
             [
                 "qwen_mxfp4__osaurus",
                 "qwen_oq4__omlx",
-                "qwen_optiq_4bit__omlx",
                 "qwen_optiq_4bit__optiq",
             ],
         )
@@ -71,7 +80,7 @@ class PreferenceCliTests(unittest.TestCase):
             code = main([
                 "collect", "--dry-config",
                 "--family", "gemma-4-12b-qat",
-                "--cells", "ornith_jang_4m__omlx",
+                "--cells", "ornith_jang_4m__osaurus",
             ])
         self.assertNotEqual(code, 0)
 
