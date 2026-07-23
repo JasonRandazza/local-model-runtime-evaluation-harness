@@ -34,7 +34,7 @@ from local_model_runtime_evaluation.omlx_thinking_transport import (
 )
 from local_model_runtime_evaluation.resources import HostResourceProbe
 
-AUTHORIZED_RUN_ID = "omlx-thinking-measure-20260722-002"
+AUTHORIZED_RUN_ID = "omlx-thinking-measure-20260722-003"
 READY_WAIT_SECONDS = 1200
 CHAT_TIMEOUT_SECONDS = 600
 STOP_GRACE_SECONDS = 45
@@ -147,7 +147,7 @@ def _outcome_dict(item: object) -> dict[str, object]:
 
 
 def main() -> int:
-    if AUTHORIZED_RUN_ID != "omlx-thinking-measure-20260722-002":
+    if AUTHORIZED_RUN_ID != "omlx-thinking-measure-20260722-003":
         print("refusing unexpected run id", file=sys.stderr)
         return 2
 
@@ -260,9 +260,10 @@ def main() -> int:
         "authorization": (
             "Jason authorized Package 2 thinking request-pin live measure "
             f"for exact run ID {AUTHORIZED_RUN_ID} on 2026-07-22 "
-            "(pin revision 2; enable_thinking pinned on every POST)"
+            "(pin revision 2; measure suite revision 2; enable_thinking pinned)"
         ),
         "required_chat_template_kwargs": dict(pin.required_chat_template_kwargs),
+        "suite_max_tokens": [item.max_tokens for item in suite.workloads],
     }
 
     EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)

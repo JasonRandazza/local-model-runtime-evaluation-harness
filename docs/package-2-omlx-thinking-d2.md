@@ -24,9 +24,14 @@
 Exact visible-token decode qualification needs oMLX to emit
 `completion_tokens_details.reasoning_tokens` (or equivalent) on the chat stream.
 That measurement-depth follow-on is tracked as **D4** (deferred), not a reopen
-of this PASS.
+of sealed D2 `001` or request-pin `003` PASS.
 
 **D3** (external-bench) remains deferred.
+
+**Request-pin live:** sealed PASS on `omlx-thinking-measure-20260722-003`
+(pin r2 + measure suite r2) — see
+`docs/superpowers/verification/2026-07-22-package-2-request-pin-omlx-thinking-measure-20260722-003.md`.
+Historical FAIL `002` (suite r1 budgets) remains evidence only.
 
 ## Related
 
