@@ -58,8 +58,9 @@ issue thinking POSTs, start or stop oMLX, or reclaim a foreign `:8100` pool.
 `docs/package-2-omlx-thinking-gate-d.md` and
 `docs/superpowers/verification/2026-07-22-package-2-gate-d-manager-review-004.md`.
 Follow-ons: **D2** live PASSED (`omlx-thinking-measure-20260722-001`);
-**D3** external-bench remains deferred; **D4** decode / `reasoning_content`
-accounting remains deferred.
+**D3** external-bench remains deferred; **D4** live PASSED
+(`omlx-thinking-measure-20260722-004`,
+`QUALIFIED_REASONING_CONTENT_SPLIT`).
 
 ## Readiness CLI
 

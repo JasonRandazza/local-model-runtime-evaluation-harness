@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Authorized Package 2 thinking request-pin live measure (one-shot).
+"""Authorized Package 2 D4 thinking-measure live (one-shot).
 
 Run ID must be Jason-authorized in the current session before use.
-Uses measure suite (5 workloads) + pin revision 2 request-pin + force-free cleanup.
+Uses measure suite r2 + pin revision 2 request-pin + derived reasoning_content
+decode accounting + force-free cleanup.
 """
 from __future__ import annotations
 
@@ -16,6 +17,11 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+_SRC = REPO / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
 from local_model_runtime_evaluation.harness_lifecycle import LifecycleController
 from local_model_runtime_evaluation.matrix_lifecycle import (
@@ -34,14 +40,65 @@ from local_model_runtime_evaluation.omlx_thinking_transport import (
 )
 from local_model_runtime_evaluation.resources import HostResourceProbe
 
-AUTHORIZED_RUN_ID = "omlx-thinking-measure-20260722-003"
+AUTHORIZED_RUN_ID = "omlx-thinking-measure-20260722-004"
 READY_WAIT_SECONDS = 1200
 CHAT_TIMEOUT_SECONDS = 600
 STOP_GRACE_SECONDS = 45
 KILL_WAIT_SECONDS = 30
-REPO = Path(__file__).resolve().parents[1]
 EVIDENCE_DIR = REPO / "docs" / "superpowers" / "verification"
 LOG_DIR = REPO / ".harness-lifecycle" / AUTHORIZED_RUN_ID
+OMLX_PYTHON = Path(
+    "/Applications/oMLX.app/Contents/Resources/Python/cpython-3.11/bin/python3.11"
+)
+OMLX_SITE_PACKAGES = Path(
+    "/Applications/oMLX.app/Contents/Resources/Python/"
+    "framework-mlx-base/lib/python3.11/site-packages"
+)
+
+
+def _tokenizer_runtime_available() -> bool:
+    try:
+        import tokenizers  # noqa: F401
+        return True
+    except ImportError:
+        pass
+    try:
+        import transformers  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def _reexec_with_omlx_python_if_needed() -> None:
+    """D4 needs a tokenizer; Homebrew Python may lack tokenizers/transformers."""
+    if _tokenizer_runtime_available():
+        return
+    if not OMLX_PYTHON.is_file() or not OMLX_SITE_PACKAGES.is_dir():
+        print(
+            "refusing to start: tokenizers/transformers unavailable and oMLX "
+            "bundled Python not found",
+            file=sys.stderr,
+        )
+        raise SystemExit(4)
+    if Path(sys.executable).resolve() == OMLX_PYTHON.resolve():
+        print(
+            "refusing to start: running under oMLX Python but tokenizer "
+            "imports still fail",
+            file=sys.stderr,
+        )
+        raise SystemExit(4)
+    env = os.environ.copy()
+    repo_src = str(REPO / "src")
+    existing = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = (
+        f"{repo_src}{os.pathsep}{OMLX_SITE_PACKAGES}"
+        + (f"{os.pathsep}{existing}" if existing else "")
+    )
+    os.execve(
+        str(OMLX_PYTHON),
+        [str(OMLX_PYTHON), str(Path(__file__).resolve()), *sys.argv[1:]],
+        env,
+    )
 
 
 def _health_ok() -> bool:
@@ -147,9 +204,11 @@ def _outcome_dict(item: object) -> dict[str, object]:
 
 
 def main() -> int:
-    if AUTHORIZED_RUN_ID != "omlx-thinking-measure-20260722-003":
+    if AUTHORIZED_RUN_ID != "omlx-thinking-measure-20260722-004":
         print("refusing unexpected run id", file=sys.stderr)
         return 2
+
+    _reexec_with_omlx_python_if_needed()
 
     if not port_is_free(8100):
         print(
@@ -161,6 +220,18 @@ def main() -> int:
 
     pin = OmlxThinkingPin.load(default_pin_path())
     suite = OmlxThinkingSuite.load(default_measure_suite_path())
+    from local_model_runtime_evaluation.token_counter import (
+        try_model_dir_token_counter,
+    )
+
+    if try_model_dir_token_counter(pin.model_dir) is None:
+        print(
+            "refusing to start: ModelDirTokenCounter failed for pin.model_dir "
+            f"({pin.model_dir})",
+            file=sys.stderr,
+        )
+        return 4
+
     probe = HostResourceProbe()
     controller = LifecycleController(
         free_memory=lambda: float(probe.free_memory_percent()),
@@ -237,7 +308,7 @@ def main() -> int:
     ended = datetime.now(timezone.utc).isoformat()
     report = {
         "package": "omlx-thinking-measure-v1",
-        "gate": "REQUEST_PIN_LIVE",
+        "gate": "D4_LIVE",
         "run_id": AUTHORIZED_RUN_ID,
         "decision": decision,
         "inference_ok": inference_ok,
@@ -258,9 +329,10 @@ def main() -> int:
         "port_8100_free_after": port_is_free(8100),
         "stop_grace_seconds": STOP_GRACE_SECONDS,
         "authorization": (
-            "Jason authorized Package 2 thinking request-pin live measure "
+            "Jason authorized Package 2 D4 reasoning-content decode live measure "
             f"for exact run ID {AUTHORIZED_RUN_ID} on 2026-07-22 "
-            "(pin revision 2; measure suite revision 2; enable_thinking pinned)"
+            "(pin revision 2; measure suite revision 2; enable_thinking pinned; "
+            "derived DERIVED_REASONING_CONTENT / QUALIFIED_REASONING_CONTENT_SPLIT)"
         ),
         "required_chat_template_kwargs": dict(pin.required_chat_template_kwargs),
         "suite_max_tokens": [item.max_tokens for item in suite.workloads],
@@ -268,14 +340,14 @@ def main() -> int:
 
     EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
     json_path = (
-        EVIDENCE_DIR / f"2026-07-22-package-2-request-pin-{AUTHORIZED_RUN_ID}.json"
+        EVIDENCE_DIR / f"2026-07-22-package-2-d4-{AUTHORIZED_RUN_ID}.json"
     )
-    md_path = EVIDENCE_DIR / f"2026-07-22-package-2-request-pin-{AUTHORIZED_RUN_ID}.md"
+    md_path = EVIDENCE_DIR / f"2026-07-22-package-2-d4-{AUTHORIZED_RUN_ID}.md"
     json_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     md_path.write_text(
         "\n".join(
             [
-                f"# Package 2 Request-Pin Live — `{AUTHORIZED_RUN_ID}`",
+                f"# Package 2 D4 Live — `{AUTHORIZED_RUN_ID}`",
                 "",
                 f"- Decision: **{decision}**",
                 f"- Pin: `{pin.pin_id}` revision `{pin.revision}` (oMLX `{pin.version}`)",

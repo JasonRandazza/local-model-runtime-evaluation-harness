@@ -20,39 +20,63 @@ class FixedMapTokenCounter:
 
 
 class ModelDirTokenCounter:
-    """Best-effort HF tokenizer counter for a pinned model directory."""
+    """Best-effort tokenizer counter for a pinned model directory.
+
+    Prefers HuggingFace ``tokenizers`` reading ``tokenizer.json``, then
+    ``transformers.AutoTokenizer``.
+    """
 
     def __init__(self, model_dir: str | Path) -> None:
         self._model_dir = str(model_dir)
+        self._backend: str | None = None
         self._tokenizer: object | None = None
 
-    def _load(self) -> object:
-        if self._tokenizer is not None:
-            return self._tokenizer
+    def _load(self) -> tuple[str, object]:
+        if self._tokenizer is not None and self._backend is not None:
+            return self._backend, self._tokenizer
+
+        tokenizer_json = Path(self._model_dir) / "tokenizer.json"
+        if tokenizer_json.is_file():
+            try:
+                from tokenizers import Tokenizer  # type: ignore[import-not-found]
+            except ImportError:
+                Tokenizer = None  # type: ignore[assignment,misc]
+            if Tokenizer is not None:
+                self._backend = "tokenizers"
+                self._tokenizer = Tokenizer.from_file(str(tokenizer_json))
+                return self._backend, self._tokenizer
+
         try:
             from transformers import AutoTokenizer  # type: ignore[import-not-found]
         except ImportError as error:
-            raise RuntimeError("transformers is not available") from error
+            raise RuntimeError(
+                "neither tokenizers nor transformers is available"
+            ) from error
+        self._backend = "transformers"
         self._tokenizer = AutoTokenizer.from_pretrained(
             self._model_dir,
             trust_remote_code=True,
         )
-        return self._tokenizer
+        return self._backend, self._tokenizer
 
     def count(self, text: str) -> int:
         if not text:
             return 0
-        tokenizer = self._load()
+        backend, tokenizer = self._load()
+        if backend == "tokenizers":
+            encoded = tokenizer.encode(text)  # type: ignore[attr-defined]
+            return len(encoded.ids)
         encoded = tokenizer.encode(text, add_special_tokens=False)  # type: ignore[attr-defined]
         return len(encoded)
 
 
 def try_model_dir_token_counter(model_dir: str | Path) -> TokenCounter | None:
+    counter = ModelDirTokenCounter(model_dir)
     try:
-        import transformers  # noqa: F401
-    except ImportError:
+        counter.count("probe")
+    except Exception:
         return None
-    return ModelDirTokenCounter(model_dir)
+    return counter
 
 
 def resolve_token_accounting(

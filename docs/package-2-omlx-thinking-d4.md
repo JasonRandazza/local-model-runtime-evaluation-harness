@@ -2,9 +2,23 @@
 
 ## Current Decision
 
-`D4_GATE_A_READY` — fake-only implementation landed (2026-07-22).
+`D4_LIVE_PASSED` — sealed live PASS on
+`omlx-thinking-measure-20260722-004` (2026-07-22).
 
-Does **not** authorize live POSTs or a new measure run ID.
+**Evidence:**
+`docs/superpowers/verification/2026-07-22-package-2-d4-omlx-thinking-measure-20260722-004.md`
+
+## Fixed Contract (sealed)
+
+| Item | Value |
+|---|---|
+| Run ID | `omlx-thinking-measure-20260722-004` |
+| Pin | `omlx-0.5.3-thinking` revision `2` |
+| Suite | `omlx-thinking-measure-v1` revision `2` |
+| Decision | `PASS` (`inference_ok` + `cleanup_ok`) |
+| TTFT | `QUALIFIED_INCREMENTAL_DELIVERY` |
+| Decode | `QUALIFIED_REASONING_CONTENT_SPLIT` |
+| Token status | `DERIVED_REASONING_CONTENT` (all ok samples) |
 
 ## What landed
 
@@ -14,13 +28,12 @@ Does **not** authorize live POSTs or a new measure run ID.
 | Transport | Accumulate `delta.reasoning_content`; injectable `TokenCounter` |
 | Status | `DERIVED_REASONING_CONTENT` (exact usage still wins → `EXACT_VISIBLE`) |
 | Decode label | `QUALIFIED_REASONING_CONTENT_SPLIT` |
-| Live wire | `OmlxThinkingTransport.for_pin` best-effort `ModelDirTokenCounter` |
+| Live wire | `OmlxThinkingTransport.for_pin` best-effort model-dir counter (`tokenizers` preferred) |
 
-## Next (separately gated)
+## Next
 
-1. Gate B readiness (pin r2).
-2. Jason authorizes one unused measure ID (e.g. `omlx-thinking-measure-20260722-004`).
-3. Live cohort expects decode `QUALIFIED_REASONING_CONTENT_SPLIT` when thinking streams reasoning content.
+**D3** (external-bench) remains deferred; may proceed after this sealed D4 PASS.
+Do not reuse run ID `004`.
 
 ## Related
 
@@ -29,4 +42,4 @@ Does **not** authorize live POSTs or a new measure run ID.
 | Design | `docs/superpowers/specs/2026-07-22-package-2-d4-reasoning-content-decode-design.md` |
 | Gate A plan | `docs/superpowers/plans/2026-07-22-package-2-d4-reasoning-content-decode-gate-a.md` |
 | Sealed request-pin PASS | `omlx-thinking-measure-20260722-003` |
-| D3 | Deferred until after D4 live |
+| Live JSON | `docs/superpowers/verification/2026-07-22-package-2-d4-omlx-thinking-measure-20260722-004.json` |

@@ -23,11 +23,12 @@
 
 Exact visible-token decode qualification needs oMLX to emit
 `completion_tokens_details.reasoning_tokens` (or equivalent) on the chat stream,
-**or** the D4 derived `reasoning_content` path. That measurement-depth follow-on
-is tracked as **D4** — Gate A ready (`docs/package-2-omlx-thinking-d4.md`); live
-separately gated. Not a reopen of sealed D2 `001` or request-pin `003` PASS.
+**or** the D4 derived `reasoning_content` path. **D4** sealed live PASS on
+`omlx-thinking-measure-20260722-004` (`QUALIFIED_REASONING_CONTENT_SPLIT`) —
+see `docs/package-2-omlx-thinking-d4.md`. Not a reopen of sealed D2 `001` or
+request-pin `003` PASS.
 
-**D3** (external-bench) remains deferred until after D4.
+**D3** (external-bench) remains deferred.
 
 **Request-pin live:** sealed PASS on `omlx-thinking-measure-20260722-003`
 (pin r2 + measure suite r2) — see

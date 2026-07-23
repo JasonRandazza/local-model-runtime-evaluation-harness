@@ -54,7 +54,7 @@ Gate A/B/C evidence retained.
 |---|---|---|
 | **D2** | Expanded harness measure suite + qualification / reasoning-token accounting | **Live PASSED** — sealed `omlx-thinking-measure-20260722-001` |
 | **D3** | Optional oMLX external-bench lane | Deferred (after D4) |
-| **D4** | Derived decode from streamed `reasoning_content` (`DERIVED_REASONING_CONTENT` / `QUALIFIED_REASONING_CONTENT_SPLIT`) | **Gate A ready** — `docs/package-2-omlx-thinking-d4.md`; live separately gated |
+| **D4** | Derived decode from streamed `reasoning_content` (`DERIVED_REASONING_CONTENT` / `QUALIFIED_REASONING_CONTENT_SPLIT`) | **Live PASSED** — sealed `omlx-thinking-measure-20260722-004` |
 
 ## Related documents
 

@@ -1,0 +1,100 @@
+{
+  "package": "omlx-thinking-measure-v1",
+  "gate": "D4_LIVE",
+  "run_id": "omlx-thinking-measure-20260722-004",
+  "decision": "PASS",
+  "inference_ok": true,
+  "cleanup_ok": true,
+  "started_at": "2026-07-23T03:30:27.107066+00:00",
+  "ended_at": "2026-07-23T03:35:06.751294+00:00",
+  "pin_id": "omlx-0.5.3-thinking",
+  "pin_revision": "2",
+  "version": "0.5.3",
+  "model_id": "Qwen3.6-35B-A3B-OptiQ-4bit",
+  "ownership_mode": "dedicated_serve",
+  "suite_id": "omlx-thinking-measure-v1",
+  "suite_revision": "2",
+  "service_lifecycle_actions": 2,
+  "qualification_labels": {
+    "ttft": "QUALIFIED_INCREMENTAL_DELIVERY",
+    "decode": "QUALIFIED_REASONING_CONTENT_SPLIT"
+  },
+  "outcomes": {
+    "preflight": {
+      "workload_id": null,
+      "repetition": 0,
+      "outcome": "ok",
+      "reasoning_tokens": 276,
+      "visible_output_tokens": 6,
+      "token_accounting_status": "DERIVED_REASONING_CONTENT",
+      "streaming_semantics": "incremental",
+      "finish_reason": "stop"
+    },
+    "measure": [
+      {
+        "workload_id": "thinking-short-reason",
+        "repetition": 1,
+        "outcome": "ok",
+        "reasoning_tokens": 500,
+        "visible_output_tokens": 141,
+        "token_accounting_status": "DERIVED_REASONING_CONTENT",
+        "streaming_semantics": "incremental",
+        "finish_reason": "stop"
+      },
+      {
+        "workload_id": "thinking-plan-and-answer",
+        "repetition": 1,
+        "outcome": "ok",
+        "reasoning_tokens": 1496,
+        "visible_output_tokens": 202,
+        "token_accounting_status": "DERIVED_REASONING_CONTENT",
+        "streaming_semantics": "incremental",
+        "finish_reason": "stop"
+      },
+      {
+        "workload_id": "thinking-multi-step",
+        "repetition": 1,
+        "outcome": "ok",
+        "reasoning_tokens": 1192,
+        "visible_output_tokens": 191,
+        "token_accounting_status": "DERIVED_REASONING_CONTENT",
+        "streaming_semantics": "incremental",
+        "finish_reason": "stop"
+      },
+      {
+        "workload_id": "thinking-compare-tradeoffs",
+        "repetition": 1,
+        "outcome": "ok",
+        "reasoning_tokens": 1366,
+        "visible_output_tokens": 61,
+        "token_accounting_status": "DERIVED_REASONING_CONTENT",
+        "streaming_semantics": "incremental",
+        "finish_reason": "stop"
+      },
+      {
+        "workload_id": "thinking-token-pressure",
+        "repetition": 1,
+        "outcome": "ok",
+        "reasoning_tokens": 1115,
+        "visible_output_tokens": 114,
+        "token_accounting_status": "DERIVED_REASONING_CONTENT",
+        "streaming_semantics": "incremental",
+        "finish_reason": "stop"
+      }
+    ]
+  },
+  "error": null,
+  "port_8100_free_after": true,
+  "stop_grace_seconds": 45,
+  "authorization": "Jason authorized Package 2 D4 reasoning-content decode live measure for exact run ID omlx-thinking-measure-20260722-004 on 2026-07-22 (pin revision 2; measure suite revision 2; enable_thinking pinned; derived DERIVED_REASONING_CONTENT / QUALIFIED_REASONING_CONTENT_SPLIT)",
+  "required_chat_template_kwargs": {
+    "enable_thinking": true
+  },
+  "suite_max_tokens": [
+    2048,
+    3072,
+    3072,
+    3072,
+    4096
+  ]
+}
