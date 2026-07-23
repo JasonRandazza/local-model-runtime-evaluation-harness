@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import threading
+import time
 from types import MappingProxyType
 from typing import Callable, Mapping, Protocol
 
@@ -13,6 +14,7 @@ from .lifecycle import LifecycleStore
 from .models import BenchmarkManifest, Operation, RunStatus
 from .post_attempt_journal import PostAttemptJournal, PostAttemptPhase
 from .resources import MemoryPressure, ResourcePolicy, ResourceSnapshot
+from .service_lifecycle_ledger import ServiceLifecycleLedger
 from .stage_two import (
     HostValidation,
     ModelDescriptor,
@@ -176,6 +178,10 @@ class StageTwoBenchmarkEngine:
         self.lock_owner = lock_owner
         self.lifecycle = LifecycleStore(output_root)
         self.bundle = ArtifactBundle.create(manifest, output_root)
+        self._lifecycle_ledger = ServiceLifecycleLedger(
+            self.bundle.path / "service-lifecycle-actions.json"
+        )
+        self._controller_lifecycle_baseline = 0
         self.post_attempt_journal = PostAttemptJournal(self.bundle)
         self.inference_request_attempts = 0
         self.http_post_attempts = 0
@@ -216,6 +222,7 @@ class StageTwoBenchmarkEngine:
                 profile.profile_id == "gemma-4-12b-optiq-4bit"
                 and profile.revision == "5"
                 and profile.service_ownership == "harness"
+                and profile.provider_activation == "verify_routed_id_only_no_tap"
                 and profile.runtime_version == "0.4.2"
             )
             valid_suite = (
@@ -295,6 +302,32 @@ class StageTwoBenchmarkEngine:
         if not valid_profile or not valid_suite:
             raise ValueError("StageTwoBenchmarkEngine requires the fixed Stage 2B-2 contract")
 
+    def _service_lifecycle_actions(self) -> int:
+        if not self._harness:
+            return 0
+        actions = getattr(self.controller, "lifecycle_actions", None)
+        if not isinstance(actions, int):
+            raise StageTwoError(
+                "harness_lifecycle_actions_unavailable",
+                "harness controller missing lifecycle_actions",
+            )
+        return max(actions, self._lifecycle_ledger.read())
+
+    def _sync_lifecycle_ledger(self) -> int:
+        if not self._harness:
+            return 0
+        actions = getattr(self.controller, "lifecycle_actions", None)
+        if not isinstance(actions, int):
+            raise StageTwoError(
+                "harness_lifecycle_actions_unavailable",
+                "harness controller missing lifecycle_actions",
+            )
+        delta = max(0, actions - self._controller_lifecycle_baseline)
+        self._controller_lifecycle_baseline = actions
+        if delta:
+            return self._lifecycle_ledger.add(delta)
+        return self._lifecycle_ledger.read()
+
     @staticmethod
     def _external_call(callback: Callable[[], object]) -> tuple[bool, object | None]:
         try:
@@ -305,6 +338,21 @@ class StageTwoBenchmarkEngine:
     def _event(self, event: str, **details: object) -> None:
         self.bundle.append_jsonl("service-events.jsonl", {"event": event, **details})
 
+    def _validate_provider_activation(self) -> None:
+        activation = self.profile.provider_activation
+        if activation in {"verify_routed_id_only", "verify_routed_id_only_no_tap"}:
+            if not self._harness:
+                raise StageTwoError(
+                    "provider_activation_failed",
+                    f"{activation} requires the harness-unattended contract",
+                )
+            return
+        if activation != "operator_reconnect_required":
+            raise StageTwoError(
+                "provider_activation_failed",
+                "unsupported provider activation policy",
+            )
+
     def _validate_host(self, validation: HostValidation) -> None:
         if validation.runtime_identity.get("version") != self.profile.runtime_version:
             raise StageTwoError("runtime_identity_failed", "mlx-optiq runtime version differs from profile")
@@ -314,6 +362,7 @@ class StageTwoBenchmarkEngine:
             raise StageTwoError("artifact_identity_failed", "OptiQ model revision differs from profile")
         if validation.artifact_identity.get("hashes") != self.profile.artifact_hashes:
             raise StageTwoError("artifact_identity_failed", "OptiQ artifact hashes differ from profile")
+        self._validate_provider_activation()
         provider = validation.provider_identity
         if provider.get("provider_id") != self.profile.osaurus_provider_id or provider.get("enabled") is not True:
             raise StageTwoError("provider_identity_failed", "approved Osaurus provider is unavailable")
@@ -461,6 +510,33 @@ class StageTwoBenchmarkEngine:
         discover_route_identity(self.profile, direct_models, routed_models)
         return routed_health, direct_models, routed_models
 
+    def _observe_routes_for_preflight(
+        self,
+    ) -> tuple[dict[str, object], tuple[ModelDescriptor, ...], tuple[ModelDescriptor, ...]]:
+        """Harness lane: wait for routed inventory, then verify identity (no operator tap)."""
+        if not self._harness:
+            return self._observe_routes()
+        deadline = time.monotonic() + 300.0
+        last_error: StageTwoError | None = None
+        while time.monotonic() < deadline:
+            try:
+                result = self._observe_routes()
+                if last_error is not None:
+                    self._event("routed_inventory_ready", required_routed_model_id=self.profile.routed_model_id)
+                return result
+            except StageTwoError as error:
+                if error.code != "route_identity_failed":
+                    raise
+                last_error = error
+                self._event(
+                    "routed_inventory_waiting",
+                    required_routed_model_id=self.profile.routed_model_id,
+                    seconds_remaining=max(0, int(deadline - time.monotonic())),
+                )
+                time.sleep(2.0)
+        assert last_error is not None
+        raise last_error
+
     def _resource_snapshot(self, routed_health: Mapping[str, object]) -> ResourceSnapshot:
         succeeded, snapshot = self._external_call(lambda: self.resource_probe(routed_health))
         if not succeeded or not isinstance(snapshot, ResourceSnapshot):
@@ -495,6 +571,7 @@ class StageTwoBenchmarkEngine:
             succeeded, identity = self._external_call(self.controller.capture)
             if not succeeded or not isinstance(identity, ProcessOwnership):
                 raise StageTwoError("operator_identity_failed", "operator service identity is unavailable")
+            self._sync_lifecycle_ledger()
             self.bundle.write_json("operator-service-identity.json", asdict(identity))
             self._event("operator_service_observed", pid=identity.pid, command_sha256=identity.command_sha256)
             self._assert_current_lock()
@@ -502,7 +579,7 @@ class StageTwoBenchmarkEngine:
             if not succeeded or not isinstance(validation, HostValidation):
                 raise StageTwoError("host_validation_failed", "Stage 2B-2 host validation failed")
             self._validate_host(validation)
-            routed_health, direct_models, routed_models = self._observe_routes()
+            routed_health, direct_models, routed_models = self._observe_routes_for_preflight()
             self._assert_normal_resources(self._resource_snapshot(routed_health), "preflight")
             self.lifecycle.transition(run_id, RunStatus.RESOURCE_GATE, "normal serial resource gate passed")
             self.bundle.write_json("runtime-identity.json", dict(validation.runtime_identity))
@@ -537,18 +614,21 @@ class StageTwoBenchmarkEngine:
             ],
             "request_count": len(self.suite.schedule()),
             })
-            self.bundle.write_json("preflight.json", {
+            preflight_record: dict[str, object] = {
             "ok": True,
             "stage": 2,
-            "mode": "operator_route_benchmark",
+            "mode": self.manifest.mode,
             "provider_identity": dict(validation.provider_identity),
             "route_identity": "PASS",
             "resource_gate": "PASS",
             "model_load_attempts": 0,
             "inference_request_attempts": 0,
             "http_post_attempts": 0,
-            "service_lifecycle_actions": 0,
-            })
+            "service_lifecycle_actions": self._service_lifecycle_actions(),
+            }
+            if self.profile.provider_activation is not None:
+                preflight_record["provider_activation"] = self.profile.provider_activation
+            self.bundle.write_json("preflight.json", preflight_record)
             self.lifecycle.transition(run_id, RunStatus.ENDPOINT_IDENTITY, "Stage 2B-2 route identity proven")
             state = self.lifecycle.transition(run_id, RunStatus.READY, "Stage 2B-2 route benchmark ready")
         except Exception as error:
@@ -582,7 +662,7 @@ class StageTwoBenchmarkEngine:
             "model_load_attempts": 0,
             "inference_request_attempts": 0,
             "http_post_attempts": 0,
-            "service_lifecycle_actions": 0,
+            "service_lifecycle_actions": self._service_lifecycle_actions(),
         }
 
     def _gate_before_post(self, cancel: threading.Event, sequence: int) -> dict[str, object]:
@@ -759,7 +839,10 @@ class StageTwoBenchmarkEngine:
             })
             self.bundle.write_json("benchmark-summary.json", summary)
             self.lifecycle.transition(run_id, RunStatus.ARTIFACT_VALIDATION, "Stage 2B-2 evidence reconciled")
-            final = self.lifecycle.transition(run_id, RunStatus.AWAITING_REVIEW, "operator shutdown required")
+            final = self.lifecycle.transition(
+                run_id, RunStatus.AWAITING_REVIEW,
+                "harness shutdown required" if self._harness else "operator shutdown required",
+            )
             return {
                 "run_id": run_id,
                 "state": final.status.value,
@@ -768,7 +851,7 @@ class StageTwoBenchmarkEngine:
                 "inference_request_attempts": self.inference_request_attempts,
                 "http_post_attempts": self.http_post_attempts,
                 "model_load_attempts": 0,
-                "service_lifecycle_actions": 0,
+                "service_lifecycle_actions": self._service_lifecycle_actions(),
                 "manager_review_required": True,
             }
         except Exception as error:
@@ -1046,7 +1129,7 @@ class StageTwoBenchmarkEngine:
         return {
             "run_id": self.manifest.run_id,
             "stage": 2,
-            "mode": "operator_route_benchmark",
+            "mode": self.manifest.mode,
             "comparison_class": self.manifest.comparison_class,
             "runtime_profile_id": self.profile.profile_id,
             "runtime_profile_revision": self.profile.revision,
@@ -1063,7 +1146,7 @@ class StageTwoBenchmarkEngine:
             "inference_request_attempts": 72,
             "http_post_attempts": 72,
             "model_load_attempts": 0,
-            "service_lifecycle_actions": 0,
+            "service_lifecycle_actions": self._service_lifecycle_actions(),
             "operator_shutdown_verified": "PASS",
             "manager_review_required": True,
         }
@@ -1075,7 +1158,7 @@ class StageTwoBenchmarkEngine:
         return {
             "run_id": self.manifest.run_id,
             "stage": 2,
-            "mode": "operator_route_benchmark",
+            "mode": self.manifest.mode,
             "comparison_class": self.manifest.comparison_class,
             "runtime_profile_id": self.profile.profile_id,
             "runtime_profile_revision": self.profile.revision,
@@ -1089,7 +1172,7 @@ class StageTwoBenchmarkEngine:
             "inference_request_attempts": post_attempts,
             "http_post_attempts": post_attempts,
             "model_load_attempts": 0,
-            "service_lifecycle_actions": 0,
+            "service_lifecycle_actions": self._service_lifecycle_actions(),
             "operator_shutdown_verified": "PASS",
             "manager_review_required": True,
         }
@@ -1106,6 +1189,7 @@ class StageTwoBenchmarkEngine:
             raise StageTwoError(
                 "cleanup_failed", "Stage 2B-2 cleanup could not be completed",
             )
+        self._sync_lifecycle_ledger()
         prior_lifecycle_lines = self.lifecycle.verified_history(self.manifest.run_id)
         if partial:
             self.bundle.finalize_partial(summary)
@@ -1200,6 +1284,7 @@ class StageTwoBenchmarkEngine:
                 raise StageTwoError(
                     "cleanup_failed", "Stage 2B-2 cleanup could not be completed",
                 )
+            self._sync_lifecycle_ledger()
             if state.status is RunStatus.CLEANED:
                 return self._recover_cleaned()
             self._event("operator_shutdown_verified", pid=identity.pid, port_free_observations=2)

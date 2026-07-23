@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from local_model_runtime_evaluation.manifest import load_manifest
+from local_model_runtime_evaluation.models import RunStatus
 from local_model_runtime_evaluation.resources import MemoryPressure, ResourceSnapshot
 from local_model_runtime_evaluation.stage_two import (
     HostValidation,
@@ -27,6 +28,26 @@ from local_model_runtime_evaluation.stage_two_benchmark_suite import (
 )
 from local_model_runtime_evaluation.stage_two_profiles import RuntimeProfileRegistry
 from local_model_runtime_evaluation.transport import TransportResult
+
+
+class FakeHarnessController:
+    def __init__(self) -> None:
+        self.lifecycle_actions = 0
+        self.identity = ProcessOwnership(4242, 4242, 4242, "harness-owned", "c" * 64)
+        self.running = False
+
+    def capture(self) -> ProcessOwnership:
+        self.lifecycle_actions += 1
+        self.running = True
+        return self.identity
+
+    def matches(self, identity: ProcessOwnership) -> bool:
+        return self.running and identity == self.identity
+
+    def assert_stopped(self, identity: ProcessOwnership) -> None:
+        if self.running:
+            self.lifecycle_actions += 1
+            self.running = False
 
 
 class FakeController:
@@ -50,10 +71,15 @@ class FakeTransport:
         self,
         *,
         fail_chat_at: int | None = None,
+        defer_routed_identity_until_routed_models_call: int | None = None,
     ) -> None:
         self.calls: list[tuple[str, str]] = []
         self.chat_calls: list[tuple[str, str]] = []
         self.fail_chat_at = fail_chat_at
+        self.defer_routed_identity_until_routed_models_call = (
+            defer_routed_identity_until_routed_models_call
+        )
+        self.routed_models_calls = 0
         self.in_flight = 0
         self.max_in_flight = 0
 
@@ -70,6 +96,12 @@ class FakeTransport:
                 "/Users/jrazz/.cache/huggingface/hub/"
                 "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think"
             ),)
+        self.routed_models_calls += 1
+        if (
+            self.defer_routed_identity_until_routed_models_call is not None
+            and self.routed_models_calls < self.defer_routed_identity_until_routed_models_call
+        ):
+            return ()
         return (ModelDescriptor(
             "optiq//Users/jrazz/.cache/huggingface/hub/"
             "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think"
@@ -271,6 +303,216 @@ class StageTwoBenchmarkEngineTest(unittest.TestCase):
                     lambda _health: ResourceSnapshot(MemoryPressure.NORMAL, (), None),
                     lambda: self.validation, FakeController(), FakeTransport(),
                     lambda: altered.run_id,
+                )
+
+    def test_operator_preflight_reports_zero_service_lifecycle_actions(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            engine = self._engine(output, FakeTransport(), FakeController())
+            preflight = engine.preflight()
+            self.assertEqual(preflight["service_lifecycle_actions"], 0)
+            preflight_evidence = json.loads(
+                (output / self.manifest.run_id / "preflight.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(preflight_evidence["service_lifecycle_actions"], 0)
+
+    def test_harness_contract_accepts_r5_fixture_profile(self) -> None:
+        harness_manifest = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-benchmark.json",
+            now=datetime(2026, 7, 23, tzinfo=timezone.utc),
+        )
+        harness_profile = RuntimeProfileRegistry(self.root / "config" / "runtime-profiles").get(
+            harness_manifest.runtime_profile_id, harness_manifest.runtime_profile_revision,
+        )
+        harness_suite = StageTwoBenchmarkSuite.load(
+            self.root / "suites" / "gemma-optiq-042-harness-route-benchmark-v1.json",
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            engine = StageTwoBenchmarkEngine(
+                harness_manifest, harness_profile, harness_suite, Path(temp),
+                lambda _health: ResourceSnapshot(MemoryPressure.NORMAL, (), None),
+                lambda: self.validation, FakeHarnessController(), FakeTransport(),
+                lambda: harness_manifest.run_id,
+            )
+            self.assertTrue(engine._harness)
+            self.assertEqual(engine.profile.revision, "5")
+            self.assertEqual(engine.profile.provider_activation, "verify_routed_id_only_no_tap")
+
+    def test_harness_rejects_wrong_comparison_class(self) -> None:
+        harness_manifest = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-benchmark.json",
+            now=datetime(2026, 7, 23, tzinfo=timezone.utc),
+        )
+        bad_manifest = replace(
+            harness_manifest, comparison_class="gemma-optiq-042-operator-route-benchmark",
+        )
+        harness_profile = RuntimeProfileRegistry(self.root / "config" / "runtime-profiles").get(
+            harness_manifest.runtime_profile_id, harness_manifest.runtime_profile_revision,
+        )
+        harness_suite = StageTwoBenchmarkSuite.load(
+            self.root / "suites" / "gemma-optiq-042-harness-route-benchmark-v1.json",
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            with self.assertRaisesRegex(ValueError, "Stage 2 harness contract"):
+                StageTwoBenchmarkEngine(
+                    bad_manifest, harness_profile, harness_suite, Path(temp),
+                    lambda _health: ResourceSnapshot(MemoryPressure.NORMAL, (), None),
+                    lambda: self.validation, FakeHarnessController(), FakeTransport(),
+                    lambda: bad_manifest.run_id,
+                )
+
+    def test_harness_preflight_and_cleanup_record_controller_lifecycle_actions(self) -> None:
+        harness_manifest = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-benchmark.json",
+            now=datetime(2026, 7, 23, tzinfo=timezone.utc),
+        )
+        harness_profile = RuntimeProfileRegistry(self.root / "config" / "runtime-profiles").get(
+            harness_manifest.runtime_profile_id, harness_manifest.runtime_profile_revision,
+        )
+        harness_suite = StageTwoBenchmarkSuite.load(
+            self.root / "suites" / "gemma-optiq-042-harness-route-benchmark-v1.json",
+        )
+        harness_validation = HostValidation(
+            runtime_identity={
+                "version": harness_profile.runtime_version,
+                "packages": dict(harness_profile.package_versions),
+            },
+            artifact_identity={
+                "revision": harness_profile.model_revision,
+                "hashes": dict(harness_profile.artifact_hashes),
+            },
+            provider_identity={
+                "provider_id": "Optiq", "enabled": True,
+                "custom_header_count": 0, "secret_header_key_count": 0,
+            },
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            controller = FakeHarnessController()
+            transport = FakeTransport()
+            engine = StageTwoBenchmarkEngine(
+                harness_manifest, harness_profile, harness_suite, output,
+                lambda _health: ResourceSnapshot(MemoryPressure.NORMAL, (), None),
+                lambda: harness_validation, controller, transport,
+                lambda: harness_manifest.run_id,
+            )
+            preflight = engine.preflight()
+            self.assertGreater(preflight["service_lifecycle_actions"], 0)
+            preflight_evidence = json.loads(
+                (output / harness_manifest.run_id / "preflight.json").read_text(encoding="utf-8")
+            )
+            self.assertGreater(preflight_evidence["service_lifecycle_actions"], 0)
+            engine.lifecycle.transition(
+                harness_manifest.run_id, RunStatus.CANCELLED, "harness cancelled for cleanup test",
+            )
+            cleanup = engine.cleanup()
+            self.assertGreater(cleanup["service_lifecycle_actions"], 0)
+            self.assertFalse(controller.running)
+
+    def _harness_engine_fixture(
+        self,
+        output: Path,
+        *,
+        profile: object | None = None,
+        transport: FakeTransport | None = None,
+        controller: FakeHarnessController | None = None,
+    ) -> tuple[StageTwoBenchmarkEngine, object, FakeTransport, FakeHarnessController]:
+        harness_manifest = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-benchmark.json",
+            now=datetime(2026, 7, 23, tzinfo=timezone.utc),
+        )
+        harness_profile = profile or RuntimeProfileRegistry(
+            self.root / "config" / "runtime-profiles",
+        ).get(
+            harness_manifest.runtime_profile_id, harness_manifest.runtime_profile_revision,
+        )
+        harness_suite = StageTwoBenchmarkSuite.load(
+            self.root / "suites" / "gemma-optiq-042-harness-route-benchmark-v1.json",
+        )
+        harness_validation = HostValidation(
+            runtime_identity={
+                "version": harness_profile.runtime_version,
+                "packages": dict(harness_profile.package_versions),
+            },
+            artifact_identity={
+                "revision": harness_profile.model_revision,
+                "hashes": dict(harness_profile.artifact_hashes),
+            },
+            provider_identity={
+                "provider_id": "Optiq", "enabled": True,
+                "custom_header_count": 0, "secret_header_key_count": 0,
+            },
+        )
+        actual_transport = transport or FakeTransport()
+        actual_controller = controller or FakeHarnessController()
+        engine = StageTwoBenchmarkEngine(
+            harness_manifest, harness_profile, harness_suite, output,
+            lambda _health: ResourceSnapshot(MemoryPressure.NORMAL, (), None),
+            lambda: harness_validation, actual_controller, actual_transport,
+            lambda: harness_manifest.run_id,
+        )
+        return engine, harness_manifest, actual_transport, actual_controller
+
+    def test_harness_accepts_no_tap_provider_activation_on_profile_replace(self) -> None:
+        harness_profile = replace(
+            RuntimeProfileRegistry(self.root / "config" / "runtime-profiles").get(
+                "gemma-4-12b-optiq-4bit", "5",
+            ),
+            provider_activation="verify_routed_id_only_no_tap",
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            engine, manifest, _transport, _controller = self._harness_engine_fixture(
+                output, profile=harness_profile,
+            )
+            engine.preflight()
+            events_path = output / manifest.run_id / "service-events.jsonl"
+            events_text = events_path.read_text(encoding="utf-8") if events_path.is_file() else ""
+            self.assertNotIn("provider_reconnect_tap_", events_text)
+
+    def test_harness_inventory_wait_emits_routed_inventory_events_not_tap(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            transport = FakeTransport(defer_routed_identity_until_routed_models_call=2)
+            engine, manifest, _transport, _controller = self._harness_engine_fixture(
+                output, transport=transport,
+            )
+            with patch(
+                "local_model_runtime_evaluation.stage_two_benchmark.time.sleep",
+                lambda _seconds: None,
+            ):
+                engine.preflight()
+            events_path = output / manifest.run_id / "service-events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            event_names = [row["event"] for row in events]
+            self.assertIn("routed_inventory_waiting", event_names)
+            self.assertIn("routed_inventory_ready", event_names)
+            self.assertNotIn("provider_reconnect_tap", json.dumps(events))
+
+    def test_harness_rejects_unknown_provider_activation(self) -> None:
+        harness_manifest = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-benchmark.json",
+            now=datetime(2026, 7, 23, tzinfo=timezone.utc),
+        )
+        harness_profile = replace(
+            RuntimeProfileRegistry(self.root / "config" / "runtime-profiles").get(
+                "gemma-4-12b-optiq-4bit", "5",
+            ),
+            provider_activation="automatic",
+        )
+        harness_suite = StageTwoBenchmarkSuite.load(
+            self.root / "suites" / "gemma-optiq-042-harness-route-benchmark-v1.json",
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            with self.assertRaisesRegex(ValueError, "Stage 2 harness contract"):
+                StageTwoBenchmarkEngine(
+                    harness_manifest, harness_profile, harness_suite, Path(temp),
+                    lambda _health: ResourceSnapshot(MemoryPressure.NORMAL, (), None),
+                    lambda: self.validation, FakeHarnessController(), FakeTransport(),
+                    lambda: harness_manifest.run_id,
                 )
 
 
