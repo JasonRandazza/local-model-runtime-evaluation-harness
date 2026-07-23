@@ -1,8 +1,11 @@
 # Slice 1c — Reconnect-Tap Elimination (Wait-and-Verify) Design
 
-**Status:** Gate A landed (fake-only; live proof still gated). Does **not**
-authorize live manifests, usable run IDs, POSTs, provider edits, plugin
-rebuild, or a custom Osaurus↔OptiQ bridge.
+**Status:** Gate A landed; live inventory-wait proof
+`INVENTORY_WAIT_PROOF_PASS` (2026-07-23; profile revision `5`; zero POSTs;
+`reconnect_tap_used: false` — see
+`docs/superpowers/verification/2026-07-23-slice-1c-inventory-wait-r5-proof.md`).
+Does **not** authorize live manifests, usable run IDs, POSTs, provider edits,
+plugin rebuild, or a custom Osaurus↔OptiQ bridge.
 
 **Depends on:** Sealed harness-unattended smoke `stage2-20260723-003` (schema
 `3.5.0` / profile revision `4`); Slice 1b pin-confirm PASS (`mlx-optiq 0.4.2`).
@@ -59,13 +62,15 @@ supersession section pointing at r5 / no-tap (keep historical body).
   historical path still loadable; r5 rejects tap-style activation if any
   residual code path remains.
 
-## Live proof (separately gated after Gate A)
+## Live proof (closed 2026-07-23)
 
 Read-only readiness (no POSTs): harness start OptiQ → inventory wait →
 required routed ID present → harness stop; record
-`reconnect_tap_used: false`. This proof (or equivalent Gate B note) is the
-preferred gate before authorizing harness-unattended **benchmark** live
-cohorts. A full smoke re-run on r5 is optional, not required for Design 1.
+`reconnect_tap_used: false`. Evidence:
+`docs/superpowers/verification/2026-07-23-slice-1c-inventory-wait-r5-proof.md`
+(`INVENTORY_WAIT_PROOF_PASS`). This is the preferred gate before authorizing
+harness-unattended **benchmark** live cohorts. A full smoke re-run on r5 is
+optional, not required for Design 1.
 
 ## Explicitly out of scope
 

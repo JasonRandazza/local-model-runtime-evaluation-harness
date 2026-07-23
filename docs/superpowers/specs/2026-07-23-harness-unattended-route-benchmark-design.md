@@ -1,14 +1,16 @@
 # Harness-Unattended Gemma OptiQ 0.4.2 Route Benchmark Design
 
-**Status:** Design accepted in conversation (Jason, 2026-07-23). Fake-only /
-docs first. Does **not** authorize live manifests, usable run IDs, POSTs,
-provider edits, or plugin rebuild.
+**Status:** Design accepted in conversation (Jason, 2026-07-23). Design 1 Gate A
++ live inventory-wait proof are closed — Gate A implementation may proceed
+(fake-only / docs first). Does **not** authorize live manifests, usable run
+IDs, POSTs, provider edits, or plugin rebuild.
 
 **Depends on:**  
 1. Reconnect-tap elimination Gate A accepted —
    `docs/superpowers/specs/2026-07-23-slice-1c-reconnect-tap-elimination-design.md`
-   (profile revision `5`, `verify_routed_id_only_no_tap`).  
-2. Preferred before live: Design 1 live inventory-wait proof without tap.  
+   (profile revision `5`, `verify_routed_id_only_no_tap`) — **done**.  
+2. Preferred before live: Design 1 live inventory-wait proof without tap —
+   **done** (`2026-07-23-slice-1c-inventory-wait-r5-proof.md`).  
 3. Sealed operator `042` benchmark `stage2-20260723-007` (comparability
    reference; do not mutate).  
 4. Sealed harness smoke `stage2-20260723-003` (ownership reference; r4
