@@ -215,6 +215,85 @@ class TransportTest(unittest.TestCase):
         self.assertIsNone(result.visible_output_tokens)
         self.assertEqual(result.token_accounting_status, "INCOMPARABLE_TOKEN_ACCOUNTING")
 
+    def test_derives_token_accounting_from_reasoning_content(self) -> None:
+        from local_model_runtime_evaluation.token_counter import FixedMapTokenCounter
+
+        Handler.include_reasoning_details = False
+        Handler.stream_body_override = (
+            b'data: {"choices":[{"delta":{"reasoning_content":"think hard"},'
+            b'"finish_reason":null}]}\n\n'
+            b'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}],'
+            b'"usage":{"completion_tokens":5}}\n\n'
+            b"data: [DONE]\n\n"
+        )
+        counter = FixedMapTokenCounter({"think hard": 3, "ok": 2})
+        result = LoopbackTransport({self.base_url}, token_counter=counter).chat(
+            self.base_url, "VibeThinker-3B-MLX-oQ4", "hello", 16, None
+        )
+        self.assertEqual(result.content, "ok")
+        self.assertEqual(result.reasoning_tokens, 3)
+        self.assertEqual(result.visible_output_tokens, 2)
+        self.assertEqual(result.token_accounting_status, "DERIVED_REASONING_CONTENT")
+        self.assertEqual(result.content_event_count, 1)
+
+    def test_usage_reasoning_details_still_win_over_derived(self) -> None:
+        from local_model_runtime_evaluation.token_counter import FixedMapTokenCounter
+
+        Handler.stream_body_override = (
+            b'data: {"choices":[{"delta":{"reasoning_content":"think hard"},'
+            b'"finish_reason":null}]}\n\n'
+            b'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}],'
+            b'"usage":{"completion_tokens":5,'
+            b'"completion_tokens_details":{"reasoning_tokens":1}}}\n\n'
+            b"data: [DONE]\n\n"
+        )
+        counter = FixedMapTokenCounter({"think hard": 99, "ok": 99})
+        result = LoopbackTransport({self.base_url}, token_counter=counter).chat(
+            self.base_url, "VibeThinker-3B-MLX-oQ4", "hello", 16, None
+        )
+        self.assertEqual(result.reasoning_tokens, 1)
+        self.assertEqual(result.visible_output_tokens, 4)
+        self.assertEqual(result.token_accounting_status, "EXACT_VISIBLE")
+
+    def test_derived_mismatch_with_completion_total_is_incomparable(self) -> None:
+        from local_model_runtime_evaluation.token_counter import FixedMapTokenCounter
+
+        Handler.include_reasoning_details = False
+        Handler.stream_body_override = (
+            b'data: {"choices":[{"delta":{"reasoning_content":"think"},'
+            b'"finish_reason":null}]}\n\n'
+            b'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}],'
+            b'"usage":{"completion_tokens":9}}\n\n'
+            b"data: [DONE]\n\n"
+        )
+        counter = FixedMapTokenCounter({"think": 3, "ok": 2})
+        result = LoopbackTransport({self.base_url}, token_counter=counter).chat(
+            self.base_url, "VibeThinker-3B-MLX-oQ4", "hello", 16, None
+        )
+        self.assertIsNone(result.reasoning_tokens)
+        self.assertIsNone(result.visible_output_tokens)
+        self.assertEqual(result.token_accounting_status, "INCOMPARABLE_TOKEN_ACCOUNTING")
+
+    def test_ttft_ignores_reasoning_only_deltas(self) -> None:
+        from local_model_runtime_evaluation.token_counter import FixedMapTokenCounter
+
+        Handler.include_reasoning_details = False
+        Handler.stream_body_override = (
+            b'data: {"choices":[{"delta":{"reasoning_content":"think"},'
+            b'"finish_reason":null}]}\n\n'
+            b'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}],'
+            b'"usage":{"completion_tokens":5}}\n\n'
+            b"data: [DONE]\n\n"
+        )
+        counter = FixedMapTokenCounter({"think": 3, "ok": 2})
+        result = LoopbackTransport({self.base_url}, token_counter=counter).chat(
+            self.base_url, "VibeThinker-3B-MLX-oQ4", "hello", 16, None
+        )
+        # Reasoning deltas must not create content events or empty_content failures.
+        self.assertEqual(result.content_event_count, 1)
+        self.assertEqual(result.content, "ok")
+        self.assertGreaterEqual(result.last_content_seconds, result.ttft_seconds)
+
     def test_rejects_reasoning_tokens_that_exceed_completion_total(self) -> None:
         Handler.reasoning_tokens = 5
         with self.assertRaises(TransportError):

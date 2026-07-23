@@ -12,6 +12,7 @@ from typing import Callable
 from urllib.parse import urlparse
 
 from .credentials import Credential
+from .token_counter import TokenCounter, resolve_token_accounting
 
 
 class TransportError(RuntimeError):
@@ -47,9 +48,15 @@ class TransportResult:
 
 
 class LoopbackTransport:
-    def __init__(self, allowed_base_urls: set[str], timeout_seconds: int = 120) -> None:
+    def __init__(
+        self,
+        allowed_base_urls: set[str],
+        timeout_seconds: int = 120,
+        token_counter: TokenCounter | None = None,
+    ) -> None:
         self.allowed_base_urls = frozenset(url.rstrip("/") for url in allowed_base_urls)
         self.timeout_seconds = timeout_seconds
+        self.token_counter = token_counter
 
     def _parts(self, base_url: str) -> tuple[str, int, str]:
         normalized = base_url.rstrip("/")
@@ -156,11 +163,12 @@ class LoopbackTransport:
         deadline = started + self.timeout_seconds
         first_token: float | None = None
         content: list[str] = []
+        reasoning_parts: list[str] = []
         content_event_count = 0
         last_content: float | None = None
         finish_reason: str | None = None
         completion_tokens: int | None = None
-        reasoning_tokens: int | None = None
+        usage_reasoning_tokens: int | None = None
         try:
             headers = self._headers(credential)
             headers["Content-Type"] = "application/json"
@@ -274,7 +282,13 @@ class LoopbackTransport:
                     event = json.loads(data)
                     choices = event.get("choices", [])
                     if choices:
-                        delta = choices[0].get("delta", {}).get("content")
+                        delta_obj = choices[0].get("delta", {})
+                        if not isinstance(delta_obj, dict):
+                            delta_obj = {}
+                        reasoning_delta = delta_obj.get("reasoning_content")
+                        if reasoning_delta:
+                            reasoning_parts.append(str(reasoning_delta))
+                        delta = delta_obj.get("content")
                         if delta:
                             if first_token is None:
                                 first_token = time.monotonic()
@@ -303,7 +317,7 @@ class LoopbackTransport:
                                 or reasoning_value < 0
                             ):
                                 raise TransportError("reasoning-token accounting is invalid", reason="invalid_token_accounting")
-                            reasoning_tokens = reasoning_value
+                            usage_reasoning_tokens = reasoning_value
                 if stream_done:
                     break
             if not stream_done:
@@ -323,16 +337,33 @@ class LoopbackTransport:
             raise TransportError("chat stream produced no content", reason="empty_content")
         if last_content is None:
             raise TransportError("chat stream content timing is unavailable", reason="content_timing_unavailable")
-        visible_output_tokens: int | None = None
-        token_accounting_status = "INCOMPARABLE_TOKEN_ACCOUNTING"
-        if completion_tokens is not None and reasoning_tokens is not None:
-            if reasoning_tokens > completion_tokens:
-                raise TransportError("reasoning tokens exceed total completion tokens", reason="invalid_token_accounting")
-            visible_output_tokens = completion_tokens - reasoning_tokens
-            if visible_output_tokens <= 0:
-                raise TransportError("visible output token count is invalid", reason="invalid_token_accounting")
-            token_accounting_status = "EXACT_VISIBLE"
         joined = "".join(content)
+        reasoning_text = "".join(reasoning_parts)
+        if usage_reasoning_tokens is not None and completion_tokens is not None:
+            if usage_reasoning_tokens > completion_tokens:
+                raise TransportError(
+                    "reasoning tokens exceed total completion tokens",
+                    reason="invalid_token_accounting",
+                )
+            visible_exact = completion_tokens - usage_reasoning_tokens
+            if visible_exact <= 0:
+                raise TransportError(
+                    "visible output token count is invalid",
+                    reason="invalid_token_accounting",
+                )
+            reasoning_tokens = usage_reasoning_tokens
+            visible_output_tokens = visible_exact
+            token_accounting_status = "EXACT_VISIBLE"
+        else:
+            reasoning_tokens, visible_output_tokens, token_accounting_status = (
+                resolve_token_accounting(
+                    reasoning_text=reasoning_text,
+                    visible_text=joined,
+                    completion_tokens=completion_tokens,
+                    usage_reasoning_tokens=None,
+                    token_counter=self.token_counter,
+                )
+            )
         return TransportResult(
             joined, hashlib.sha256(joined.encode()).hexdigest(), first_token - started,
             ended - started, completion_tokens, finish_reason, 200, True,
