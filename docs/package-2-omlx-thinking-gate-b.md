@@ -2,11 +2,11 @@
 
 ## Current Decision
 
-`GATE_B_READY` (implementation and read-only readiness check only). Gate B lands
-locked pin fields (model id, `dedicated_serve` ownership, matrix-local auth),
-authenticated loopback transport wiring, and a non-live readiness CLI. This is
-**not** live-ready. Live thinking POSTs, run IDs, manifests, and smoke cohorts
-remain separately gated and require Jason's current-session authorization.
+`GATE_B_READY` historically meant implementation + read-only check only.
+**Supersession (2026-07-23):** Package 2 Gate C/D and D2/D3/D4 live cohorts for
+this window are sealed PASSED — see `docs/package-2-omlx-thinking-gate-d.md`.
+A *new* thinking live cohort still needs Jason's separate current-session
+authorization. This page remains the Gate B contract reference.
 
 **Prerequisite:** Package 2 Gate A (`ThinkingMeasureRunner`, pin, suite,
 qualification helpers) and Slice 1a `LifecycleController`.
@@ -57,10 +57,9 @@ issue thinking POSTs, start or stop oMLX, or reclaim a foreign `:8100` pool.
 **Gate D:** **Passed** (ACCEPT 2026-07-22) — see
 `docs/package-2-omlx-thinking-gate-d.md` and
 `docs/superpowers/verification/2026-07-22-package-2-gate-d-manager-review-004.md`.
-Follow-ons: **D2** live PASSED (`omlx-thinking-measure-20260722-001`);
-**D3** external-bench remains deferred; **D4** live PASSED
-(`omlx-thinking-measure-20260722-004`,
-`QUALIFIED_REASONING_CONTENT_SPLIT`).
+Follow-ons: **D2** / **D3** / **D4** live PASSED for this window
+(`omlx-thinking-measure-20260722-001`, `omlx-thinking-bench-20260723-001`,
+`omlx-thinking-measure-20260722-004`).
 
 ## Readiness CLI
 

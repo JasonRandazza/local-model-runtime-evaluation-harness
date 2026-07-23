@@ -1,5 +1,12 @@
 # Cursor Handoff: Personal Model Selection MVP
 
+> **ARCHIVE BANNER (2026-07-23):** Keep this handoff; do not delete. Personal
+> selection remains **paused** per
+> `docs/personal-selection-temporary-closeout-2026-07-16.md`. Phase B
+> (Qwen AgentWorld / daily-driver selection) stays deferred until the Gemma
+> harness frame is fully built out — then discuss reopen with an explicit
+> bounded question. Not current Stage 2 / Package 2 operator guidance.
+
 Use the following prompt in Cursor with this repository open:
 
 ```text

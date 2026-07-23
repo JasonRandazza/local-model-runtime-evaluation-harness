@@ -84,3 +84,6 @@ All sections 1–4: PASS / FAIL (summarize)
 - D2 (expanded suite): deferred
 - D3 (external-bench): deferred
 ```
+
+> **Supersession (2026-07-23):** Template follow-ons above are historical.
+> D2 / D3 / D4 live PASSED — see `docs/package-2-omlx-thinking-d{2,3,4}.md`.

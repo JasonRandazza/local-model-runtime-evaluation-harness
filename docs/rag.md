@@ -190,7 +190,7 @@ Latency is metadata only; scoring uses case-sensitive required-fact substring hi
 ## Safety
 
 - **Live collect requires Jason's in-session authorization.** Do not run collect without explicit operator approval.
-- **Stage 2B remains frozen.** These docs do not authorize Gate B, Stage 2B run IDs, or plugin changes.
+- **Stage 2B sealed cohorts remain historical evidence.** These docs do not authorize a new Gate B, Stage 2B run ID, or plugin changes.
 - Pinned cell start argv only; harness starts and stops only what each cell defines.
 - One cell at a time; verify port free and RAM floor between cells.
 

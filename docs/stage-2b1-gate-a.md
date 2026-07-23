@@ -13,8 +13,9 @@ sealed **PASS** (8/8 POSTs; inference_path_acceptance and
 behavioral_contract_acceptance `PASS`; checksum_validation `PASS`). That is
 the accepted Stage 2B-1 Gemma OptiQ inference-path evidence for schema
 `3.3.0` / profile revision `2` / suite `gemma-optiq-route-smoke-v1` revision
-`1`. Stage 2B-2 Gate A is closed (`GATE_A_PASSED`); see
-`docs/stage-2b2-gate-a.md`. Live 2B-2 Gate B–D remain separately gated. See
+`1`. Stage 2B-2 Gate A–D are closed for the authorizing window — sealed PASS
+`stage2-20260721-006` (see `docs/stage-2b2-gate-a.md`). A new unused run ID
+still requires Jason's separate current-session authorization. See
 `docs/superpowers/specs/2026-07-20-stage-2b1-gemma-retarget-design.md`.
 
 Historical note: the prior `GATE_A_STOPPED` decision and the five findings are
@@ -65,9 +66,9 @@ The only acceptance decisions are `inference_path_acceptance` and `behavioral_co
 
 Gate A is implementation and deterministic verification only. It does not create a live manifest, select a usable run ID, install a Coordinator prompt, start OptiQ, reconnect a provider, send a request, or grant inference authority.
 
-Gate B is a later read-only readiness check while Jason owns the Gemma foreground OptiQ launcher and reconnects the existing provider without editing it. Only after Gate B passes may Jason explicitly authorize one exact unused run ID in the current session. That authorization permits one short-lived manifest for that ID only. Do not run Gate B against live services until retarget review and Jason’s current-session authorization.
+Gate B is a read-only readiness check while Jason owns the Gemma foreground OptiQ launcher and reconnects the existing provider without editing it. Only after Gate B passes may Jason explicitly authorize one exact unused run ID in the current session. That authorization permits one short-lived manifest for that ID only. Historical Gate B for the sealed `005` cohort is complete; a *new* smoke cohort needs a fresh Gate B + unused ID.
 
-The accepted Stage 2A revision-3 baseline remains the rollback and service-ownership reference (`bin/lmre-stage2-operator-serve` + VibeThinker). Its `GET`-only observation procedure and plugin `0.3.0` stay intact. Stage 2B-2 is a separate future proposal and is not authorized by Stage 2B-1.
+The accepted Stage 2A revision-3 baseline remains the rollback and service-ownership reference (`bin/lmre-stage2-operator-serve` + VibeThinker). Its `GET`-only observation procedure and plugin `0.3.0` stay intact. Stage 2B-2 for revision `2` is sealed on `stage2-20260721-006` (not authorized by Stage 2B-1 alone).
 
 ## Operator Sequence After Separate Authorization
 

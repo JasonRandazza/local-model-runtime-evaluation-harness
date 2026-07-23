@@ -17,3 +17,11 @@ Canonical Deep Wiki record:
 ## Halt posture
 
 No further Phase A/B screens or Stage 2B remediation unless Jason reopens with an explicit bounded question. Default daily use: native Osaurus models.
+
+## Planning note (2026-07-23)
+
+**Phase B** remains deferred (not cancelled). Revisit after the Gemma harness
+frame is fully built (Stage 2 operator + harness-unattended Gemma lanes,
+matrix/preference/RAG/overhead on Gemma PASS cells). Multi-family matrix and
+personal-selection Phase B are complementary later tracks — do not delete this
+closeout or the Phase A configs.

@@ -14,7 +14,7 @@ Family quant entries may set optional `"role": "osaurus_native"` for curated Osa
 
 All reuse suite `suites/gemma-matrix-v1.json` and the same screen/finalist depth. Free-form Approach 3 cells are a later goal — not implemented here.
 
-**Later follow-ons:** preference quality, RAG oracle, and Osaurus routing overhead recipes for Ornith/Qwen PASS cells ship in separate plans after matrix screen evidence — see [preference.md](preference.md), [rag.md](rag.md), and [overhead.md](overhead.md).
+**Multi-family quality/overhead (keep for later):** preference, RAG, and routing-overhead recipes for Ornith/Qwen are in-tree — see [preference.md](preference.md), [rag.md](rag.md), and [overhead.md](overhead.md). Live multi-family matrix screens and those follow-on campaigns wait until the Gemma harness frame is fully built out; then return here for proper cross-family testing.
 
 ## Prerequisites
 
@@ -165,4 +165,4 @@ Under `results/matrix/<campaign_id>-<mode>-<timestamp>/`:
 - Verify port free before the next cell; stop on RAM floor breach.
 - Attempt all nine cells; `on_cell_failure: continue` keeps going after `N/A` or `FAIL`.
 - Do not run live campaigns without explicit operator authorization.
-- Stage 2B remains frozen (`GATE_A_STOPPED`); this path does not authorize Gate B or live inference authority.
+- Stage 2B sealed cohorts for this window remain historical evidence; this matrix path still does not use Gate B, plugin tools, or Stage 2B inference authority, and does not authorize a new Stage 2 run ID.

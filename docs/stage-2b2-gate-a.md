@@ -2,15 +2,12 @@
 
 ## Current Decision
 
-`GATE_A_PASSED` (Jason, 2026-07-21). Gate A implementation and review are closed:
-schema `3.4.0`, the 72-request benchmark suite, measurement module,
-`StageTwoBenchmarkEngine`, factory dispatch, policy branch, artifact sealing,
-package template pin, and non-authorizing docs/prompt draft are in tree with
-deterministic tests green (100 focused Python tests; Swift plugin `0.3.0` 4/4;
-no live 2B-2 manifest). This is **not** live-ready. Gate B, Gate C (manifest
-authorization), Gate D (72 POSTs), Coordinator prompt installation, and manager
-review remain separately gated and still require Jason's current-session
-authorization.
+`GATE_A_PASSED` (Jason, 2026-07-21). Gate A–D for the authorizing window are
+**complete**: cohort `stage2-20260721-006` sealed **PASS** (72/72 POSTs;
+manager-reviewed). Schema `3.4.0`, comparison class
+`gemma-optiq-operator-route-benchmark`, profile revision `2`. Run ID `006` is
+consumed — do not reuse. A *new* Stage 2B-2 cohort still requires Jason's
+separate current-session Gate B + unused ID authorization.
 
 **Prerequisite evidence:** Stage 2B-1 cohort `stage2-20260721-005` sealed **PASS**
 (schema `3.3.0`, profile `gemma-4-12b-optiq-4bit` revision `2`, suite
@@ -62,8 +59,8 @@ generated output, request payloads, headers, credentials, or process details.
 | Gate | Scope | Status |
 |---|---|---|
 | **A** | Code, tests, schemas, suite, docs, non-installed prompt draft | **Passed** (review closed) |
-| **B** | Live read-only readiness (launcher, provider, identities, memory); no POST | Ready to authorize separately |
-| **C** | Jason authorizes one unused run ID + short-lived `3.4.0` manifest | **Authorized** — `stage2-20260721-006` through EOD Eastern |
+| **B** | Live read-only readiness (launcher, provider, identities, memory); no POST | **Complete** for sealed `006` window |
+| **C** | Jason authorizes one unused run ID + short-lived `3.4.0` manifest | **Complete** — `stage2-20260721-006` (consumed) |
 | **D** | 72 POSTs, manual shutdown, cleanup, manager review | **Complete** — `stage2-20260721-006` sealed PASS |
 
 Gate A is implementation and deterministic verification only. It does not create a

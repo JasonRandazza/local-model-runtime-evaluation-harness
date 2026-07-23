@@ -180,7 +180,7 @@ Later expansion: report Δ median total, Δ median TTFT, and Δ estimated decode
 ## Safety
 
 - **Live run requires Jason's in-session authorization.** Do not run without explicit operator approval.
-- **Stage 2B remains frozen.** These docs do not authorize Gate B, Stage 2B run IDs, or plugin changes.
+- **Stage 2B sealed cohorts remain historical evidence.** These docs do not authorize a new Gate B, Stage 2B run ID, or plugin changes.
 - Pinned backend start argv only; harness lifecycle touches backend cells only.
 - One pair at a time (direct then routed); verify port free and RAM floor between legs.
 - Osaurus not listening on `:1337` before the routed leg → fail that leg early.

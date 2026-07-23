@@ -1,5 +1,9 @@
 # Cursor Continuation Prompt: Stage 2B-1 Gate A Remediation
 
+> **ARCHIVE BANNER (2026-07-23):** Keep this handoff; do not delete. It is not
+> current operator guidance. Stage 2B-1 findings closed; sealed PASS
+> `stage2-20260721-005`. Prefer `docs/stage-2b1-gate-a.md` and AGENTS.md.
+>
 > **DEFERRED FUTURE LAB WORK - DO NOT USE FOR THE CURRENT HANDOFF.** This prompt
 > preserves the five findings needed before any future automated Stage 2B-1 live
 > run. Jason has intentionally frozen this lane because it is disproportionate

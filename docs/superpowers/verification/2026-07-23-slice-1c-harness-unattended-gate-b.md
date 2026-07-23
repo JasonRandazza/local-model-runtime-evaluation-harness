@@ -47,6 +47,12 @@ set `stop_command=(executable, "stop")`. Pin now uses empty `stop_command` so
 
 ## Next gate
 
+> **Supersession (2026-07-23):** Gate C/D for harness-unattended smoke sealed
+> **PASS** on `stage2-20260723-003`. See
+> `docs/superpowers/verification/2026-07-23-slice-1c-stage2-20260723-003-pass.md`
+> and `docs/stage-2-harness-unattended-gate-a.md`. Point-in-time text below
+> preserved.
+
 Gate C: Jason authorizes one unused Stage 2 run ID + short-lived schema
 `3.5.0` / mode `harness_inference_probe` manifest. Gate D (eight POSTs) remains
 separately gated after that.

@@ -72,7 +72,11 @@ Reuse existing Stage 2 inference / benchmark required-file sets (no Stage 2A
    unchanged.
 5. Fake-only unit tests pass; no live contact.
 
-## Follow-on (separately gated)
+## Follow-on (historical Gate A text)
+
+> **Supersession (2026-07-23):** Operator smoke (`stage2-20260723-006`) and
+> benchmark (`stage2-20260723-007`) live Gate B–D accepted. Status header above
+> is authoritative. Point-in-time sequence below preserved.
 
 Gate B readiness → Jason authorizes unused run IDs → short-lived manifests →
 operator OptiQ lifecycle + reconnect → smoke then (later) benchmark.

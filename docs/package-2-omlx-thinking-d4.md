@@ -32,8 +32,8 @@
 
 ## Next
 
-**D3** (external-bench) Gate A ready — fake-only runner and docs landed; live
-cohort separately gated. Do not reuse run ID `004`.
+**D3** (external-bench) live PASSED — `omlx-thinking-bench-20260723-001`
+(see `docs/package-2-omlx-thinking-d3.md`). Do not reuse run ID `004`.
 
 ## Related
 

@@ -1,5 +1,10 @@
 # Stage 2B-1 Gate A Finding Remediation Verification
 
+> **Supersession (2026-07-23):** Present-tense `GATE_A_STOPPED` below is
+> historical for this dated record. Gate A findings closed; Stage 2B-1 sealed
+> PASS `stage2-20260721-005`. See `docs/stage-2b1-gate-a.md`. Do not rewrite
+> this verification body.
+
 Verification ran against commit `8525df8df0b3c009755f3344fa0a54c2c4e35c8d`
 on 2026-07-20. The implementation remains `GATE_A_STOPPED` pending an
 independent architecture review; this record grants no Gate B or live authority.

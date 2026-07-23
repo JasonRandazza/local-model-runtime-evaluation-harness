@@ -36,5 +36,8 @@ thinking-measure **smoke** lane is closed under Gate D **ACCEPT**.
 
 ## Follow-ons
 
+> **Supersession (2026-07-23):** D2 / D3 / D4 live PASSED for this window.
+> Point-in-time deferred list below preserved.
+
 - **D2** (expanded harness measure suite + qualification / reasoning-token accounting): deferred  
 - **D3** (optional oMLX external-bench lane): deferred  
