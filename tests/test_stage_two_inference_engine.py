@@ -1132,6 +1132,59 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
             self.assertGreater(cleanup["service_lifecycle_actions"], 0)
             self.assertFalse(controller.running)
 
+    def test_harness_lifecycle_actions_persist_across_engine_instances(self) -> None:
+        harness_manifest = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-smoke.json",
+            now=datetime(2026, 7, 22, tzinfo=timezone.utc),
+        )
+        harness_profile = RuntimeProfileRegistry(self.root / "config" / "runtime-profiles").get(
+            harness_manifest.runtime_profile_id, harness_manifest.runtime_profile_revision,
+        )
+        harness_suite = StageTwoSmokeSuite.load(
+            self.root / "suites" / "gemma-optiq-042-harness-route-smoke-v1.json"
+        )
+        harness_validation = HostValidation(
+            runtime_identity={
+                "version": harness_profile.runtime_version,
+                "packages": dict(harness_profile.package_versions),
+            },
+            artifact_identity={
+                "revision": harness_profile.model_revision,
+                "hashes": dict(harness_profile.artifact_hashes),
+            },
+            provider_identity={
+                "provider_id": "Optiq", "enabled": True,
+                "custom_header_count": 0, "secret_header_key_count": 0,
+            },
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            preflight_engine = StageTwoInferenceEngine(
+                harness_manifest, harness_profile, harness_suite, output,
+                lambda _health: ResourceSnapshot(MemoryPressure.NORMAL, (), None),
+                lambda: harness_validation, FakeHarnessController(), FakeTransport(),
+                lambda: harness_manifest.run_id,
+            )
+            preflight = preflight_engine.preflight()
+            self.assertEqual(preflight["service_lifecycle_actions"], 1)
+            ledger_path = output / harness_manifest.run_id / "service-lifecycle-actions.json"
+            self.assertTrue(ledger_path.is_file())
+            cleanup_controller = FakeHarnessController()
+            cleanup_controller.running = True
+            cleanup_controller.identity = preflight_engine.controller.identity  # type: ignore[attr-defined]
+            cleanup_engine = StageTwoInferenceEngine(
+                harness_manifest, harness_profile, harness_suite, output,
+                lambda _health: ResourceSnapshot(MemoryPressure.NORMAL, (), None),
+                lambda: harness_validation, cleanup_controller, FakeTransport(),
+                lambda: harness_manifest.run_id,
+            )
+            cleanup_engine.lifecycle.transition(
+                harness_manifest.run_id, RunStatus.CANCELLED, "harness cancelled for ledger test",
+            )
+            cleanup = cleanup_engine.cleanup()
+            self.assertGreaterEqual(cleanup["service_lifecycle_actions"], 2)
+            self.assertFalse(cleanup_controller.running)
+
 
 if __name__ == "__main__":
     unittest.main()

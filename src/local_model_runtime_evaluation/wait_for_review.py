@@ -4,6 +4,7 @@ import argparse
 import json
 import subprocess
 import time
+from pathlib import Path
 from typing import Callable, Mapping, Sequence
 
 from .lifecycle import LifecycleStore
@@ -19,6 +20,8 @@ def wait_for_review(
     sleep: Callable[[float], None] = time.sleep,
     poll_seconds: float = 30,
     on_poll: Callable[[Mapping[str, object]], None] | None = None,
+    *,
+    require_operator_shutdown: bool = True,
 ) -> dict[str, object]:
     if not (STAGE_ONE_RUN_ID_PATTERN.fullmatch(run_id) or STAGE_TWO_RUN_ID_PATTERN.fullmatch(run_id)):
         raise ValueError("a valid Stage 1 or Stage 2 run ID is required")
@@ -35,7 +38,8 @@ def wait_for_review(
             raise RuntimeError("persisted run state is unavailable")
         if state in TERMINAL_STATES:
             operator_shutdown_required = (
-                run_id.startswith("stage2-")
+                require_operator_shutdown
+                and run_id.startswith("stage2-")
                 and state in {"awaiting_review", "failed", "cancelled"}
             )
             result: dict[str, object] = {
@@ -97,7 +101,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         result = wait_for_review(
-            arguments.run_id, _read_status, time.sleep, arguments.poll_seconds, report,
+            arguments.run_id,
+            _read_status,
+            time.sleep,
+            arguments.poll_seconds,
+            report,
+            require_operator_shutdown=_require_operator_shutdown(arguments.run_id),
         )
         if not arguments.no_notify:
             _notify(arguments.run_id, str(result["state"]))
@@ -111,3 +120,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             "manager_review_required": True,
         }, indent=2, sort_keys=True))
         return 1
+
+
+def _require_operator_shutdown(run_id: str) -> bool:
+    if not run_id.startswith("stage2-"):
+        return False
+    repository_root = Path(__file__).resolve().parents[2]
+    matches: list[dict[str, object]] = []
+    for path in (repository_root / "manifests").glob("*.json"):
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if isinstance(raw, dict) and raw.get("run_id") == run_id:
+            matches.append(raw)
+    if len(matches) != 1:
+        return True
+    return matches[0].get("mode") != "harness_inference_probe"

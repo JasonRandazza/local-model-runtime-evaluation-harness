@@ -45,6 +45,18 @@ class WaitForReviewTest(unittest.TestCase):
         self.assertTrue(result["operator_action_required"])
         self.assertIn("foreground OptiQ service", result["operator_action"])
 
+    def test_harness_unattended_stage_two_skips_operator_shutdown(self) -> None:
+        result = wait_for_review(
+            "stage2-20260723-003",
+            lambda run_id: {"run_id": run_id, "state": "awaiting_review", "sequence": 9},
+            lambda seconds: None,
+            30,
+            require_operator_shutdown=False,
+        )
+        self.assertEqual(result["overall"], "READY_FOR_COORDINATOR")
+        self.assertEqual(result["state"], "awaiting_review")
+        self.assertNotIn("operator_action_required", result)
+
     def test_failed_stage_two_still_requires_operator_shutdown(self) -> None:
         result = wait_for_review(
             "stage2-20260714-001",

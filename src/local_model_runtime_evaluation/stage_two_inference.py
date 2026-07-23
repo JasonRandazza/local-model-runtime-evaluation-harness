@@ -14,6 +14,7 @@ from .lifecycle import LifecycleStore
 from .models import BenchmarkManifest, Operation, RunStatus
 from .post_attempt_journal import PostAttemptJournal, PostAttemptPhase
 from .resources import MemoryPressure, ResourcePolicy, ResourceSnapshot
+from .service_lifecycle_ledger import ServiceLifecycleLedger
 from .stage_two import (
     HostValidation,
     ModelDescriptor,
@@ -167,6 +168,10 @@ class StageTwoInferenceEngine:
         self.lock_owner = lock_owner
         self.lifecycle = LifecycleStore(output_root)
         self.bundle = ArtifactBundle.create(manifest, output_root)
+        self._lifecycle_ledger = ServiceLifecycleLedger(
+            self.bundle.path / "service-lifecycle-actions.json"
+        )
+        self._controller_lifecycle_baseline = 0
         self.post_attempt_journal = PostAttemptJournal(self.bundle)
         self.inference_request_attempts = 0
         self.http_post_attempts = 0
@@ -270,7 +275,22 @@ class StageTwoInferenceEngine:
                 "harness_lifecycle_actions_unavailable",
                 "harness controller missing lifecycle_actions",
             )
-        return actions
+        return max(actions, self._lifecycle_ledger.read())
+
+    def _sync_lifecycle_ledger(self) -> int:
+        if not self._harness:
+            return 0
+        actions = getattr(self.controller, "lifecycle_actions", None)
+        if not isinstance(actions, int):
+            raise StageTwoError(
+                "harness_lifecycle_actions_unavailable",
+                "harness controller missing lifecycle_actions",
+            )
+        delta = max(0, actions - self._controller_lifecycle_baseline)
+        self._controller_lifecycle_baseline = actions
+        if delta:
+            return self._lifecycle_ledger.add(delta)
+        return self._lifecycle_ledger.read()
 
     @staticmethod
     def _external_call(callback: Callable[[], object]) -> tuple[bool, object | None]:
@@ -515,6 +535,7 @@ class StageTwoInferenceEngine:
             succeeded, identity = self._external_call(self.controller.capture)
             if not succeeded or not isinstance(identity, ProcessOwnership):
                 raise StageTwoError("operator_identity_failed", "operator service identity is unavailable")
+            self._sync_lifecycle_ledger()
             self.bundle.write_json("operator-service-identity.json", asdict(identity))
             self._event("operator_service_observed", pid=identity.pid, command_sha256=identity.command_sha256)
             self._assert_current_lock()
@@ -1125,6 +1146,7 @@ class StageTwoInferenceEngine:
             raise StageTwoError(
                 "cleanup_failed", "Stage 2B-1 cleanup could not be completed",
             )
+        self._sync_lifecycle_ledger()
         prior_lifecycle_lines = self.lifecycle.verified_history(self.manifest.run_id)
         if partial:
             self.bundle.finalize_partial(summary)
@@ -1219,6 +1241,7 @@ class StageTwoInferenceEngine:
                 raise StageTwoError(
                     "cleanup_failed", "Stage 2B-1 cleanup could not be completed",
                 )
+            self._sync_lifecycle_ledger()
             if state.status is RunStatus.CLEANED:
                 return self._recover_cleaned()
             self._event("operator_shutdown_verified", pid=identity.pid, port_free_observations=2)
