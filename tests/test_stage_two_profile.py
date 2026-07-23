@@ -327,6 +327,41 @@ class StageTwoRuntimeProfileTest(unittest.TestCase):
         self.assertEqual(profile.service_ownership, "harness")
         self.assertEqual(profile.provider_activation, "verify_routed_id_only")
 
+    def _gemma_revision_five_fixture(self) -> dict:
+        data = self._gemma_revision_four_fixture()
+        data["revision"] = "5"
+        data["provider_activation"] = "verify_routed_id_only_no_tap"
+        return data
+
+    def _write_gemma_revision_five_fixture(self, temp: str, data: dict | None = None) -> None:
+        payload = self._gemma_revision_five_fixture() if data is None else data
+        Path(temp, "gemma-4-12b-optiq-4bit-r5.json").write_text(json.dumps(payload))
+
+    def test_gemma_revision_five_profile_loads_with_no_tap_activation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            self._write_gemma_revision_five_fixture(temp)
+            profile = RuntimeProfileRegistry(Path(temp)).get("gemma-4-12b-optiq-4bit", "5")
+            self.assertEqual(profile.revision, "5")
+            self.assertEqual(profile.service_ownership, "harness")
+            self.assertEqual(profile.provider_activation, "verify_routed_id_only_no_tap")
+            self.assertEqual(profile.runtime_version, "0.4.2")
+
+    def test_gemma_revision_five_rejects_legacy_verify_routed_id_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            data = self._gemma_revision_five_fixture()
+            data["provider_activation"] = "verify_routed_id_only"
+            self._write_gemma_revision_five_fixture(temp, data)
+            with self.assertRaises(RuntimeProfileError):
+                RuntimeProfileRegistry(Path(temp)).get("gemma-4-12b-optiq-4bit", "5")
+
+    def test_gemma_revision_four_still_rejects_no_tap_activation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            data = self._gemma_revision_four_fixture()
+            data["provider_activation"] = "verify_routed_id_only_no_tap"
+            self._write_gemma_revision_four_fixture(temp, data)
+            with self.assertRaises(RuntimeProfileError):
+                RuntimeProfileRegistry(Path(temp)).get("gemma-4-12b-optiq-4bit", "4")
+
 
 if __name__ == "__main__":
     unittest.main()
