@@ -1,0 +1,323 @@
+#!/usr/bin/env python3
+"""Authorized Package 2 D3 external-bench parity live (one-shot).
+
+Run ID must be Jason-authorized in the current session before use.
+Harness-owned dedicated serve + admin external-mode bench → owned loopback,
+then sealed cross-check vs measure 004. No omlx.ai upload.
+"""
+from __future__ import annotations
+
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+_SRC = REPO / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
+from local_model_runtime_evaluation.harness_lifecycle import LifecycleController
+from local_model_runtime_evaluation.matrix_lifecycle import (
+    port_is_free,
+    run_stop_command,
+)
+from local_model_runtime_evaluation.matrix_servers import MATRIX_OMLX_API_KEY
+from local_model_runtime_evaluation.omlx_admin_bench_client import (
+    BenchMetricRow,
+    OmlxAdminBenchClient,
+)
+from local_model_runtime_evaluation.omlx_thinking_bench_parity import (
+    COMPARISON_CLASS,
+    REFERENCE_MEASURE_RUN_ID,
+    build_cross_check_markdown,
+    decide_parity_outcome,
+)
+from local_model_runtime_evaluation.omlx_thinking_bench_runner import (
+    ThinkingBenchParityRunner,
+)
+from local_model_runtime_evaluation.omlx_thinking_pin import (
+    OmlxThinkingPin,
+    default_pin_path,
+)
+from local_model_runtime_evaluation.resources import HostResourceProbe
+
+AUTHORIZED_RUN_ID = "omlx-thinking-bench-20260723-001"
+READY_WAIT_SECONDS = 1200
+STOP_GRACE_SECONDS = 45
+KILL_WAIT_SECONDS = 30
+BENCH_WAIT_SECONDS = 7200
+LOG_DIR = REPO / ".harness-lifecycle" / AUTHORIZED_RUN_ID
+EVIDENCE_DIR = REPO / "docs" / "superpowers" / "verification"
+
+
+def _health_ok() -> bool:
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:8100/health", timeout=2) as response:
+            payload = json.loads(response.read().decode())
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError):
+        return False
+    status = str(payload.get("status", "")).lower()
+    return status in {"ok", "healthy"}
+
+
+def wait_ready(pin, process) -> None:  # noqa: ANN001
+    deadline = time.monotonic() + READY_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        if process is not None and not process.is_alive:
+            raise RuntimeError("owned oMLX process exited before ready")
+        if not port_is_free(8100) and _health_ok():
+            return
+        time.sleep(2.0)
+    raise RuntimeError(f"oMLX did not become healthy within {READY_WAIT_SECONDS}s")
+
+
+def wait_port_free_long(port: int, timeout_seconds: float) -> None:
+    from local_model_runtime_evaluation.matrix_lifecycle import LifecycleError
+
+    deadline = time.monotonic() + max(float(timeout_seconds), float(STOP_GRACE_SECONDS))
+    while time.monotonic() < deadline:
+        if port_is_free(port):
+            return
+        time.sleep(0.25)
+    raise LifecycleError(f"port {port} did not free in time")
+
+
+def _listener_pids(port: int) -> list[int]:
+    try:
+        completed = subprocess.run(
+            ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return []
+    pids: list[int] = []
+    for line in completed.stdout.splitlines():
+        line = line.strip()
+        if line.isdigit():
+            pids.append(int(line))
+    return pids
+
+
+def _signal_pids(pids: list[int], sig: signal.Signals) -> None:
+    for pid in pids:
+        try:
+            os.kill(pid, sig)
+        except ProcessLookupError:
+            continue
+        except PermissionError:
+            continue
+
+
+def force_free_omlx_port(port: int = 8100) -> None:
+    from local_model_runtime_evaluation.matrix_lifecycle import LifecycleError
+
+    try:
+        run_stop_command(("omlX", "stop"))
+    except Exception:
+        pass
+    deadline = time.monotonic() + STOP_GRACE_SECONDS
+    while time.monotonic() < deadline:
+        if port_is_free(port):
+            return
+        time.sleep(0.5)
+    pids = _listener_pids(port)
+    _signal_pids(pids, signal.SIGTERM)
+    deadline = time.monotonic() + KILL_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        if port_is_free(port):
+            return
+        time.sleep(0.5)
+    pids = _listener_pids(port)
+    _signal_pids(pids, signal.SIGKILL)
+    deadline = time.monotonic() + KILL_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        if port_is_free(port):
+            return
+        time.sleep(0.5)
+    raise LifecycleError(f"port {port} did not free after stop+SIGKILL")
+
+
+def _row_dict(row: BenchMetricRow) -> dict[str, object]:
+    return {
+        "ttft_ms": row.ttft_ms,
+        "tpot_ms": row.tpot_ms,
+        "gen_tps": row.gen_tps,
+        "e2e_latency_s": row.e2e_latency_s,
+        "prompt_tokens": row.prompt_tokens,
+        "completion_tokens": row.completion_tokens,
+        "status": row.status,
+        "error": row.error,
+    }
+
+
+def main() -> int:
+    if AUTHORIZED_RUN_ID != "omlx-thinking-bench-20260723-001":
+        print("refusing unexpected run id", file=sys.stderr)
+        return 2
+
+    if not port_is_free(8100):
+        print(
+            "refusing to start: port 8100 is busy. Free it first, then re-run.",
+            file=sys.stderr,
+        )
+        return 3
+
+    pin = OmlxThinkingPin.load(default_pin_path())
+    probe = HostResourceProbe()
+    controller = LifecycleController(
+        free_memory=lambda: float(probe.free_memory_percent()),
+        port_free=port_is_free,
+        lab_closed=lambda: True,
+        wait_ready=wait_ready,
+        wait_port_free=wait_port_free_long,
+        stop_runner=lambda _cmd: force_free_omlx_port(8100),
+        log_dir=LOG_DIR,
+    )
+    admin = OmlxAdminBenchClient(timeout_seconds=max(float(BENCH_WAIT_SECONDS), 120.0))
+    # Bind wait timeout for this live cohort.
+    _orig_wait = admin.wait_for_results
+
+    def _wait(bench_id: str, **kwargs: object) -> object:
+        kwargs.setdefault("timeout_seconds", BENCH_WAIT_SECONDS)
+        return _orig_wait(bench_id, **kwargs)  # type: ignore[arg-type]
+
+    admin.wait_for_results = _wait  # type: ignore[method-assign]
+
+    runner = ThinkingBenchParityRunner(
+        pin,
+        controller=controller,
+        admin_client=admin,
+        api_key=MATRIX_OMLX_API_KEY,
+        port_free=port_is_free,
+    )
+
+    started = datetime.now(timezone.utc).isoformat()
+    error: str | None = None
+    bench_completed = False
+    cleanup_ok = False
+    bench_status = "not_started"
+    rows: tuple[BenchMetricRow, ...] = ()
+    bench_id: str | None = None
+    try:
+        parity = runner.run_parity()
+        bench_status = str(parity.get("bench_status", ""))
+        bench_id = parity.get("bench_id") if isinstance(parity.get("bench_id"), str) else None
+        rows = parity.get("rows") if isinstance(parity.get("rows"), tuple) else ()
+        bench_completed = bench_status == "completed"
+    except Exception as exc:  # noqa: BLE001
+        error = f"{type(exc).__name__}: {exc}"
+        bench_completed = False
+    finally:
+        try:
+            runner.cleanup()
+            cleanup_ok = port_is_free(8100)
+            if not cleanup_ok:
+                force_free_omlx_port(8100)
+                cleanup_ok = port_is_free(8100)
+        except Exception as cleanup_exc:  # noqa: BLE001
+            cleanup_ok = port_is_free(8100)
+            if not cleanup_ok:
+                try:
+                    force_free_omlx_port(8100)
+                    cleanup_ok = port_is_free(8100)
+                except Exception as force_exc:  # noqa: BLE001
+                    cleanup_msg = (
+                        f"cleanup: {type(cleanup_exc).__name__}: {cleanup_exc}; "
+                        f"force: {type(force_exc).__name__}: {force_exc}"
+                    )
+                    error = cleanup_msg if error is None else f"{error}; {cleanup_msg}"
+                    cleanup_ok = port_is_free(8100)
+            else:
+                cleanup_msg = f"cleanup: {type(cleanup_exc).__name__}: {cleanup_exc}"
+                error = cleanup_msg if error is None else f"{error}; {cleanup_msg}"
+
+    cross_check = build_cross_check_markdown(
+        run_id=AUTHORIZED_RUN_ID,
+        decision=decide_parity_outcome(
+            bench_completed=bench_completed,
+            cleanup_ok=cleanup_ok,
+            cross_check_written=True,
+        ),
+        bench_status=bench_status,
+        rows=rows,
+    )
+    decision = decide_parity_outcome(
+        bench_completed=bench_completed,
+        cleanup_ok=cleanup_ok,
+        cross_check_written=True,
+    )
+    ended = datetime.now(timezone.utc).isoformat()
+    report = {
+        "package": COMPARISON_CLASS,
+        "gate": "D3_LIVE",
+        "run_id": AUTHORIZED_RUN_ID,
+        "decision": decision,
+        "started_at": started,
+        "ended_at": ended,
+        "pin_id": pin.pin_id,
+        "pin_revision": pin.revision,
+        "version": pin.version,
+        "model_id": pin.model_id,
+        "ownership_mode": pin.ownership_mode,
+        "comparison_class": COMPARISON_CLASS,
+        "reference_measure_run_id": REFERENCE_MEASURE_RUN_ID,
+        "bench_id": bench_id,
+        "bench_status": bench_status,
+        "bench_completed": bench_completed,
+        "rows": [_row_dict(row) for row in rows],
+        "service_lifecycle_actions": runner.lifecycle_actions,
+        "cleanup_ok": cleanup_ok,
+        "port_8100_free_after": port_is_free(8100),
+        "error": error,
+        "authorization": (
+            "Jason authorized Package 2 D3 external-bench parity live for exact "
+            f"run ID {AUTHORIZED_RUN_ID} on 2026-07-23 "
+            "(pin revision 2; external mode → owned loopback; no omlx.ai upload)"
+        ),
+        "cross_check_markdown": cross_check,
+    }
+
+    EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
+    json_path = EVIDENCE_DIR / f"2026-07-23-package-2-d3-{AUTHORIZED_RUN_ID}.json"
+    md_path = EVIDENCE_DIR / f"2026-07-23-package-2-d3-{AUTHORIZED_RUN_ID}.md"
+    json_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    md_path.write_text(
+        "\n".join(
+            [
+                f"# Package 2 D3 Live — `{AUTHORIZED_RUN_ID}`",
+                "",
+                f"- Decision: **{decision}**",
+                f"- Pin: `{pin.pin_id}` revision `{pin.revision}`",
+                f"- Bench status: `{bench_status}`",
+                f"- Bench id: `{bench_id}`",
+                f"- Lifecycle actions: `{runner.lifecycle_actions}`",
+                f"- Port 8100 free after: `{port_is_free(8100)}`",
+                f"- Error: `{error}`",
+                "",
+                cross_check,
+                "",
+                "## Machine report",
+                "",
+                "```json",
+                json.dumps({k: v for k, v in report.items() if k != "cross_check_markdown"}, indent=2),
+                "```",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    print(json.dumps({k: v for k, v in report.items() if k != "cross_check_markdown"}, indent=2))
+    return 0 if decision == "PASS" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

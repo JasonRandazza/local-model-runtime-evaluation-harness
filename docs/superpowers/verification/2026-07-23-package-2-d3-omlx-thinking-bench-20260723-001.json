@@ -1,0 +1,36 @@
+{
+  "package": "omlx-thinking-external-bench-parity-v1",
+  "gate": "D3_LIVE",
+  "run_id": "omlx-thinking-bench-20260723-001",
+  "decision": "PASS",
+  "started_at": "2026-07-23T04:16:03.837117+00:00",
+  "ended_at": "2026-07-23T04:17:26.060645+00:00",
+  "pin_id": "omlx-0.5.3-thinking",
+  "pin_revision": "2",
+  "version": "0.5.3",
+  "model_id": "Qwen3.6-35B-A3B-OptiQ-4bit",
+  "ownership_mode": "dedicated_serve",
+  "comparison_class": "omlx-thinking-external-bench-parity-v1",
+  "reference_measure_run_id": "omlx-thinking-measure-20260722-004",
+  "bench_id": "bench-867066793803",
+  "bench_status": "completed",
+  "bench_completed": true,
+  "rows": [
+    {
+      "ttft_ms": 2233.3,
+      "tpot_ms": 23.13,
+      "gen_tps": 43.3,
+      "e2e_latency_s": 14.08,
+      "prompt_tokens": 990,
+      "completion_tokens": 512,
+      "status": "ok",
+      "error": null
+    }
+  ],
+  "service_lifecycle_actions": 2,
+  "cleanup_ok": true,
+  "port_8100_free_after": true,
+  "error": null,
+  "authorization": "Jason authorized Package 2 D3 external-bench parity live for exact run ID omlx-thinking-bench-20260723-001 on 2026-07-23 (pin revision 2; external mode \u2192 owned loopback; no omlx.ai upload)",
+  "cross_check_markdown": "# D3 External-Bench Parity Cross-Check \u2014 `omlx-thinking-bench-20260723-001`\n\n## Verdict\n\n**PASS**\n\n| Field | Value |\n|---|---|\n| Run ID | `omlx-thinking-bench-20260723-001` |\n| Comparison class | `omlx-thinking-external-bench-parity-v1` |\n| Reference measure | `omlx-thinking-measure-20260722-004` |\n| Bench status | `completed` |\n\n## TTFT semantics (do not equate)\n\noMLX external throughput bench times TTFT from the first streamed **`content`**\n*or* **`reasoning_content`** token. Harness D4 measure (`omlx-thinking-measure-20260722-004`)\nrecords TTFT as **content-only** after reasoning split decode. Expect\nsystematic skew between these cohorts; **metric equality is not a PASS\ncriterion** for this parity cohort.\n\n## Viability\n\nExternal preflight completed and the single 1024-token test finished without a false thinking failure.\n\n## Informational throughput (external bench)\n\n| prompt_tokens | completion_tokens | ttft_ms | tpot_ms | gen_tps | e2e_latency_s | status |\n|---:|---:|---:|---:|---:|---:|---|\n| 990 | 512 | 2233.3 | 23.13 | 43.3 | 14.08 | ok |\n\n\nCompare `completion_tokens`, `gen_tps`, and related fields against harness\nmeasure completion-token-class totals in `omlx-thinking-measure-20260722-004` for context only.\nDiscrepancies are expected given TTFT and decode-path differences above.\n"
+}

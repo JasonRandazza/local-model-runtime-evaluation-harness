@@ -32,6 +32,14 @@ class AdminBenchClient(Protocol):
 
     def fetch_results(self, bench_id: str) -> tuple[str, tuple[BenchMetricRow, ...]]: ...
 
+    def wait_for_results(
+        self,
+        bench_id: str,
+        *,
+        timeout_seconds: float = 7200.0,
+        poll_seconds: float = 2.0,
+    ) -> tuple[str, tuple[BenchMetricRow, ...]]: ...
+
 
 class ThinkingBenchParityRunner:
     def __init__(
@@ -67,7 +75,11 @@ class ThinkingBenchParityRunner:
             api_key=self._api_key,
         )
         bench_id = self._admin_client.start_external_bench(body)
-        bench_status, rows = self._admin_client.fetch_results(bench_id)
+        wait = getattr(self._admin_client, "wait_for_results", None)
+        if callable(wait):
+            bench_status, rows = wait(bench_id)
+        else:
+            bench_status, rows = self._admin_client.fetch_results(bench_id)
         decision = decide_parity_outcome(
             bench_completed=bench_status == "completed",
             cleanup_ok=False,
@@ -81,6 +93,7 @@ class ThinkingBenchParityRunner:
         )
         return {
             "comparison_class": COMPARISON_CLASS,
+            "bench_id": bench_id,
             "rows": rows,
             "cross_check_markdown": cross_check_markdown,
             "bench_status": bench_status,

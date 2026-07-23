@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import http.client
 import json
+import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
@@ -198,3 +199,25 @@ class OmlxAdminBenchClient:
             error_reason="results_failed",
         )
         return parse_bench_results_payload(parsed)
+
+    def wait_for_results(
+        self,
+        bench_id: str,
+        *,
+        timeout_seconds: float = 7200.0,
+        poll_seconds: float = 2.0,
+    ) -> tuple[str, tuple[BenchMetricRow, ...]]:
+        """Poll /results until terminal status or timeout."""
+        deadline = time.monotonic() + float(timeout_seconds)
+        last_status = "running"
+        last_rows: tuple[BenchMetricRow, ...] = ()
+        while True:
+            last_status, last_rows = self.fetch_results(bench_id)
+            if last_status in {"completed", "error", "cancelled"}:
+                return last_status, last_rows
+            if time.monotonic() >= deadline:
+                raise OmlxAdminBenchError(
+                    f"bench {bench_id} still {last_status!r} after {timeout_seconds}s",
+                    reason="results_failed",
+                )
+            time.sleep(max(float(poll_seconds), 0.25))

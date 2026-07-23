@@ -51,6 +51,16 @@ class FakeAdminClient:
         self.fetch_calls.append(bench_id)
         return self.bench_status, self.rows
 
+    def wait_for_results(
+        self,
+        bench_id: str,
+        *,
+        timeout_seconds: float = 7200.0,
+        poll_seconds: float = 2.0,
+    ) -> tuple[str, tuple[BenchMetricRow, ...]]:
+        self.fetch_calls.append(f"wait:{bench_id}")
+        return self.bench_status, self.rows
+
 
 class ThinkingBenchParityRunnerTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -117,7 +127,7 @@ class ThinkingBenchParityRunnerTest(unittest.TestCase):
             api_key=self.api_key,
         )
         self.assertEqual(admin.start_calls[0], expected_body)
-        self.assertEqual(admin.fetch_calls, ["bench-1"])
+        self.assertEqual(admin.fetch_calls, ["wait:bench-1"])
         self.assertEqual(result["comparison_class"], COMPARISON_CLASS)
         self.assertEqual(result["bench_status"], "completed")
         self.assertEqual(result["rows"], admin.rows)
