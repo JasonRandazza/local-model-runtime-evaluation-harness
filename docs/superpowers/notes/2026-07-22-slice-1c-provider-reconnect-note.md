@@ -1,5 +1,11 @@
 # Slice 1c Provider Verify-Only + Reconnect Tap Policy
 
+> **Supersession (2026-07-23):** Profile revision `5` uses
+> `verify_routed_id_only_no_tap` with wait-and-verify only (no operator tap).
+> Design: `docs/superpowers/specs/2026-07-23-slice-1c-reconnect-tap-elimination-design.md`.
+> Historical `3.5.0` / revision `4` / sealed `stage2-20260723-003` body below
+> remains evidence for the ≤1-tap policy era.
+
 Policy note for the Stage 2 **harness-unattended** lane (schema `3.5.0`, profile
 revision `4`). Non-live Gate A documentation only — does **not** authorize Gate
 B, a live manifest, a usable run ID, POST smoke, provider file writes, or

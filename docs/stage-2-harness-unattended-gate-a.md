@@ -9,9 +9,15 @@ STOPPED (reconnect / Ornith residency). See
 `docs/superpowers/verification/2026-07-23-slice-1c-stage2-20260723-003-pass.md`.
 Do not reuse `001`–`003`.
 
+**Follow-on Design 1 (Gate A):** reconnect-tap elimination landed (profile
+revision `5`, `verify_routed_id_only_no_tap`). Live inventory-wait proof and
+schema `3.6.0` harness benchmark remain separately gated — see
+`docs/superpowers/specs/2026-07-23-slice-1c-reconnect-tap-elimination-design.md`.
+
 **Prerequisite slices:** Slice 1a (`harness_lifecycle.py`) and Slice 1b
-(revision `3` / `0.4.2` pin constants). Live pin-confirm on disk remains
-operator-owned and separately gated.
+(revision `3` / `0.4.2` pin constants). Live pin-confirm on disk is closed
+(2026-07-23) — see
+`docs/superpowers/verification/2026-07-23-slice-1b-optiq-042-pin-confirm.md`.
 
 **Rollback:** Operator-owned schemas `3.3.0` / `3.4.0`, profile revision `2`,
 sealed cohorts `stage2-20260721-005` / `006`, and Stage 2A revision `3` remain

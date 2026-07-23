@@ -1,8 +1,8 @@
 # Slice 1c — Reconnect-Tap Elimination (Wait-and-Verify) Design
 
-**Status:** Design accepted in conversation (Jason, 2026-07-23). Fake-only /
-docs first. Does **not** authorize live manifests, usable run IDs, POSTs,
-provider edits, plugin rebuild, or a custom Osaurus↔OptiQ bridge.
+**Status:** Gate A landed (fake-only; live proof still gated). Does **not**
+authorize live manifests, usable run IDs, POSTs, provider edits, plugin
+rebuild, or a custom Osaurus↔OptiQ bridge.
 
 **Depends on:** Sealed harness-unattended smoke `stage2-20260723-003` (schema
 `3.5.0` / profile revision `4`); Slice 1b pin-confirm PASS (`mlx-optiq 0.4.2`).
