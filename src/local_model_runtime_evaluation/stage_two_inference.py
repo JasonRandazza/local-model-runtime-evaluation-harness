@@ -339,11 +339,11 @@ class StageTwoInferenceEngine:
 
     def _validate_provider_activation(self) -> None:
         activation = self.profile.provider_activation
-        if activation == "verify_routed_id_only":
+        if activation in {"verify_routed_id_only", "verify_routed_id_only_no_tap"}:
             if not self._harness:
                 raise StageTwoError(
                     "provider_activation_failed",
-                    "verify_routed_id_only requires the harness-unattended contract",
+                    f"{activation} requires the harness-unattended contract",
                 )
             return
         if activation != "operator_reconnect_required":
@@ -512,7 +512,7 @@ class StageTwoInferenceEngine:
     def _observe_routes_for_preflight(
         self,
     ) -> tuple[dict[str, object], tuple[ModelDescriptor, ...], tuple[ModelDescriptor, ...]]:
-        """Harness lane: allow one operator reconnect tap while OptiQ stays up."""
+        """Harness lane: wait for routed inventory, then verify identity (no operator tap)."""
         if not self._harness:
             return self._observe_routes()
         deadline = time.monotonic() + 300.0
@@ -521,14 +521,14 @@ class StageTwoInferenceEngine:
             try:
                 result = self._observe_routes()
                 if last_error is not None:
-                    self._event("provider_reconnect_tap_observed", required_routed_model_id=self.profile.routed_model_id)
+                    self._event("routed_inventory_ready", required_routed_model_id=self.profile.routed_model_id)
                 return result
             except StageTwoError as error:
                 if error.code != "route_identity_failed":
                     raise
                 last_error = error
                 self._event(
-                    "provider_reconnect_tap_waiting",
+                    "routed_inventory_waiting",
                     required_routed_model_id=self.profile.routed_model_id,
                     seconds_remaining=max(0, int(deadline - time.monotonic())),
                 )

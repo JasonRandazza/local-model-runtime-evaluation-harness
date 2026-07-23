@@ -5,6 +5,7 @@ import tempfile
 import threading
 import unittest
 from dataclasses import replace
+from unittest.mock import patch
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -95,6 +96,7 @@ class FakeTransport:
         http_status_at: int | None = None,
         malformed_sse_at: int | None = None,
         drift_inventory_after_chat: int | None = None,
+        defer_routed_identity_until_routed_models_call: int | None = None,
     ) -> None:
         self.calls: list[tuple[str, str]] = []
         self.chat_calls: list[tuple[str, str]] = []
@@ -105,6 +107,10 @@ class FakeTransport:
         self.http_status_at = http_status_at
         self.malformed_sse_at = malformed_sse_at
         self.drift_inventory_after_chat = drift_inventory_after_chat
+        self.defer_routed_identity_until_routed_models_call = (
+            defer_routed_identity_until_routed_models_call
+        )
+        self.routed_models_calls = 0
         self.in_flight = 0
         self.max_in_flight = 0
 
@@ -127,6 +133,12 @@ class FakeTransport:
                 "/Users/jrazz/.cache/huggingface/hub/"
                 "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think"
             ),)
+        self.routed_models_calls += 1
+        if (
+            self.defer_routed_identity_until_routed_models_call is not None
+            and self.routed_models_calls < self.defer_routed_identity_until_routed_models_call
+        ):
+            return ()
         return (ModelDescriptor(
             "optiq//Users/jrazz/.cache/huggingface/hub/"
             "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think"
@@ -1184,6 +1196,112 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
             cleanup = cleanup_engine.cleanup()
             self.assertGreaterEqual(cleanup["service_lifecycle_actions"], 2)
             self.assertFalse(cleanup_controller.running)
+
+    def _harness_engine_fixture(
+        self,
+        output: Path,
+        *,
+        profile: object | None = None,
+        transport: FakeTransport | None = None,
+        controller: FakeHarnessController | None = None,
+    ) -> tuple[StageTwoInferenceEngine, object, FakeTransport, FakeHarnessController]:
+        harness_manifest = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-smoke.json",
+            now=datetime(2026, 7, 22, tzinfo=timezone.utc),
+        )
+        harness_profile = profile or RuntimeProfileRegistry(
+            self.root / "config" / "runtime-profiles",
+        ).get(
+            harness_manifest.runtime_profile_id, harness_manifest.runtime_profile_revision,
+        )
+        harness_suite = StageTwoSmokeSuite.load(
+            self.root / "suites" / "gemma-optiq-042-harness-route-smoke-v1.json"
+        )
+        harness_validation = HostValidation(
+            runtime_identity={
+                "version": harness_profile.runtime_version,
+                "packages": dict(harness_profile.package_versions),
+            },
+            artifact_identity={
+                "revision": harness_profile.model_revision,
+                "hashes": dict(harness_profile.artifact_hashes),
+            },
+            provider_identity={
+                "provider_id": "Optiq", "enabled": True,
+                "custom_header_count": 0, "secret_header_key_count": 0,
+            },
+        )
+        actual_transport = transport or FakeTransport()
+        actual_controller = controller or FakeHarnessController()
+        engine = StageTwoInferenceEngine(
+            harness_manifest, harness_profile, harness_suite, output,
+            lambda _health: ResourceSnapshot(MemoryPressure.NORMAL, (), None),
+            lambda: harness_validation, actual_controller, actual_transport,
+            lambda: harness_manifest.run_id,
+        )
+        return engine, harness_manifest, actual_transport, actual_controller
+
+    def test_harness_accepts_no_tap_provider_activation_on_profile_replace(self) -> None:
+        harness_manifest = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-smoke.json",
+            now=datetime(2026, 7, 22, tzinfo=timezone.utc),
+        )
+        harness_profile = replace(
+            RuntimeProfileRegistry(self.root / "config" / "runtime-profiles").get(
+                harness_manifest.runtime_profile_id, harness_manifest.runtime_profile_revision,
+            ),
+            provider_activation="verify_routed_id_only_no_tap",
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            engine, manifest, _transport, _controller = self._harness_engine_fixture(
+                output, profile=harness_profile,
+            )
+            engine.preflight()
+            events_path = output / manifest.run_id / "service-events.jsonl"
+            events_text = events_path.read_text(encoding="utf-8") if events_path.is_file() else ""
+            self.assertNotIn("provider_reconnect_tap_", events_text)
+
+    def test_harness_inventory_wait_emits_routed_inventory_events_not_tap(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            transport = FakeTransport(defer_routed_identity_until_routed_models_call=2)
+            engine, manifest, _transport, _controller = self._harness_engine_fixture(
+                output, transport=transport,
+            )
+            with patch(
+                "local_model_runtime_evaluation.stage_two_inference.time.sleep",
+                lambda _seconds: None,
+            ):
+                engine.preflight()
+            events_path = output / manifest.run_id / "service-events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            event_names = [row["event"] for row in events]
+            self.assertIn("routed_inventory_waiting", event_names)
+            self.assertIn("routed_inventory_ready", event_names)
+            self.assertNotIn("provider_reconnect_tap", json.dumps(events))
+
+    def test_harness_rejects_unknown_provider_activation(self) -> None:
+        harness_manifest = load_manifest(
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-smoke.json",
+            now=datetime(2026, 7, 22, tzinfo=timezone.utc),
+        )
+        harness_profile = replace(
+            RuntimeProfileRegistry(self.root / "config" / "runtime-profiles").get(
+                harness_manifest.runtime_profile_id, harness_manifest.runtime_profile_revision,
+            ),
+            provider_activation="automatic",
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            engine, _manifest, _transport, _controller = self._harness_engine_fixture(
+                Path(temp), profile=harness_profile,
+            )
+            with self.assertRaises(StageTwoError) as context:
+                engine.preflight()
+            self.assertEqual(context.exception.code, "provider_activation_failed")
 
 
 if __name__ == "__main__":
