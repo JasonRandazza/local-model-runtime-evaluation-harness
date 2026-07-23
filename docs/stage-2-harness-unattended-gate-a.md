@@ -2,12 +2,12 @@
 
 ## Current Decision
 
-`GATE_A_PASSED` (implementation and deterministic verification only). Gate A
-lands schema `3.5.0`, harness lifecycle adapter, profile revision `4`, harness
-smoke suite, factory dispatch, and fake-only tests. This is **not** live-ready.
-Gate B, Gate C (manifest authorization), Gate D (eight POSTs), Coordinator
-prompt installation, and manager review remain separately gated and require
-Jason's current-session authorization.
+`GATE_A_PASSED` (implementation and deterministic verification only). Gate B
+reported `READY_FOR_MANIFEST_AUTHORIZATION` on 2026-07-23 after OptiQ `0.4.2`
+pin-confirm and harness-owned start/verify/stop (GET-only; no POSTs). Gate C
+(manifest authorization), Gate D (eight POSTs), Coordinator prompt installation,
+and manager review remain separately gated and require Jason's current-session
+authorization.
 
 **Prerequisite slices:** Slice 1a (`harness_lifecycle.py`) and Slice 1b
 (revision `3` / `0.4.2` pin constants). Live pin-confirm on disk remains
@@ -53,7 +53,7 @@ Operator schemas `3.3.0` / `3.4.0` must not start a harness-unattended run.
 | Gate | Scope | Status |
 |---|---|---|
 | **A** | Code, tests, schemas, suite, docs | **Passed** (implementation closed; not live) |
-| **B** | Live read-only readiness; harness starts OptiQ; verify routed ID | Not authorized |
+| **B** | Live read-only readiness; harness starts OptiQ; verify routed ID | **READY_FOR_MANIFEST_AUTHORIZATION** (2026-07-23; evidence `docs/superpowers/verification/2026-07-23-slice-1c-harness-unattended-gate-b.md`) |
 | **C** | Jason authorizes one unused run ID + short-lived `3.5.0` manifest | Not authorized |
 | **D** | Eight POSTs, harness cleanup, manager review | Not authorized |
 

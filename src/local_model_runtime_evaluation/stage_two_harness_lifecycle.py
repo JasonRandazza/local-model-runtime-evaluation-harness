@@ -39,11 +39,13 @@ def _process_identity(process: ManagedProcess) -> ProcessOwnership:
 
 def optiq_server_pin_from_profile(profile: RuntimeProfile) -> ServerPin:
     executable = str(profile.runtime_executable)
+    # mlx-optiq 0.4.2 has no `optiq stop` CLI; harness-owned cleanup uses
+    # ManagedProcess.stop() (process-group SIGTERM) via empty stop_command.
     return ServerPin(
         kind="optiq",
         port=OPTIQ_PORT,
         start_command=(executable, *profile.serve_arguments),
-        stop_command=(executable, "stop"),
+        stop_command=(),
         ready_model_id=profile.direct_model_identities[0]
         if profile.direct_model_identities
         else profile.routed_model_id,

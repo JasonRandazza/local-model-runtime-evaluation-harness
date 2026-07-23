@@ -1,0 +1,35 @@
+{
+  "lane": "stage-2-harness-unattended",
+  "schema": "3.5.0",
+  "mode": "harness_inference_probe",
+  "profile_id": "gemma-4-12b-optiq-4bit",
+  "profile_revision": "4",
+  "service_ownership": "harness",
+  "provider_activation": "verify_routed_id_only",
+  "required_routed_model_id": "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit:no-think",
+  "optiq_path": "/Users/jrazz/Dev/tools/mlx-optiq/.venv/bin/optiq",
+  "optiq_sha256": "d61c2f888d5066ff1a7d0fc969e0768213325a61f81c3346b1df14614d17978e",
+  "stop_command": [],
+  "stop_mechanism": "ManagedProcess.stop process-group SIGTERM",
+  "http_post_attempts": 0,
+  "inference_request_attempts": 0,
+  "pin_confirm": "docs/superpowers/verification/2026-07-23-slice-1b-optiq-042-pin-confirm.md",
+  "process": {
+    "pid": 41008,
+    "parent_pid": 41008,
+    "process_group_id": 41008,
+    "started_at": "harness-owned",
+    "command_sha256": "aa2b6d6a5edb13246fe495702a1c1ed55e38a03da4fdb10fa347b93d41863716"
+  },
+  "lifecycle_actions_after_start": 1,
+  "direct_health": {
+    "status": "ok"
+  },
+  "direct_no_think_present": true,
+  "routed_model_ids_count": 26,
+  "required_routed_id_present": true,
+  "reconnect_tap_used": false,
+  "decision": "READY_FOR_MANIFEST_AUTHORIZATION",
+  "lifecycle_actions_after_stop": 2,
+  "port8080_after_free": true
+}

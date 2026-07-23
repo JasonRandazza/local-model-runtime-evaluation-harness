@@ -90,8 +90,15 @@ Applies to schema `3.4.0` and profile revision `2`. The harness-unattended lane 
 
 ## Stage 2 Harness-Unattended Boundary (Slice 1c)
 
-- Current decision: `GATE_A_PASSED` (implementation and fake-only tests only; **not live**). Schema `3.5.0`, mode `harness_inference_probe`, comparison class `gemma-optiq-042-harness-route-smoke`, profile `gemma-4-12b-optiq-4bit` revision `4`, suite `gemma-optiq-042-harness-route-smoke-v1` revision `1`. See `docs/stage-2-harness-unattended-gate-a.md`.
-- The harness **may** start and stop OptiQ via Slice 1a `LifecycleController` for this lane only. It records honest `service_lifecycle_actions > 0`. Cleanup requires harness-owned stop proof (port `8080` free twice), not operator `Ctrl+C`.
+- Current decision: `GATE_A_PASSED`; Gate B `READY_FOR_MANIFEST_AUTHORIZATION`
+  (2026-07-23; pin-confirm + harness start/verify/stop GET-only). Schema `3.5.0`,
+  mode `harness_inference_probe`, comparison class
+  `gemma-optiq-042-harness-route-smoke`, profile `gemma-4-12b-optiq-4bit`
+  revision `4`, suite `gemma-optiq-042-harness-route-smoke-v1` revision `1`.
+  See `docs/stage-2-harness-unattended-gate-a.md`.
+  Evidence: `docs/superpowers/verification/2026-07-23-slice-1b-optiq-042-pin-confirm.md`,
+  `docs/superpowers/verification/2026-07-23-slice-1c-harness-unattended-gate-b.md`.
+- The harness **may** start and stop OptiQ via Slice 1a `LifecycleController` for this lane only. It records honest `service_lifecycle_actions > 0`. Cleanup uses harness-owned process-group stop (mlx-optiq `0.4.2` has no `optiq stop` CLI); port `8080` must be free twice. Not operator `Ctrl+C`.
 - Provider *edit* is forbidden (`provider_activation: verify_routed_id_only`). The harness verifies the exact routed inventory ID after OptiQ is up. If reconnect is required and no safe non-editing API exists, at most **one** operator reconnect tap is documented — prefer eliminating it later. See `docs/superpowers/notes/2026-07-22-slice-1c-provider-reconnect-note.md`.
-- Do not create run IDs or live manifests, upgrade OptiQ on disk, edit Osaurus providers, rebuild plugin `0.3.0`, or issue live POSTs without Jason's separate current-session authorization for Gate B–D.
+- Do not create run IDs or live manifests, upgrade OptiQ on disk further, edit Osaurus providers, rebuild plugin `0.3.0`, or issue live POSTs without Jason's separate current-session authorization for Gate C–D.
 - Operator-owned rollback unchanged: Stage 2A revision `3`, Stage 2B-1 schema `3.3.0` / profile revision `2` (sealed `005`), Stage 2B-2 schema `3.4.0` / profile revision `2` (sealed `006`). Those lanes still require operator OptiQ lifecycle and `service_lifecycle_actions: 0`.

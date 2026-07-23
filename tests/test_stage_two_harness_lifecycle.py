@@ -88,7 +88,9 @@ class HarnessOptiQControllerTest(unittest.TestCase):
         controller.ensure_started(self._optiq_pin())
         port_free_calls.clear()
         controller.ensure_stopped()
-        self.assertEqual(port_free_calls, [8080, 8080])
+        # LifecycleController probes once during stop escalate, then
+        # ensure_stopped requires port free twice.
+        self.assertEqual(port_free_calls, [8080, 8080, 8080])
 
     def test_start_then_stop_records_at_least_two_lifecycle_actions(self) -> None:
         controller = self._controller()
@@ -122,7 +124,9 @@ class HarnessOptiQControllerTest(unittest.TestCase):
         controller.ensure_started(self._optiq_pin())
         self.port_free_calls.clear()
         controller.ensure_stopped()
-        self.assertEqual(self.port_free_calls, [8080, 8080])
+        # LifecycleController probes once during stop escalate, then
+        # ensure_stopped requires port free twice.
+        self.assertEqual(self.port_free_calls, [8080, 8080, 8080])
 
     def test_optiq_server_pin_from_profile_builds_start_command(self) -> None:
         profile = RuntimeProfile(
@@ -153,7 +157,7 @@ class HarnessOptiQControllerTest(unittest.TestCase):
             pin.start_command,
             ("/tools/optiq", "serve", "--model", "/model", "--port", "8080"),
         )
-        self.assertEqual(pin.stop_command, ("/tools/optiq", "stop"))
+        self.assertEqual(pin.stop_command, ())
 
     def test_capture_matches_and_assert_stopped_expose_operator_compatible_identity(self) -> None:
         listening = False
