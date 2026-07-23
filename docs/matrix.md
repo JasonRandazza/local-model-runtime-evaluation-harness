@@ -1,20 +1,16 @@
-# Multi-Family 3×3 Matrix
+# Multi-Family Native Control Triple
 
-Direct native comparison of control artifacts across Osaurus (`1337`), oMLX (`8100`), and OptiQ (`8080`). One cell at a time; unloadable cells become `N/A`. Stage 0–2B machinery stays frozen — this path does not use Gate B, plugin tools, or Stage 2B inference authority. Do not run live campaigns without explicit operator authorization.
+Each family runs exactly **three cells** — one per quant on its only capable native server (Osaurus `1337`, oMLX `8100`, or OptiQ `8080`). Historical cross-server cell JSON may remain on disk but is not scheduled. Stage 0–2B machinery stays frozen — this path does not use Gate B, plugin tools, or Stage 2B inference authority. Do not run live campaigns without explicit operator authorization.
 
 Campaigns are family-scoped. Each campaign JSON declares a `family_id` that loads an allowlist from `config/matrix/families/<family_id>.json`. Cells keep `quant__server` ids; Ornith and Qwen quants are prefixed so they do not collide with Gemma.
 
-Family quant entries may set optional `"role": "osaurus_native"` for curated
-Osaurus library artifacts (JANG or MXFP). That role is **Osaurus-only**: campaigns
-must not schedule those quants on oMLX or OptiQ (load fails or hangs). Cell JSON
-for cross-server attempts may remain on disk for history, but `Cell.load` rejects
-them against the family.
+Family quant entries require `"native_server"` (`osaurus`, `omlx`, or `optiq`). Optional `"role": "osaurus_native"` marks curated Osaurus library artifacts (JANG or MXFP); when set, `native_server` must be `"osaurus"`. `Cell.load` rejects cells whose server does not match the quant's `native_server`. Cross-server cell JSON may remain on disk for history but campaigns schedule only the native triple.
 
 | Campaign | Family | Command |
 | --- | --- | --- |
-| Gemma 4 12B QAT 3×3 | `gemma-4-12b-qat` | `config/matrix/gemma-4-12b-qat-campaign.json` |
-| Ornith 1.0 35B 3×3 | `ornith-35b` | `config/matrix/ornith-35b-campaign.json` |
-| Qwen 3.6 35B-A3B 3×3 | `qwen36-35b-a3b` | `config/matrix/qwen36-35b-a3b-campaign.json` |
+| Gemma 4 12B QAT native | `gemma-4-12b-qat` | `config/matrix/gemma-4-12b-qat-campaign.json` |
+| Ornith 1.0 35B native | `ornith-35b` | `config/matrix/ornith-35b-campaign.json` |
+| Qwen 3.6 35B-A3B native | `qwen36-35b-a3b` | `config/matrix/qwen36-35b-a3b-campaign.json` |
 
 All reuse suite `suites/gemma-matrix-v1.json` and the same screen/finalist depth. Free-form Approach 3 cells are a later goal — not implemented here.
 
@@ -49,13 +45,13 @@ All reuse suite `suites/gemma-matrix-v1.json` and the same screen/finalist depth
   Model exposure (routing oMLX into Osaurus) is separate from auth — inventory can list models and still reject a bad key. Osaurus may list routed ids such as `omlx/...` that differ from direct native ids.
 - oMLX: campaign stops a busy managed `omlX` on `:8100` before spawning a cell-owned serve with a fixed loopback `--api-key` (`lmre-matrix-local`).
 - OptiQ cells start with `--no-auth`. OptiQ inventory ids are the absolute `--model` paths; use the `:no-think` variant so streams put visible text in `delta.content` (default/`:think` stream into `delta.reasoning`, which the harness treats as empty).
-- Non-OptiQ-packaged artifacts may fail `optiq serve` weight load → expected N/A/FAIL until an OptiQ-packaged build exists. MXFP on oMLX/OptiQ may likewise N/A; full 3×3 still records that evidence.
-- `report.md` includes Option A metric tables (median total, TTFT, exact decode tok/s, contract ratio) plus Option B estimated decode tok/s (`completion_tokens / (total − TTFT)`, labeled `est.`). Quant rows follow campaign cell order.
+- Non-OptiQ-packaged artifacts may fail `optiq serve` weight load → expected N/A/FAIL until an OptiQ-packaged build exists.
+- `report.md` includes native-triple PASS/FAIL/N/A tables (one row per cell: quant, native server, result) plus Option A metric tables (median total, TTFT, exact decode tok/s, contract ratio) and Option B estimated decode tok/s (`completion_tokens / (total − TTFT)`, labeled `est.`). Quant rows follow campaign cell order.
 
 ## Non-live check
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests -name 'test_matrix_*' -v
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_matrix_*.py' -v
 ```
 
 Unit tests use fakes only — no live Osaurus, oMLX, or OptiQ contact.
@@ -87,9 +83,7 @@ Dry-config JSON includes `family_id`, `cell_count`, cell ids, and `artifact_miss
 
 ## Live screen (operator)
 
-Run campaign cells in screen mode first (Gemma is seven cells after
-`osaurus_native` quants were limited to Osaurus). Gemma:
-
+Run all three campaign cells in screen mode first. Gemma:
 
 ```bash
 ./bin/lmre-matrix --mode screen \
@@ -162,7 +156,7 @@ Finalist = 1 + 5 (18 requests).
 Under `results/matrix/<campaign_id>-<mode>-<timestamp>/`:
 
 - `raw.json` — per-cell observations and summaries
-- `report.md` — 3×3 PASS / FAIL / N/A table
+- `report.md` — native-triple PASS / FAIL / N/A table
 - `logs/` — server stdout/stderr for cells this run started
 
 ## Safety
@@ -170,6 +164,6 @@ Under `results/matrix/<campaign_id>-<mode>-<timestamp>/`:
 - Pinned start argv only; harness starts and stops only what each cell defines.
 - Verify port free before the next cell; stop on RAM floor breach.
 - Attempt listed campaign cells; `on_cell_failure: continue` keeps going after `N/A` or `FAIL`.
-  `osaurus_native` quants (JANG / MXFP) are Osaurus-only — not scheduled on oMLX/OptiQ.
+  `osaurus_native` quants (JANG / MXFP) run only on Osaurus — not scheduled on oMLX/OptiQ.
 - Do not run live campaigns without explicit operator authorization.
 - Stage 2B sealed cohorts for this window remain historical evidence; this matrix path still does not use Gate B, plugin tools, or Stage 2B inference authority, and does not authorize a new Stage 2 run ID.

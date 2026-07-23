@@ -1,6 +1,6 @@
 # Multi-Family Osaurus Routing Overhead
 
-Family-first measurement of the **Osaurus router tax** for screen-winning oQ4 and OptiQ-4bit pairs. For each pair, compare **direct native** (`:8100` or `:8080`) vs **the same model via Osaurus** (`http://127.0.0.1:1337/v1`). Separate from `lmre-matrix` 3×3 science and `lmre-preference`; Stage 0–2B machinery stays frozen.
+Family-first measurement of the **Osaurus router tax** for screen-winning oQ4 and OptiQ-4bit pairs. For each pair, compare **direct native** (`:8100` or `:8080`) vs **the same model via Osaurus** (`http://127.0.0.1:1337/v1`). Each family runs **four legs** (two pairs × direct/routed); there is no JANG/MXFP overhead pair. Separate from `lmre-matrix` native control triple and `lmre-preference`; Stage 0–2B machinery stays frozen.
 
 **Related:** matrix campaign — see [matrix.md](matrix.md); preference POC — see [preference.md](preference.md); RAG oracle — see [rag.md](rag.md).
 
@@ -169,7 +169,7 @@ Fold overhead pairs into the matrix campaign runner instead of a separate binary
 | | vs Approach 1 (chosen now) |
 | --- | --- |
 | **Pros** | Single operator entrypoint (`lmre-matrix`); shared campaign/report machinery; fewer docs surfaces |
-| **Cons** | Mixes "native 3×3 science" with "router tax"; more conditionals in an already busy runner; harder to keep hybrid Osaurus-untouched lifecycle obvious; blurs matrix PASS/FAIL semantics with pair deltas |
+| **Cons** | Mixes native control triple with "router tax"; more conditionals in an already busy runner; harder to keep hybrid Osaurus-untouched lifecycle obvious; blurs matrix PASS/FAIL semantics with pair deltas |
 
 Keep Approach 1 until overhead is proven useful; revisit Approach 2 only if maintaining two CLIs becomes the real cost.
 
