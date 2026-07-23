@@ -1,5 +1,5 @@
 {
-  "campaign_id": "qwen36-35b-a3b-3x3",
+  "campaign_id": "qwen36-35b-a3b-native",
   "family_id": "qwen36-35b-a3b",
   "suite_path": "suites/gemma-matrix-v1.json",
   "results_root": "results/matrix",
@@ -10,11 +10,7 @@
   "ports": {"osaurus": 1337, "omlx": 8100, "optiq": 8080},
   "cells": [
     "config/matrix/cells/qwen_mxfp4__osaurus.json",
-    "config/matrix/cells/qwen_oq4__osaurus.json",
     "config/matrix/cells/qwen_oq4__omlx.json",
-    "config/matrix/cells/qwen_oq4__optiq.json",
-    "config/matrix/cells/qwen_optiq_4bit__osaurus.json",
-    "config/matrix/cells/qwen_optiq_4bit__omlx.json",
     "config/matrix/cells/qwen_optiq_4bit__optiq.json"
   ]
 }

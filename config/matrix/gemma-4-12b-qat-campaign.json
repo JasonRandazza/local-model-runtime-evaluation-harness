@@ -1,5 +1,5 @@
 {
-  "campaign_id": "gemma-4-12b-qat-3x3",
+  "campaign_id": "gemma-4-12b-qat-native",
   "family_id": "gemma-4-12b-qat",
   "suite_path": "suites/gemma-matrix-v1.json",
   "results_root": "results/matrix",
@@ -10,11 +10,7 @@
   "ports": {"osaurus": 1337, "omlx": 8100, "optiq": 8080},
   "cells": [
     "config/matrix/cells/jang_4m__osaurus.json",
-    "config/matrix/cells/oq4_fp16__osaurus.json",
     "config/matrix/cells/oq4_fp16__omlx.json",
-    "config/matrix/cells/oq4_fp16__optiq.json",
-    "config/matrix/cells/optiq_4bit__osaurus.json",
-    "config/matrix/cells/optiq_4bit__omlx.json",
     "config/matrix/cells/optiq_4bit__optiq.json"
   ]
 }

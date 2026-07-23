@@ -300,11 +300,17 @@ class Campaign:
         cells = data["cells"]
         if not isinstance(cells, list) or not cells:
             raise MatrixError("campaign cells are invalid")
-        if len(cells) > 9:
-            raise MatrixError("campaign must list at most nine cells")
+        if len(cells) != 3:
+            raise MatrixError("campaign must list exactly three native cells")
         if len(set(cells)) != len(cells):
             raise MatrixError("campaign cell paths must be unique")
         cell_paths = tuple(_resolve_repo_path(str(item)) for item in cells)
+        loaded = tuple(Cell.load(path, family=family) for path in cell_paths)
+        seen_quants = {cell.quant for cell in loaded}
+        if seen_quants != set(family.quants):
+            raise MatrixError("campaign must include exactly one cell per family quant")
+        if len(family.quants) != 3:
+            raise MatrixError("family must declare exactly three quants")
         return cls(
             campaign_id,
             family_id,

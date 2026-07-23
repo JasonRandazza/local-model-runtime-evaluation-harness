@@ -26,37 +26,29 @@ QWEN_CAMPAIGN = ROOT / "config" / "matrix" / "qwen36-35b-a3b-campaign.json"
 
 
 class MatrixConfigTests(unittest.TestCase):
-    def test_all_nine_cells_load(self) -> None:
+    def test_gemma_native_campaign_loads_three_cells(self) -> None:
         campaign = Campaign.load(GEMMA_CAMPAIGN)
-        paths = campaign.cell_paths
-        self.assertEqual(len(paths), 7)
-        cells = [Cell.load(path, family=GEMMA_FAMILY) for path in paths]
-        servers = {(c.quant, c.server) for c in cells}
-        self.assertEqual(len(servers), 7)
+        self.assertEqual(campaign.campaign_id, "gemma-4-12b-qat-native")
+        self.assertEqual(campaign.family_id, "gemma-4-12b-qat")
+        self.assertEqual(len(campaign.cell_paths), 3)
+        cells = [Cell.load(path, family=GEMMA_FAMILY) for path in campaign.cell_paths]
         self.assertEqual(
-            {(c.quant, c.server) for c in cells if c.quant == "jang_4m"},
-            {("jang_4m", "osaurus")},
+            {(c.quant, c.server) for c in cells},
+            {
+                ("jang_4m", "osaurus"),
+                ("oq4_fp16", "omlx"),
+                ("optiq_4bit", "optiq"),
+            },
         )
-        for cell in cells:
-            self.assertTrue(cell.base_url.startswith("http://127.0.0.1:"))
-            self.assertTrue(cell.base_url.endswith("/v1"))
-            self.assertIn(cell.server, {"osaurus", "omlx", "optiq"})
-            self.assertIn(cell.quant, {"jang_4m", "oq4_fp16", "optiq_4bit"})
-            self.assertIsInstance(cell.start_command, tuple)
-            self.assertTrue(all(isinstance(part, str) for part in cell.start_command))
-
-    def test_campaign_lists_exactly_nine_cells(self) -> None:
-        campaign = Campaign.load(ROOT / "config" / "matrix" / "gemma-4-12b-qat-campaign.json")
-        self.assertEqual(campaign.campaign_id, "gemma-4-12b-qat-3x3")
-        self.assertEqual(campaign.memory_floor_percent, 20)
-        self.assertEqual(len(campaign.cell_paths), 7)
-        self.assertEqual(campaign.ports, {"osaurus": 1337, "omlx": 8100, "optiq": 8080})
 
     def test_gemma_campaign_loads_with_family_id(self) -> None:
         campaign = Campaign.load(ROOT / "config" / "matrix" / "gemma-4-12b-qat-campaign.json")
         self.assertEqual(campaign.family_id, "gemma-4-12b-qat")
-        self.assertEqual(campaign.campaign_id, "gemma-4-12b-qat-3x3")
+        self.assertEqual(campaign.campaign_id, "gemma-4-12b-qat-native")
         self.assertEqual(campaign.family.family_id, "gemma-4-12b-qat")
+        self.assertEqual(campaign.memory_floor_percent, 20)
+        self.assertEqual(len(campaign.cell_paths), 3)
+        self.assertEqual(campaign.ports, {"osaurus": 1337, "omlx": 8100, "optiq": 8080})
 
     def test_cell_rejects_ornith_quant_on_gemma_family(self) -> None:
         bad = {
@@ -101,7 +93,7 @@ class MatrixConfigTests(unittest.TestCase):
 
     def test_rejects_wrong_campaign_ports(self) -> None:
         bad = {
-            "campaign_id": "gemma-4-12b-qat-3x3",
+            "campaign_id": "gemma-4-12b-qat-native",
             "family_id": "gemma-4-12b-qat",
             "suite_path": "suites/gemma-matrix-v1.json",
             "results_root": "results/matrix",
@@ -110,7 +102,11 @@ class MatrixConfigTests(unittest.TestCase):
             "request_timeout_seconds": 120,
             "on_cell_failure": "continue",
             "ports": {"osaurus": 1337, "omlx": 8100, "optiq": 9999},
-            "cells": [f"config/matrix/cells/jang_4m__osaurus.json"] * 9,
+            "cells": [
+                "config/matrix/cells/jang_4m__osaurus.json",
+                "config/matrix/cells/oq4_fp16__omlx.json",
+                "config/matrix/cells/optiq_4bit__optiq.json",
+            ],
         }
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
             json.dump(bad, handle)
@@ -145,7 +141,7 @@ class MatrixConfigTests(unittest.TestCase):
 
     def test_rejects_coerced_campaign_port_types(self) -> None:
         bad = {
-            "campaign_id": "gemma-4-12b-qat-3x3",
+            "campaign_id": "gemma-4-12b-qat-native",
             "family_id": "gemma-4-12b-qat",
             "suite_path": "suites/gemma-matrix-v1.json",
             "results_root": "results/matrix",
@@ -154,7 +150,11 @@ class MatrixConfigTests(unittest.TestCase):
             "request_timeout_seconds": 120,
             "on_cell_failure": "continue",
             "ports": {"osaurus": "1337", "omlx": 8100, "optiq": 8080},
-            "cells": ["config/matrix/cells/jang_4m__osaurus.json"] * 9,
+            "cells": [
+                "config/matrix/cells/jang_4m__osaurus.json",
+                "config/matrix/cells/oq4_fp16__omlx.json",
+                "config/matrix/cells/optiq_4bit__optiq.json",
+            ],
         }
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
             json.dump(bad, handle)
@@ -214,38 +214,24 @@ class MatrixConfigTests(unittest.TestCase):
         self.assertEqual(family.family_id, "gemma-4-12b-qat")
         self.assertEqual(len(family.quants), 3)
 
-    def test_ornith_campaign_lists_exactly_nine_cells(self) -> None:
+    def test_ornith_native_campaign_loads_three_cells(self) -> None:
         campaign = Campaign.load(ORNITH_CAMPAIGN)
-        self.assertEqual(campaign.campaign_id, "ornith-35b-3x3")
+        self.assertEqual(campaign.campaign_id, "ornith-35b-native")
+        self.assertEqual(len(campaign.cell_paths), 3)
+        cells = [Cell.load(path, family=ORNITH_FAMILY) for path in campaign.cell_paths]
+        self.assertEqual(
+            {(c.quant, c.server) for c in cells},
+            {
+                ("ornith_jang_4m", "osaurus"),
+                ("ornith_oq4", "omlx"),
+                ("ornith_optiq_4bit", "optiq"),
+            },
+        )
         self.assertEqual(campaign.family_id, "ornith-35b")
-        self.assertEqual(campaign.family.family_id, "ornith-35b")
         self.assertEqual(campaign.memory_floor_percent, 20)
-        self.assertEqual(len(campaign.cell_paths), 7)
         self.assertEqual(campaign.ready_timeout_seconds, 300)
         self.assertEqual(campaign.request_timeout_seconds, 180)
         self.assertEqual(campaign.ports, {"osaurus": 1337, "omlx": 8100, "optiq": 8080})
-
-    def test_all_nine_ornith_cells_load(self) -> None:
-        campaign = Campaign.load(ORNITH_CAMPAIGN)
-        cells = [Cell.load(path, family=ORNITH_FAMILY) for path in campaign.cell_paths]
-        self.assertEqual(len(cells), 7)
-        servers = {(c.quant, c.server) for c in cells}
-        self.assertEqual(len(servers), 7)
-        self.assertEqual(
-            {(c.quant, c.server) for c in cells if c.quant == "ornith_jang_4m"},
-            {("ornith_jang_4m", "osaurus")},
-        )
-        for cell in cells:
-            self.assertTrue(cell.base_url.startswith("http://127.0.0.1:"))
-            self.assertTrue(cell.base_url.endswith("/v1"))
-            self.assertIn(cell.server, {"osaurus", "omlx", "optiq"})
-            self.assertIn(
-                cell.quant,
-                {"ornith_jang_4m", "ornith_oq4", "ornith_optiq_4bit"},
-            )
-            self.assertTrue(cell.cell_id.startswith("ornith_"))
-            self.assertIsInstance(cell.start_command, tuple)
-            self.assertTrue(all(isinstance(part, str) for part in cell.start_command))
 
     def test_gemma_family_native_servers(self) -> None:
         family = load_family("gemma-4-12b-qat")
@@ -362,6 +348,7 @@ class MatrixConfigTests(unittest.TestCase):
             "quants": {
                 "qwen_mxfp4": {
                     "role": "not_a_role",
+                    "native_server": "osaurus",
                     "artifact_path": "/tmp/x",
                     "model_ids": ["x"],
                 }
@@ -373,33 +360,73 @@ class MatrixConfigTests(unittest.TestCase):
             with self.assertRaises(MatrixError):
                 ModelFamily.load(path)
 
-    def test_qwen_campaign_lists_exactly_nine_cells(self) -> None:
+    def test_qwen_native_campaign_loads_three_cells(self) -> None:
         campaign = Campaign.load(QWEN_CAMPAIGN)
-        self.assertEqual(campaign.campaign_id, "qwen36-35b-a3b-3x3")
+        self.assertEqual(campaign.campaign_id, "qwen36-35b-a3b-native")
+        self.assertEqual(len(campaign.cell_paths), 3)
+        cells = [Cell.load(path, family=QWEN_FAMILY) for path in campaign.cell_paths]
+        self.assertEqual(
+            {(c.quant, c.server) for c in cells},
+            {
+                ("qwen_mxfp4", "osaurus"),
+                ("qwen_oq4", "omlx"),
+                ("qwen_optiq_4bit", "optiq"),
+            },
+        )
         self.assertEqual(campaign.family_id, "qwen36-35b-a3b")
-        self.assertEqual(campaign.family.family_id, "qwen36-35b-a3b")
-        self.assertEqual(len(campaign.cell_paths), 7)
         self.assertEqual(campaign.ports, {"osaurus": 1337, "omlx": 8100, "optiq": 8080})
 
-    def test_all_nine_qwen_cells_load(self) -> None:
-        campaign = Campaign.load(QWEN_CAMPAIGN)
-        cells = [Cell.load(path, family=QWEN_FAMILY) for path in campaign.cell_paths]
-        self.assertEqual(len(cells), 7)
-        servers = {(c.quant, c.server) for c in cells}
-        self.assertEqual(len(servers), 7)
-        self.assertEqual(
-            {(c.quant, c.server) for c in cells if c.quant == "qwen_mxfp4"},
-            {("qwen_mxfp4", "osaurus")},
-        )
-        for cell in cells:
-            self.assertTrue(cell.base_url.startswith("http://127.0.0.1:"))
-            self.assertTrue(cell.base_url.endswith("/v1"))
-            self.assertIn(cell.server, {"osaurus", "omlx", "optiq"})
-            self.assertIn(
-                cell.quant,
-                {"qwen_mxfp4", "qwen_oq4", "qwen_optiq_4bit"},
-            )
-            self.assertTrue(cell.cell_id.startswith("qwen_"))
+    def test_campaign_rejects_wrong_cell_count(self) -> None:
+        bad = {
+            "campaign_id": "gemma-4-12b-qat-native",
+            "family_id": "gemma-4-12b-qat",
+            "suite_path": "suites/gemma-matrix-v1.json",
+            "results_root": "results/matrix",
+            "memory_floor_percent": 20,
+            "ready_timeout_seconds": 180,
+            "request_timeout_seconds": 120,
+            "on_cell_failure": "continue",
+            "ports": {"osaurus": 1337, "omlx": 8100, "optiq": 8080},
+            "cells": [
+                "config/matrix/cells/jang_4m__osaurus.json",
+                "config/matrix/cells/oq4_fp16__omlx.json",
+            ],
+        }
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(bad, handle)
+            path = Path(handle.name)
+        try:
+            with self.assertRaises(MatrixError) as context:
+                Campaign.load(path)
+            self.assertIn("exactly three", str(context.exception))
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_campaign_rejects_cross_server_cell(self) -> None:
+        bad = {
+            "campaign_id": "gemma-4-12b-qat-native",
+            "family_id": "gemma-4-12b-qat",
+            "suite_path": "suites/gemma-matrix-v1.json",
+            "results_root": "results/matrix",
+            "memory_floor_percent": 20,
+            "ready_timeout_seconds": 180,
+            "request_timeout_seconds": 120,
+            "on_cell_failure": "continue",
+            "ports": {"osaurus": 1337, "omlx": 8100, "optiq": 8080},
+            "cells": [
+                "config/matrix/cells/jang_4m__osaurus.json",
+                "config/matrix/cells/oq4_fp16__osaurus.json",
+                "config/matrix/cells/optiq_4bit__optiq.json",
+            ],
+        }
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(bad, handle)
+            path = Path(handle.name)
+        try:
+            with self.assertRaises(MatrixError):
+                Campaign.load(path)
+        finally:
+            path.unlink(missing_ok=True)
 
     def test_load_qwen_family_by_id(self) -> None:
         family = load_family("qwen36-35b-a3b")

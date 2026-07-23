@@ -1,5 +1,5 @@
 {
-  "campaign_id": "ornith-35b-3x3",
+  "campaign_id": "ornith-35b-native",
   "family_id": "ornith-35b",
   "suite_path": "suites/gemma-matrix-v1.json",
   "results_root": "results/matrix",
@@ -10,11 +10,7 @@
   "ports": {"osaurus": 1337, "omlx": 8100, "optiq": 8080},
   "cells": [
     "config/matrix/cells/ornith_jang_4m__osaurus.json",
-    "config/matrix/cells/ornith_oq4__osaurus.json",
     "config/matrix/cells/ornith_oq4__omlx.json",
-    "config/matrix/cells/ornith_oq4__optiq.json",
-    "config/matrix/cells/ornith_optiq_4bit__osaurus.json",
-    "config/matrix/cells/ornith_optiq_4bit__omlx.json",
     "config/matrix/cells/ornith_optiq_4bit__optiq.json"
   ]
 }
