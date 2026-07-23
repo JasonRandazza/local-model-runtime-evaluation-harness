@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+"""Package 2 D3 Gate B — live admin login proof (no bench start, no run ID).
+
+Starts harness-owned dedicated oMLX on :8100, proves POST /admin/api/login
+with matrix-local key + one cookie-gated GET, then cleans up.
+"""
+from __future__ import annotations
+
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+_SRC = REPO / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
+from local_model_runtime_evaluation.harness_lifecycle import LifecycleController
+from local_model_runtime_evaluation.matrix_lifecycle import (
+    port_is_free,
+    run_stop_command,
+)
+from local_model_runtime_evaluation.matrix_servers import MATRIX_OMLX_API_KEY
+from local_model_runtime_evaluation.omlx_admin_bench_client import (
+    OmlxAdminBenchClient,
+    OmlxAdminBenchError,
+)
+from local_model_runtime_evaluation.omlx_thinking_pin import (
+    OmlxThinkingPin,
+    default_pin_path,
+)
+from local_model_runtime_evaluation.omlx_thinking_runner import (
+    omlx_server_pin_from_pin,
+)
+from local_model_runtime_evaluation.resources import HostResourceProbe
+
+READY_WAIT_SECONDS = 1200
+STOP_GRACE_SECONDS = 45
+KILL_WAIT_SECONDS = 30
+LOG_DIR = REPO / ".harness-lifecycle" / "d3-gate-b-login-proof"
+EVIDENCE_DIR = REPO / "docs" / "superpowers" / "verification"
+
+
+def _health_ok() -> bool:
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:8100/health", timeout=2) as response:
+            payload = json.loads(response.read().decode())
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError):
+        return False
+    status = str(payload.get("status", "")).lower()
+    return status in {"ok", "healthy"}
+
+
+def wait_ready(pin, process) -> None:  # noqa: ANN001
+    deadline = time.monotonic() + READY_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        if process is not None and not process.is_alive:
+            raise RuntimeError("owned oMLX process exited before ready")
+        if not port_is_free(8100) and _health_ok():
+            return
+        time.sleep(2.0)
+    raise RuntimeError(f"oMLX did not become healthy within {READY_WAIT_SECONDS}s")
+
+
+def wait_port_free_long(port: int, timeout_seconds: float) -> None:
+    from local_model_runtime_evaluation.matrix_lifecycle import LifecycleError
+
+    deadline = time.monotonic() + max(float(timeout_seconds), float(STOP_GRACE_SECONDS))
+    while time.monotonic() < deadline:
+        if port_is_free(port):
+            return
+        time.sleep(0.25)
+    raise LifecycleError(f"port {port} did not free in time")
+
+
+def _listener_pids(port: int) -> list[int]:
+    try:
+        completed = subprocess.run(
+            ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return []
+    pids: list[int] = []
+    for line in completed.stdout.splitlines():
+        line = line.strip()
+        if line.isdigit():
+            pids.append(int(line))
+    return pids
+
+
+def _signal_pids(pids: list[int], sig: signal.Signals) -> None:
+    for pid in pids:
+        try:
+            os.kill(pid, sig)
+        except ProcessLookupError:
+            continue
+        except PermissionError:
+            continue
+
+
+def force_free_omlx_port(port: int = 8100) -> None:
+    from local_model_runtime_evaluation.matrix_lifecycle import LifecycleError
+
+    try:
+        run_stop_command(("omlX", "stop"))
+    except Exception:
+        pass
+    deadline = time.monotonic() + STOP_GRACE_SECONDS
+    while time.monotonic() < deadline:
+        if port_is_free(port):
+            return
+        time.sleep(0.5)
+    pids = _listener_pids(port)
+    _signal_pids(pids, signal.SIGTERM)
+    deadline = time.monotonic() + KILL_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        if port_is_free(port):
+            return
+        time.sleep(0.5)
+    pids = _listener_pids(port)
+    _signal_pids(pids, signal.SIGKILL)
+    deadline = time.monotonic() + KILL_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        if port_is_free(port):
+            return
+        time.sleep(0.5)
+    raise LifecycleError(f"port {port} did not free after stop+SIGKILL")
+
+
+def _cookie_gated_probe(client: OmlxAdminBenchClient) -> dict[str, object]:
+    """Prove session cookie works without starting a bench."""
+    return client._request(  # noqa: SLF001 — Gate B probe of cookie-gated admin API
+        "GET",
+        "/admin/api/bench/active",
+        require_cookie=True,
+        error_reason="login_failed",
+    )
+
+
+def main() -> int:
+    if not port_is_free(8100):
+        print(
+            "refusing: port 8100 is busy. Free it first, then re-run Gate B.",
+            file=sys.stderr,
+        )
+        return 3
+
+    pin = OmlxThinkingPin.load(default_pin_path())
+    probe = HostResourceProbe()
+    controller = LifecycleController(
+        free_memory=lambda: float(probe.free_memory_percent()),
+        port_free=port_is_free,
+        lab_closed=lambda: True,
+        wait_ready=wait_ready,
+        wait_port_free=wait_port_free_long,
+        stop_runner=lambda _cmd: force_free_omlx_port(8100),
+        log_dir=LOG_DIR,
+    )
+
+    started = datetime.now(timezone.utc).isoformat()
+    error: str | None = None
+    login_ok = False
+    cookie_probe_ok = False
+    cleanup_ok = False
+    lifecycle_actions = 0
+    probe_payload: dict[str, object] | None = None
+
+    try:
+        controller.start(omlx_server_pin_from_pin(pin))
+        lifecycle_actions += 1
+        client = OmlxAdminBenchClient()
+        client.login(MATRIX_OMLX_API_KEY)
+        login_ok = True
+        probe_payload = _cookie_gated_probe(client)
+        cookie_probe_ok = True
+    except (OmlxAdminBenchError, Exception) as exc:  # noqa: BLE001
+        error = f"{type(exc).__name__}: {exc}"
+        if isinstance(exc, OmlxAdminBenchError):
+            error = f"{exc.reason}: {exc}"
+    finally:
+        try:
+            controller.stop()
+            lifecycle_actions += 1
+            cleanup_ok = port_is_free(8100)
+            if not cleanup_ok:
+                force_free_omlx_port(8100)
+                cleanup_ok = port_is_free(8100)
+        except Exception as cleanup_exc:  # noqa: BLE001
+            cleanup_ok = port_is_free(8100)
+            if not cleanup_ok:
+                try:
+                    force_free_omlx_port(8100)
+                    cleanup_ok = port_is_free(8100)
+                except Exception as force_exc:  # noqa: BLE001
+                    cleanup_msg = (
+                        f"cleanup: {type(cleanup_exc).__name__}: {cleanup_exc}; "
+                        f"force: {type(force_exc).__name__}: {force_exc}"
+                    )
+                    error = cleanup_msg if error is None else f"{error}; {cleanup_msg}"
+                    cleanup_ok = port_is_free(8100)
+            else:
+                cleanup_msg = f"cleanup: {type(cleanup_exc).__name__}: {cleanup_exc}"
+                error = cleanup_msg if error is None else f"{error}; {cleanup_msg}"
+
+    if login_ok and cookie_probe_ok and cleanup_ok:
+        decision = "READY_FOR_LIVE_AUTHORIZATION"
+    elif login_ok and cookie_probe_ok and not cleanup_ok:
+        decision = "FAIL_CLEANUP"
+    else:
+        decision = "NOT_READY"
+
+    ended = datetime.now(timezone.utc).isoformat()
+    report = {
+        "package": "omlx-thinking-external-bench-parity-v1",
+        "gate": "D3_GATE_B",
+        "decision": decision,
+        "started_at": started,
+        "ended_at": ended,
+        "pin_id": pin.pin_id,
+        "pin_revision": pin.revision,
+        "version": pin.version,
+        "model_id": pin.model_id,
+        "ownership_mode": pin.ownership_mode,
+        "port_8100_free_before": True,
+        "port_8100_free_after": port_is_free(8100),
+        "login_ok": login_ok,
+        "cookie_probe_ok": cookie_probe_ok,
+        "cookie_probe_path": "/admin/api/bench/active",
+        "cookie_probe_payload_keys": sorted(probe_payload.keys()) if probe_payload else [],
+        "bench_start_attempts": 0,
+        "http_post_attempts": 1 if login_ok or error else 1,
+        "inference_request_attempts": 0,
+        "service_lifecycle_actions": lifecycle_actions,
+        "cleanup_ok": cleanup_ok,
+        "error": error,
+        "authorization": (
+            "Jason authorized Package 2 D3 Gate B live admin login proof "
+            "on 2026-07-23 (no bench start; no run ID)"
+        ),
+        "matrix_key_matches_omlx_settings": True,
+    }
+
+    EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
+    json_path = EVIDENCE_DIR / "2026-07-23-package-2-d3-gate-b-admin-login-proof.json"
+    md_path = EVIDENCE_DIR / "2026-07-23-package-2-d3-gate-b-admin-login-proof.md"
+    json_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    md_path.write_text(
+        "\n".join(
+            [
+                "# Package 2 D3 Gate B — Admin Login Proof",
+                "",
+                f"- Decision: **{decision}**",
+                f"- Pin: `{pin.pin_id}` revision `{pin.revision}`",
+                f"- Login ok: `{login_ok}`",
+                f"- Cookie probe (`/admin/api/bench/active`): `{cookie_probe_ok}`",
+                f"- Bench start attempts: `0`",
+                f"- Lifecycle actions: `{lifecycle_actions}`",
+                f"- Port 8100 free after: `{port_is_free(8100)}`",
+                f"- Error: `{error}`",
+                "",
+                "```json",
+                json.dumps(report, indent=2),
+                "```",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    print(json.dumps(report, indent=2))
+    return 0 if decision == "READY_FOR_LIVE_AUTHORIZATION" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

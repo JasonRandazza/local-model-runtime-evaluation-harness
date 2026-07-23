@@ -1,0 +1,30 @@
+{
+  "package": "omlx-thinking-external-bench-parity-v1",
+  "gate": "D3_GATE_B",
+  "decision": "READY_FOR_LIVE_AUTHORIZATION",
+  "started_at": "2026-07-23T04:09:12.634545+00:00",
+  "ended_at": "2026-07-23T04:10:00.761839+00:00",
+  "pin_id": "omlx-0.5.3-thinking",
+  "pin_revision": "2",
+  "version": "0.5.3",
+  "model_id": "Qwen3.6-35B-A3B-OptiQ-4bit",
+  "ownership_mode": "dedicated_serve",
+  "port_8100_free_before": true,
+  "port_8100_free_after": true,
+  "login_ok": true,
+  "cookie_probe_ok": true,
+  "cookie_probe_path": "/admin/api/bench/active",
+  "cookie_probe_payload_keys": [
+    "bench_id",
+    "model_id",
+    "running"
+  ],
+  "bench_start_attempts": 0,
+  "http_post_attempts": 1,
+  "inference_request_attempts": 0,
+  "service_lifecycle_actions": 2,
+  "cleanup_ok": true,
+  "error": null,
+  "authorization": "Jason authorized Package 2 D3 Gate B live admin login proof on 2026-07-23 (no bench start; no run ID)",
+  "matrix_key_matches_omlx_settings": true
+}
