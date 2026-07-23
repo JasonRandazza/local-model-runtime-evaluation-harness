@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import threading
+import time
 from types import MappingProxyType
 from typing import Callable, Mapping, Protocol
 
@@ -453,6 +454,33 @@ class StageTwoInferenceEngine:
         discover_route_identity(self.profile, direct_models, routed_models)
         return routed_health, direct_models, routed_models
 
+    def _observe_routes_for_preflight(
+        self,
+    ) -> tuple[dict[str, object], tuple[ModelDescriptor, ...], tuple[ModelDescriptor, ...]]:
+        """Harness lane: allow one operator reconnect tap while OptiQ stays up."""
+        if not self._harness:
+            return self._observe_routes()
+        deadline = time.monotonic() + 300.0
+        last_error: StageTwoError | None = None
+        while time.monotonic() < deadline:
+            try:
+                result = self._observe_routes()
+                if last_error is not None:
+                    self._event("provider_reconnect_tap_observed", required_routed_model_id=self.profile.routed_model_id)
+                return result
+            except StageTwoError as error:
+                if error.code != "route_identity_failed":
+                    raise
+                last_error = error
+                self._event(
+                    "provider_reconnect_tap_waiting",
+                    required_routed_model_id=self.profile.routed_model_id,
+                    seconds_remaining=max(0, int(deadline - time.monotonic())),
+                )
+                time.sleep(2.0)
+        assert last_error is not None
+        raise last_error
+
     def _resource_snapshot(self, routed_health: Mapping[str, object]) -> ResourceSnapshot:
         succeeded, snapshot = self._external_call(lambda: self.resource_probe(routed_health))
         if not succeeded or not isinstance(snapshot, ResourceSnapshot):
@@ -494,7 +522,7 @@ class StageTwoInferenceEngine:
             if not succeeded or not isinstance(validation, HostValidation):
                 raise StageTwoError("host_validation_failed", "Stage 2B-1 host validation failed")
             self._validate_host(validation)
-            routed_health, direct_models, routed_models = self._observe_routes()
+            routed_health, direct_models, routed_models = self._observe_routes_for_preflight()
             self._assert_normal_resources(self._resource_snapshot(routed_health), "preflight")
             self.lifecycle.transition(run_id, RunStatus.RESOURCE_GATE, "normal serial resource gate passed")
             self.bundle.write_json("runtime-identity.json", dict(validation.runtime_identity))

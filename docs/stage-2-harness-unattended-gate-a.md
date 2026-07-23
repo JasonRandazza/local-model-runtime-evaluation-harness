@@ -2,12 +2,12 @@
 
 ## Current Decision
 
-`GATE_A_PASSED` (implementation and deterministic verification only). Gate B
-reported `READY_FOR_MANIFEST_AUTHORIZATION` on 2026-07-23 after OptiQ `0.4.2`
-pin-confirm and harness-owned start/verify/stop (GET-only; no POSTs). Gate C
-(manifest authorization), Gate D (eight POSTs), Coordinator prompt installation,
-and manager review remain separately gated and require Jason's current-session
-authorization.
+`GATE_A_PASSED`. Gate B `READY_FOR_MANIFEST_AUTHORIZATION` (2026-07-23). Gate C/D
+live smoke sealed **PASS** on unused run `stage2-20260723-003` (8/8 POSTs;
+schema `3.5.0` / profile revision `4`). Prior same-day IDs `001`/`002` cleaned
+STOPPED (reconnect / Ornith residency). See
+`docs/superpowers/verification/2026-07-23-slice-1c-stage2-20260723-003-pass.md`.
+Do not reuse `001`–`003`.
 
 **Prerequisite slices:** Slice 1a (`harness_lifecycle.py`) and Slice 1b
 (revision `3` / `0.4.2` pin constants). Live pin-confirm on disk remains
@@ -54,8 +54,8 @@ Operator schemas `3.3.0` / `3.4.0` must not start a harness-unattended run.
 |---|---|---|
 | **A** | Code, tests, schemas, suite, docs | **Passed** (implementation closed; not live) |
 | **B** | Live read-only readiness; harness starts OptiQ; verify routed ID | **READY_FOR_MANIFEST_AUTHORIZATION** (2026-07-23; evidence `docs/superpowers/verification/2026-07-23-slice-1c-harness-unattended-gate-b.md`) |
-| **C** | Jason authorizes one unused run ID + short-lived `3.5.0` manifest | Not authorized |
-| **D** | Eight POSTs, harness cleanup, manager review | Not authorized |
+| **C** | Jason authorizes one unused run ID + short-lived `3.5.0` manifest | **Closed** — live ID `stage2-20260723-003` (manifest `manifests/stage-2-optiq-harness-route-003.json`); `001`/`002` STOPPED |
+| **D** | Eight POSTs, harness cleanup, manager review | **PASS** — `stage2-20260723-003` sealed (8/8; checksum PASS) |
 
 Gate A is non-authorizing. It does not create a usable run ID or live manifest,
 install a Coordinator prompt, upgrade OptiQ on disk, edit a provider, or grant

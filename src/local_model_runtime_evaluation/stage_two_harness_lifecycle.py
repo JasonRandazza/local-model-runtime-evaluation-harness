@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import os
+import signal
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -21,6 +24,7 @@ from .stage_two import ProcessOwnership, StageTwoError
 from .stage_two_profiles import RuntimeProfile
 
 OPTIQ_PORT = PORT_BY_KIND["optiq"]
+_STOP_WAIT_SECONDS = 30.0
 
 
 def _command_sha256(command: tuple[str, ...]) -> str:
@@ -175,18 +179,60 @@ class HarnessOptiQController:
         self._identity = identity
         return identity
 
+    @staticmethod
+    def _pid_alive(pid: int) -> bool:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        return True
+
+    def _stop_recorded_identity(self, identity: ProcessOwnership) -> None:
+        """Stop OptiQ started by another harness process (preflight vs cleanup)."""
+        if not self._pid_alive(identity.pid):
+            return
+        try:
+            os.killpg(identity.process_group_id, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            try:
+                os.kill(identity.pid, signal.SIGTERM)
+            except (ProcessLookupError, PermissionError):
+                pass
+        deadline = time.monotonic() + _STOP_WAIT_SECONDS
+        while time.monotonic() < deadline:
+            if not self._pid_alive(identity.pid) and self._port_free(OPTIQ_PORT):
+                break
+            time.sleep(0.1)
+        else:
+            try:
+                os.killpg(identity.process_group_id, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                try:
+                    os.kill(identity.pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
+        self._controller.lifecycle_actions += 1
+
     def matches(self, identity: ProcessOwnership) -> bool:
-        if self._identity != identity:
+        if self._identity is not None and self._identity != identity:
             return False
-        if not self._controller.owned:
-            return False
-        process = self._controller.active_process
-        if process is None or identity.pid != process.pid:
-            return False
-        if not process.is_alive:
+        if self._controller.owned:
+            process = self._controller.active_process
+            if process is None or identity.pid != process.pid:
+                return False
+            if not process.is_alive:
+                return False
+            if self._port_free(OPTIQ_PORT):
+                return False
+            return True
+        # Worker/cleanup processes adopt the preflight-recorded identity.
+        if not self._pid_alive(identity.pid):
             return False
         if self._port_free(OPTIQ_PORT):
             return False
+        self._identity = identity
         return True
 
     def assert_stopped(self, identity: ProcessOwnership) -> None:
@@ -196,7 +242,21 @@ class HarnessOptiQController:
                 "harness OptiQ identity does not match recorded service",
             )
         try:
-            self.ensure_stopped()
+            if self._can_stop_owned_process():
+                self.ensure_stopped()
+                return
+            self._stop_recorded_identity(identity)
+            if not self._port_free(OPTIQ_PORT):
+                raise HarnessLifecycleError(
+                    f"port {OPTIQ_PORT} is still busy after harness clearance",
+                    code="port_busy",
+                )
+            if not self._port_free(OPTIQ_PORT):
+                raise HarnessLifecycleError(
+                    f"port {OPTIQ_PORT} must be free twice after harness stop",
+                    code="port_not_free",
+                )
+            self._identity = None
         except HarnessLifecycleError as error:
             raise StageTwoError(
                 "operator_shutdown_pending",

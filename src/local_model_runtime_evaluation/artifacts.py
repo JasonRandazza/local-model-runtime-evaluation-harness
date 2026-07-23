@@ -135,6 +135,12 @@ class ArtifactBundle:
             ):
                 return STAGE_TWO_INFERENCE_REQUIRED_FILES
             if (
+                manifest.get("mode") == "harness_inference_probe"
+                and manifest.get("schema_version") == "3.5.0"
+                and manifest.get("runtime_profile_revision") == "4"
+            ):
+                return STAGE_TWO_INFERENCE_REQUIRED_FILES
+            if (
                 manifest.get("schema_version") == "3.1.0"
                 and manifest.get("runtime_profile_revision") == "3"
             ):

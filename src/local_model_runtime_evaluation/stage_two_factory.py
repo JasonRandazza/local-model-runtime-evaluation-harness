@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
-from .harness_lifecycle import default_lab_closed
-from .matrix_lifecycle import port_is_free
+from .harness_lifecycle import ServerPin, default_lab_closed
+from .matrix_lifecycle import ManagedProcess, port_is_free
 from .resources import HostResourceProbe, snapshot_from_health
 from .stage_two import StageTwoEngine
 from .stage_two_benchmark import (
@@ -27,6 +28,8 @@ from .stage_two_host import (
 from .stage_two_profiles import RuntimeProfileRegistry
 from .stage_two_smoke_suite import StageTwoSmokeSuite
 from .locking import RunLock
+
+_HARNESS_OPTIQ_READY_TIMEOUT_SECONDS = 600.0
 
 
 PROVIDER_CONFIG = Path("/Users/jrazz/.osaurus/providers/remote.json")
@@ -132,11 +135,30 @@ def build_stage_two_engine(
             repository_root / "suites" / "gemma-optiq-042-harness-route-smoke-v1.json"
         )
         transport = StageTwoInferenceTransport(set(manifest.routes.values()), timeout_seconds=120)
+
+        def wait_ready(pin: ServerPin, process: ManagedProcess | None) -> None:
+            del pin, process
+            deadline = time.monotonic() + _HARNESS_OPTIQ_READY_TIMEOUT_SECONDS
+            last_error: Exception | None = None
+            while time.monotonic() < deadline:
+                try:
+                    health = transport.health(profile.direct_base_url)
+                    if health.get("status") == "ok":
+                        return
+                except Exception as error:  # noqa: BLE001 — poll until ready or timeout
+                    last_error = error
+                time.sleep(0.5)
+            message = "harness OptiQ did not become ready"
+            if last_error is not None:
+                message = f"{message}: {last_error}"
+            raise TimeoutError(message)
+
         controller = HarnessOptiQController(
             free_memory=lambda: HostResourceProbe().free_memory_percent(),
             port_free=port_is_free,
             lab_closed=default_lab_closed,
             profile=profile,
+            wait_ready=wait_ready,
         )
         lock = RunLock(output_root)
 

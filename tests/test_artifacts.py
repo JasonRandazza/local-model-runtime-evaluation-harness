@@ -27,6 +27,17 @@ class ArtifactTest(unittest.TestCase):
             with self.assertRaisesRegex(ArtifactError, "incomplete"):
                 bundle.finalize({"disposition": "PASS"})
 
+    def test_stage_two_harness_schema_uses_inference_bundle_requirements(self) -> None:
+        fixture = Path(__file__).parent / "fixtures" / "valid-stage-2-harness-smoke.json"
+        manifest = load_manifest(fixture, now=datetime(2026, 7, 22, tzinfo=timezone.utc))
+        with tempfile.TemporaryDirectory() as temp:
+            bundle = ArtifactBundle.create(manifest, Path(temp))
+            self.assertEqual(bundle._required_files(), STAGE_TWO_INFERENCE_REQUIRED_FILES)
+            bundle.write_json("preflight.json", {"ok": True})
+            bundle.append_event({"state": "ready"})
+            with self.assertRaisesRegex(ArtifactError, "incomplete"):
+                bundle.finalize({"disposition": "PASS"})
+
     def test_stage_two_benchmark_schema_requires_complete_benchmark_bundle(self) -> None:
         fixture = Path(__file__).parent / "fixtures" / "valid-stage-2-benchmark-gemma.json"
         manifest = load_manifest(fixture, now=datetime(2026, 7, 21, tzinfo=timezone.utc))
