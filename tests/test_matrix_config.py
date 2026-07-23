@@ -247,6 +247,29 @@ class MatrixConfigTests(unittest.TestCase):
             self.assertIsInstance(cell.start_command, tuple)
             self.assertTrue(all(isinstance(part, str) for part in cell.start_command))
 
+    def test_gemma_family_native_servers(self) -> None:
+        family = load_family("gemma-4-12b-qat")
+        self.assertEqual(family.quants["jang_4m"].native_server, "osaurus")
+        self.assertEqual(family.quants["oq4_fp16"].native_server, "omlx")
+        self.assertEqual(family.quants["optiq_4bit"].native_server, "optiq")
+        self.assertEqual(family.quants["jang_4m"].role, "osaurus_native")
+
+    def test_oq_quant_rejects_non_native_server(self) -> None:
+        with self.assertRaises(MatrixError) as context:
+            Cell.load(
+                ROOT / "config/matrix/cells/oq4_fp16__optiq.json",
+                family=GEMMA_FAMILY,
+            )
+        self.assertIn("native_server", str(context.exception))
+
+    def test_optiq_quant_rejects_non_native_server(self) -> None:
+        with self.assertRaises(MatrixError) as context:
+            Cell.load(
+                ROOT / "config/matrix/cells/optiq_4bit__omlx.json",
+                family=GEMMA_FAMILY,
+            )
+        self.assertIn("native_server", str(context.exception))
+
     def test_load_ornith_family_by_id(self) -> None:
         family = load_family("ornith-35b")
         self.assertEqual(family.family_id, "ornith-35b")
@@ -254,6 +277,9 @@ class MatrixConfigTests(unittest.TestCase):
             set(family.quants.keys()),
             {"ornith_jang_4m", "ornith_oq4", "ornith_optiq_4bit"},
         )
+        self.assertEqual(family.quants["ornith_jang_4m"].native_server, "osaurus")
+        self.assertEqual(family.quants["ornith_oq4"].native_server, "omlx")
+        self.assertEqual(family.quants["ornith_optiq_4bit"].native_server, "optiq")
 
     def test_ornith_family_jang_4m_artifact_path(self) -> None:
         jang = load_family("ornith-35b").quants["ornith_jang_4m"]
@@ -294,7 +320,41 @@ class MatrixConfigTests(unittest.TestCase):
                 ROOT / "config/matrix/cells/jang_4m__optiq.json",
                 family=GEMMA_FAMILY,
             )
-        self.assertIn("osaurus_native", str(context.exception))
+        self.assertIn("native_server", str(context.exception))
+
+    def test_family_quant_rejects_missing_native_server(self) -> None:
+        payload = {
+            "family_id": "missing-native",
+            "quants": {
+                "jang_4m": {
+                    "artifact_path": "/tmp/x",
+                    "model_ids": ["x"],
+                }
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "missing-native.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaises(MatrixError):
+                ModelFamily.load(path)
+
+    def test_family_quant_rejects_osaurus_native_role_on_non_osaurus(self) -> None:
+        payload = {
+            "family_id": "bad-role-native",
+            "quants": {
+                "oq4_fp16": {
+                    "role": "osaurus_native",
+                    "native_server": "omlx",
+                    "artifact_path": "/tmp/x",
+                    "model_ids": ["x"],
+                }
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bad-role-native.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaises(MatrixError):
+                ModelFamily.load(path)
 
     def test_family_quant_rejects_unknown_role(self) -> None:
         payload = {
@@ -351,6 +411,9 @@ class MatrixConfigTests(unittest.TestCase):
         self.assertEqual(family.quants["qwen_mxfp4"].role, "osaurus_native")
         self.assertIsNone(family.quants["qwen_oq4"].role)
         self.assertIsNone(family.quants["qwen_optiq_4bit"].role)
+        self.assertEqual(family.quants["qwen_mxfp4"].native_server, "osaurus")
+        self.assertEqual(family.quants["qwen_oq4"].native_server, "omlx")
+        self.assertEqual(family.quants["qwen_optiq_4bit"].native_server, "optiq")
 
     def test_qwen_family_mxfp4_artifact_path(self) -> None:
         mxfp = load_family("qwen36-35b-a3b").quants["qwen_mxfp4"]

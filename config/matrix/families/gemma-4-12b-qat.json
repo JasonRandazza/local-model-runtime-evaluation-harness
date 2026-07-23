@@ -3,6 +3,7 @@
   "quants": {
     "jang_4m": {
       "role": "osaurus_native",
+      "native_server": "osaurus",
       "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
       "model_ids": [
         "gemma-4-12b-it-qat-jang_4m",
@@ -10,6 +11,7 @@
       ]
     },
     "oq4_fp16": {
+      "native_server": "omlx",
       "artifact_path": "/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
       "model_ids": [
         "gemma-4-12B-it-qat-oQ4-fp16",
@@ -18,6 +20,7 @@
       ]
     },
     "optiq_4bit": {
+      "native_server": "optiq",
       "artifact_path": "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
       "model_ids": [
         "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",

@@ -1,4 +1,4 @@
-"""Load and validate Gemma 3×3 matrix cell, campaign, and suite config."""
+"""Load and validate matrix cell, campaign, and suite config with native-control triples."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ SERVER_PORTS = {"osaurus": 1337, "omlx": 8100, "optiq": 8080}
 EXPECTED_CAMPAIGN_PORTS = dict(SERVER_PORTS)
 
 FAMILY_FIELDS = frozenset({"family_id", "quants"})
-FAMILY_QUANT_REQUIRED_FIELDS = frozenset({"artifact_path", "model_ids"})
+FAMILY_QUANT_REQUIRED_FIELDS = frozenset({"artifact_path", "model_ids", "native_server"})
 FAMILY_QUANT_OPTIONAL_FIELDS = frozenset({"role"})
 ALLOWED_QUANT_ROLES = frozenset({"osaurus_native"})
 
@@ -94,6 +94,7 @@ class FamilyQuant:
     quant: str
     artifact_path: str
     model_ids: tuple[str, ...]
+    native_server: str
     role: str | None = None
 
 
@@ -105,15 +106,21 @@ def _parse_family_quant(quant_key: str, entry: Any) -> FamilyQuant:
         raise MatrixError("family quant fields are invalid")
     if keys - FAMILY_QUANT_REQUIRED_FIELDS - FAMILY_QUANT_OPTIONAL_FIELDS:
         raise MatrixError("family quant fields are invalid")
+    native_server = str(entry["native_server"])
+    if native_server not in ALLOWED_SERVERS:
+        raise MatrixError("family quant native_server is invalid")
     role: str | None = None
     if "role" in entry:
         role = str(entry["role"])
         if role not in ALLOWED_QUANT_ROLES:
             raise MatrixError("family quant role is invalid")
+    if role == "osaurus_native" and native_server != "osaurus":
+        raise MatrixError("family quant role is invalid")
     return FamilyQuant(
         quant=str(quant_key),
         artifact_path=str(entry["artifact_path"]),
         model_ids=_model_ids_tuple(entry["model_ids"], "family quant model_ids"),
+        native_server=native_server,
         role=role,
     )
 
@@ -177,10 +184,11 @@ class Cell:
         if self.quant not in family.quants:
             raise MatrixError("quant is invalid")
         quant = family.quants[self.quant]
-        if quant.role == "osaurus_native" and self.server != "osaurus":
+        if self.server != quant.native_server:
             raise MatrixError(
-                "osaurus_native quants are Osaurus-only "
-                f"(got {self.quant!r} on {self.server!r})"
+                "cell server must match quant native_server "
+                f"(got {self.quant!r} on {self.server!r}, "
+                f"native_server={quant.native_server!r})"
             )
         _validate_quant_artifact(
             self.quant, self.model_id, self.artifact_path, family.quants,

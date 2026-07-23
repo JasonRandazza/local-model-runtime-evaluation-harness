@@ -3,6 +3,7 @@
   "quants": {
     "ornith_jang_4m": {
       "role": "osaurus_native",
+      "native_server": "osaurus",
       "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/Ornith-1.0-35B-JANG_4M",
       "model_ids": [
         "ornith-1.0-35b-jang_4m",
@@ -10,6 +11,7 @@
       ]
     },
     "ornith_oq4": {
+      "native_server": "omlx",
       "artifact_path": "/Users/jrazz/.cache/huggingface/hub/georgeis55/Ornith-1.0-35B-MLX-oQ4",
       "model_ids": [
         "Ornith-1.0-35B-MLX-oQ4",
@@ -18,6 +20,7 @@
       ]
     },
     "ornith_optiq_4bit": {
+      "native_server": "optiq",
       "artifact_path": "/Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit",
       "model_ids": [
         "mlx-community/Ornith-1.0-35B-OptiQ-4bit",
