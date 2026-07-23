@@ -1,9 +1,12 @@
 # Harness-Unattended Gemma OptiQ 0.4.2 Route Benchmark Design
 
-**Status:** Gate A **landed** (fake-only; 2026-07-23). Design accepted in
-conversation (Jason, 2026-07-23). Design 1 Gate A + live inventory-wait proof
-are closed. Does **not** authorize live manifests, usable run IDs, POSTs,
-provider edits, or plugin rebuild. Live Gate B–D remain separately gated.
+**Status:** Gate A–D **closed** for authorizing window. Live cohort
+`stage2-20260723-008` sealed **PASS** (72/72 POSTs; schema `3.6.0` / profile
+revision `5`; `service_lifecycle_actions: 2`). See
+`docs/superpowers/verification/2026-07-23-design2-harness-benchmark-stage2-20260723-008-pass.md`.
+Run ID `008` is consumed — do not reuse. A *new* Design 2 cohort still needs
+Jason's separate unused-ID authorization. Does **not** authorize provider
+edits or plugin rebuild.
 
 **Depends on:**  
 1. Reconnect-tap elimination Gate A accepted —

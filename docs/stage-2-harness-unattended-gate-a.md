@@ -14,16 +14,14 @@ inventory-wait proof **PASS** (revision `5`, `verify_routed_id_only_no_tap`,
 `reconnect_tap_used: false`) —
 `docs/superpowers/verification/2026-07-23-slice-1c-inventory-wait-r5-proof.md`.
 
-**Follow-on Design 2 (harness route benchmark):** Gate A **landed** (fake-only;
-2026-07-23). Schema `3.6.0`, mode `harness_route_benchmark`, comparison
-`gemma-optiq-042-harness-route-benchmark`, profile revision `5`, suite
-`gemma-optiq-042-harness-route-benchmark-v1` revision `1`, 72-POST limit.
-Implementation plan:
-`docs/superpowers/plans/2026-07-23-harness-unattended-route-benchmark-gate-a.md`.
-Design authority:
-`docs/superpowers/specs/2026-07-23-harness-unattended-route-benchmark-design.md`.
-Gate A does **not** create a usable run ID or live manifest, authorize POSTs,
-or grant live Gate B–D authority — those remain separately gated.
+**Follow-on Design 2 (harness route benchmark):** Gate A–D **closed** for this
+window. Cohort `stage2-20260723-008` sealed **PASS** (72/72; schema `3.6.0` /
+profile revision `5`; `service_lifecycle_actions: 2`). See
+`docs/superpowers/verification/2026-07-23-design2-harness-benchmark-stage2-20260723-008-pass.md`
+and Gate B
+`docs/superpowers/verification/2026-07-23-design2-harness-benchmark-gate-b.md`.
+Do not reuse `008`. A *new* Design 2 cohort needs Jason's separate unused-ID
+authorization.
 
 **Prerequisite slices:** Slice 1a (`harness_lifecycle.py`) and Slice 1b
 (revision `3` / `0.4.2` pin constants). Live pin-confirm on disk remains
