@@ -38,4 +38,7 @@ Comparability reference (do not mutate): operator `042` benchmark
 ## Status
 
 Run ID **consumed**. Design 2 Gate B–D for schema `3.6.0` / profile revision
-`5` is evidenced by `008`.
+`5` is evidenced by `008`. Manager review: **ACCEPT PASS** —
+`docs/superpowers/verification/2026-07-23-design2-harness-benchmark-manager-review-008.md`.
+Observational comparison vs operator `007`:
+`docs/superpowers/verification/2026-07-23-operator-007-vs-harness-008-comparison.md`.

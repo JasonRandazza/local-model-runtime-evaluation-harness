@@ -1303,6 +1303,43 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
                 engine.preflight()
             self.assertEqual(context.exception.code, "provider_activation_failed")
 
+    def test_harness_inventory_wait_timeout_fail_closed(self) -> None:
+        """Routed ID never appears → re-raise route_identity_failed; no ready event."""
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            # Never surface the required routed ID within the wait window.
+            transport = FakeTransport(
+                defer_routed_identity_until_routed_models_call=10**9,
+            )
+            engine, manifest, _transport, _controller = self._harness_engine_fixture(
+                output, transport=transport,
+            )
+            clock_values = [0.0, 0.0, 301.0]
+            clock_index = {"i": 0}
+
+            def fake_monotonic() -> float:
+                i = clock_index["i"]
+                clock_index["i"] = i + 1
+                if i < len(clock_values):
+                    return clock_values[i]
+                return 301.0
+
+            with patch(
+                "local_model_runtime_evaluation.stage_two_inference.time.monotonic",
+                fake_monotonic,
+            ), patch(
+                "local_model_runtime_evaluation.stage_two_inference.time.sleep",
+                lambda _seconds: None,
+            ):
+                with self.assertRaises(StageTwoError) as context:
+                    engine.preflight()
+            self.assertEqual(context.exception.code, "route_identity_failed")
+            events_path = output / manifest.run_id / "service-events.jsonl"
+            events_text = events_path.read_text(encoding="utf-8") if events_path.is_file() else ""
+            self.assertIn("routed_inventory_waiting", events_text)
+            self.assertNotIn("routed_inventory_ready", events_text)
+            self.assertNotIn("provider_reconnect_tap", events_text)
+
 
 if __name__ == "__main__":
     unittest.main()
