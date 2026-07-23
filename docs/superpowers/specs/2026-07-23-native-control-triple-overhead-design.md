@@ -1,8 +1,9 @@
 # Native Control Triple + Routing Overhead Redesign
 
-**Status:** Design approved in conversation (Jason, 2026-07-23). Docs/config
-first. Does **not** authorize live matrix/overhead campaigns, Stage 2 POSTs,
-provider edits, or plugin rebuild.
+**Status:** Design approved (Jason, 2026-07-23). Gate A landed on `main`. Live
+native-triple + four-leg overhead follow-on **CLOSED** — see
+`docs/superpowers/verification/2026-07-23-native-triple-overhead-live-evidence.md`.
+Does **not** authorize preference/RAG, Stage 2 POSTs, provider edits, or plugin rebuild.
 
 **Context:** Full 3×3 quant×server matrices hang or FAIL for invalid pairings
 (JANG/MXFP on OptiQ/oMLX; oQ on OptiQ; etc.). Live Gemma screen
