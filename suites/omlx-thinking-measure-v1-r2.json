@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0.0",
+  "suite_id": "omlx-thinking-measure-v1",
+  "revision": "2",
+  "temperature": 0,
+  "streaming": true,
+  "workloads": [
+    {
+      "workload_id": "thinking-short-reason",
+      "prompt": "Think through the steps briefly, then answer in one sentence: why does a thinking-aware token budget matter for measurement?",
+      "max_tokens": 2048,
+      "response_contract": "text"
+    },
+    {
+      "workload_id": "thinking-plan-and-answer",
+      "prompt": "Plan your reasoning, then give a two-sentence answer: what is the difference between transport failure and an empty visible answer in a thinking-model smoke test?",
+      "max_tokens": 3072,
+      "response_contract": "text"
+    },
+    {
+      "workload_id": "thinking-multi-step",
+      "prompt": "Reason in short steps, then answer in at most three sentences: how should TTFT qualification change when reasoning tokens dominate a completion?",
+      "max_tokens": 3072,
+      "response_contract": "text"
+    },
+    {
+      "workload_id": "thinking-compare-tradeoffs",
+      "prompt": "Compare two options briefly, then conclude in one sentence: suppress decode metrics vs report exact visible tokens when completion_tokens_details.reasoning_tokens is missing.",
+      "max_tokens": 3072,
+      "response_contract": "text"
+    },
+    {
+      "workload_id": "thinking-token-pressure",
+      "prompt": "Think carefully, then reply with exactly one short paragraph: list three fail-closed outcome classes for thinking-model measurement and why empty visible text is distinct from transport failure.",
+      "max_tokens": 4096,
+      "response_contract": "text"
+    }
+  ]
+}

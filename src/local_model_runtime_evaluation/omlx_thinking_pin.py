@@ -36,9 +36,18 @@ PIN_START_COMMAND = (
 SUITE_ID = "omlx-thinking-smoke-v1"
 SUITE_REVISION = "1"
 MEASURE_SUITE_ID = "omlx-thinking-measure-v1"
-MEASURE_SUITE_REVISION = "1"
+MEASURE_SUITE_REVISION = "2"
 SMOKE_WORKLOAD_COUNT = 2
 MEASURE_WORKLOAD_COUNT = 5
+
+# Exact r2 measure budgets (fail-closed identity for default suite load tests).
+MEASURE_SUITE_R2_MAX_TOKENS = (
+    2048,
+    3072,
+    3072,
+    3072,
+    4096,
+)
 
 _PIN_REQUIRED = frozenset({
     "schema_version",
@@ -85,7 +94,7 @@ def default_suite_path() -> Path:
 
 
 def default_measure_suite_path() -> Path:
-    return REPOSITORY_ROOT / "suites" / "omlx-thinking-measure-v1.json"
+    return REPOSITORY_ROOT / "suites" / "omlx-thinking-measure-v1-r2.json"
 
 
 @dataclass(frozen=True)
