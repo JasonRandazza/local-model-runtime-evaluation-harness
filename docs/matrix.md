@@ -12,11 +12,11 @@ Family quant entries require `"native_server"` (`osaurus`, `omlx`, or `optiq`). 
 | Ornith 1.0 35B native | `ornith-35b` | `config/matrix/ornith-35b-campaign.json` |
 | Qwen 3.6 35B-A3B native | `qwen36-35b-a3b` | `config/matrix/qwen36-35b-a3b-campaign.json` |
 
-All reuse suite `suites/gemma-matrix-v1.json` revision `2` and the same screen/finalist depth.
-Revision `2` raises freeform `max_tokens` (`short-instruction` 512, `wiki-constraint-summary` 768) so
-Osaurus-native builds that still emit a long `reasoning_content` preamble can reach visible `content`
-within budget (Ornith/Qwen JANG–class). Revision `1` evidence remains historical. Free-form Approach 3
-cells are a later goal — not implemented here.
+All reuse suite `suites/gemma-matrix-v1.json` revision `3` and the same screen/finalist depth.
+Revision `3` sets freeform `max_tokens` to `2048` (`short-instruction`, `wiki-constraint-summary`) so
+Osaurus-native builds that emit long `reasoning_content` preambles can still reach visible `content`
+(Ornith JANG needed ~1400 completion tokens on the short prompt). Revisions `1`–`2` remain historical.
+Free-form Approach 3 cells are a later goal — not implemented here.
 
 **Multi-family quality/overhead (keep for later):** preference, RAG, and routing-overhead recipes for Ornith/Qwen are in-tree — see [preference.md](preference.md), [rag.md](rag.md), and [overhead.md](overhead.md). Live multi-family matrix screens and those follow-on campaigns wait until the Gemma harness frame is fully built out; then return here for proper cross-family testing.
 
