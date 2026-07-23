@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from local_model_runtime_evaluation.matrix_config import Cell, load_family
+from local_model_runtime_evaluation.matrix_config import Cell, MatrixError, load_family
 from local_model_runtime_evaluation.overhead_config import (
     DEFAULT_PAIR_IDS,
     DEFAULT_PAIRS_ROOT,
@@ -46,13 +46,15 @@ class OverheadConfigTests(unittest.TestCase):
             path.unlink(missing_ok=True)
 
     def test_make_routed_measure_cell_uses_osaurus_endpoint(self) -> None:
+        family = load_family("gemma-4-12b-qat")
         backend = Cell.load(
             ROOT / "config/matrix/cells/oq4_fp16__omlx.json",
-            family=load_family("gemma-4-12b-qat"),
+            family=family,
         )
         pair = OverheadPair.load(ROOT / "config/overhead/pairs/oq4_fp16.json")
-        routed = make_routed_measure_cell(backend, pair, family=load_family("gemma-4-12b-qat"))
+        routed = make_routed_measure_cell(backend, pair, family=family)
         self.assertEqual(routed.server, "osaurus")
+        self.assertEqual(family.quants[backend.quant].native_server, "omlx")
         self.assertEqual(routed.base_url, "http://127.0.0.1:1337/v1")
         self.assertEqual(routed.model_id, pair.routed_model_id)
         self.assertEqual(routed.cell_id, "oq4_fp16__osaurus")
@@ -62,6 +64,31 @@ class OverheadConfigTests(unittest.TestCase):
         self.assertEqual(routed.stop_command, ())
         self.assertEqual(routed.health_path, backend.health_path)
         self.assertEqual(routed.notes, "overhead routed measure cell; do not spawn via this cell")
+
+    def test_routed_measure_cell_skips_native_server_but_checks_artifact(self) -> None:
+        family = load_family("gemma-4-12b-qat")
+        backend = Cell.load(
+            ROOT / "config/matrix/cells/oq4_fp16__omlx.json",
+            family=family,
+        )
+        pair = OverheadPair.load(ROOT / "config/overhead/pairs/oq4_fp16.json")
+        routed = make_routed_measure_cell(backend, pair, family=family)
+        routed.validate_for_family(family, require_native_server=False)
+
+        bad_artifact = Cell(
+            cell_id=routed.cell_id,
+            quant=routed.quant,
+            server=routed.server,
+            base_url=routed.base_url,
+            model_id=routed.model_id,
+            artifact_path="/tmp/wrong-artifact",
+            start_command=routed.start_command,
+            stop_command=routed.stop_command,
+            health_path=routed.health_path,
+            notes=routed.notes,
+        )
+        with self.assertRaises(MatrixError):
+            bad_artifact.validate_for_family(family, require_native_server=False)
 
     def test_default_pair_ids_and_root(self) -> None:
         self.assertEqual(DEFAULT_PAIR_IDS, ("oq4_fp16", "optiq_4bit"))

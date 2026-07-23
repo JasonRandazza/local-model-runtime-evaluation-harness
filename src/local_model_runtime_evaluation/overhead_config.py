@@ -161,5 +161,5 @@ def make_routed_measure_cell(backend: Cell, pair: OverheadPair, *, family: Model
         health_path=backend.health_path,
         notes="overhead routed measure cell; do not spawn via this cell",
     )
-    cell.validate_for_family(family)
+    cell.validate_for_family(family, require_native_server=False)
     return cell

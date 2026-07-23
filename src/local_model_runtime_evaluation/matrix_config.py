@@ -180,11 +180,13 @@ class Cell:
         if not self.start_command:
             raise MatrixError("start_command must not be empty")
 
-    def validate_for_family(self, family: ModelFamily) -> None:
+    def validate_for_family(
+        self, family: ModelFamily, *, require_native_server: bool = True,
+    ) -> None:
         if self.quant not in family.quants:
             raise MatrixError("quant is invalid")
         quant = family.quants[self.quant]
-        if self.server != quant.native_server:
+        if require_native_server and self.server != quant.native_server:
             raise MatrixError(
                 "cell server must match quant native_server "
                 f"(got {self.quant!r} on {self.server!r}, "
