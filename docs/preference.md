@@ -77,21 +77,21 @@ Gemma default (three native cells):
 
 Prints JSON with `ok: true`, `"family_id": "gemma-4-12b-qat"`, the three native cell ids, and `prompts: 6`. No network or server start.
 
-Ornith four-cell recipe:
+Ornith three-cell native recipe:
 
 ```bash
 ./bin/lmre-preference collect --dry-config --family ornith-35b
 ```
 
-Prints JSON with `ok: true`, `"family_id": "ornith-35b"`, four `ornith_*` cell ids, and `prompts: 6`.
+Prints JSON with `ok: true`, `"family_id": "ornith-35b"`, three `ornith_*` native cell ids, and `prompts: 6`.
 
-Qwen four-cell recipe:
+Qwen three-cell native recipe:
 
 ```bash
 ./bin/lmre-preference collect --dry-config --family qwen36-35b-a3b
 ```
 
-Prints JSON with `ok: true`, `"family_id": "qwen36-35b-a3b"`, four `qwen_*` cell ids, and `prompts: 6`.
+Prints JSON with `ok: true`, `"family_id": "qwen36-35b-a3b"`, three `qwen_*` native cell ids, and `prompts: 6`.
 
 Judge dry-config (after review):
 

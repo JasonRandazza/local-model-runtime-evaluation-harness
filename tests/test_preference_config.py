@@ -22,8 +22,9 @@ class PreferenceConfigTests(unittest.TestCase):
     def test_suite_loads_six_prompts(self) -> None:
         suite = PreferenceSuite.load(ROOT / "suites/gemma-preference-v1.json")
         self.assertEqual(suite.suite_id, "gemma-preference-v1")
-        self.assertEqual(suite.revision, "1")
+        self.assertEqual(suite.revision, "2")
         self.assertEqual(len(suite.prompts), 6)
+        self.assertTrue(all(p.max_tokens == 2048 for p in suite.prompts))
         self.assertEqual(len({p.prompt_id for p in suite.prompts}), 6)
         cells = default_preference_cells()
         self.assertEqual(len(cells), 3)
