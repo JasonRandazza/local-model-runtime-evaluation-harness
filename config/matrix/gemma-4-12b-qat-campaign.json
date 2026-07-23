@@ -10,8 +10,6 @@
   "ports": {"osaurus": 1337, "omlx": 8100, "optiq": 8080},
   "cells": [
     "config/matrix/cells/jang_4m__osaurus.json",
-    "config/matrix/cells/jang_4m__omlx.json",
-    "config/matrix/cells/jang_4m__optiq.json",
     "config/matrix/cells/oq4_fp16__osaurus.json",
     "config/matrix/cells/oq4_fp16__omlx.json",
     "config/matrix/cells/oq4_fp16__optiq.json",

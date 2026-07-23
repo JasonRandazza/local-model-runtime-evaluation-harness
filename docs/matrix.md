@@ -4,7 +4,11 @@ Direct native comparison of control artifacts across Osaurus (`1337`), oMLX (`81
 
 Campaigns are family-scoped. Each campaign JSON declares a `family_id` that loads an allowlist from `config/matrix/families/<family_id>.json`. Cells keep `quant__server` ids; Ornith and Qwen quants are prefixed so they do not collide with Gemma.
 
-Family quant entries may set optional `"role": "osaurus_native"` for curated Osaurus library artifacts. That role covers **JANG or MXFP** — nativeness is not JANG-only.
+Family quant entries may set optional `"role": "osaurus_native"` for curated
+Osaurus library artifacts (JANG or MXFP). That role is **Osaurus-only**: campaigns
+must not schedule those quants on oMLX or OptiQ (load fails or hangs). Cell JSON
+for cross-server attempts may remain on disk for history, but `Cell.load` rejects
+them against the family.
 
 | Campaign | Family | Command |
 | --- | --- | --- |
@@ -83,7 +87,9 @@ Dry-config JSON includes `family_id`, `cell_count`, cell ids, and `artifact_miss
 
 ## Live screen (operator)
 
-Run all nine cells in screen mode first. Gemma:
+Run campaign cells in screen mode first (Gemma is seven cells after
+`osaurus_native` quants were limited to Osaurus). Gemma:
+
 
 ```bash
 ./bin/lmre-matrix --mode screen \
@@ -163,6 +169,7 @@ Under `results/matrix/<campaign_id>-<mode>-<timestamp>/`:
 
 - Pinned start argv only; harness starts and stops only what each cell defines.
 - Verify port free before the next cell; stop on RAM floor breach.
-- Attempt all nine cells; `on_cell_failure: continue` keeps going after `N/A` or `FAIL`.
+- Attempt listed campaign cells; `on_cell_failure: continue` keeps going after `N/A` or `FAIL`.
+  `osaurus_native` quants (JANG / MXFP) are Osaurus-only — not scheduled on oMLX/OptiQ.
 - Do not run live campaigns without explicit operator authorization.
 - Stage 2B sealed cohorts for this window remain historical evidence; this matrix path still does not use Gate B, plugin tools, or Stage 2B inference authority, and does not authorize a new Stage 2 run ID.

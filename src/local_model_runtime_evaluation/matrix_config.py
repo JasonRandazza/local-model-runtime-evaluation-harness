@@ -176,6 +176,12 @@ class Cell:
     def validate_for_family(self, family: ModelFamily) -> None:
         if self.quant not in family.quants:
             raise MatrixError("quant is invalid")
+        quant = family.quants[self.quant]
+        if quant.role == "osaurus_native" and self.server != "osaurus":
+            raise MatrixError(
+                "osaurus_native quants are Osaurus-only "
+                f"(got {self.quant!r} on {self.server!r})"
+            )
         _validate_quant_artifact(
             self.quant, self.model_id, self.artifact_path, family.quants,
         )
@@ -284,8 +290,12 @@ class Campaign:
         if normalized_ports != EXPECTED_CAMPAIGN_PORTS:
             raise MatrixError("ports values are invalid")
         cells = data["cells"]
-        if not isinstance(cells, list) or len(cells) != 9:
-            raise MatrixError("campaign must list exactly nine cells")
+        if not isinstance(cells, list) or not cells:
+            raise MatrixError("campaign cells are invalid")
+        if len(cells) > 9:
+            raise MatrixError("campaign must list at most nine cells")
+        if len(set(cells)) != len(cells):
+            raise MatrixError("campaign cell paths must be unique")
         cell_paths = tuple(_resolve_repo_path(str(item)) for item in cells)
         return cls(
             campaign_id,

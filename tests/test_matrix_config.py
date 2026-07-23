@@ -29,10 +29,14 @@ class MatrixConfigTests(unittest.TestCase):
     def test_all_nine_cells_load(self) -> None:
         campaign = Campaign.load(GEMMA_CAMPAIGN)
         paths = campaign.cell_paths
-        self.assertEqual(len(paths), 9)
+        self.assertEqual(len(paths), 7)
         cells = [Cell.load(path, family=GEMMA_FAMILY) for path in paths]
         servers = {(c.quant, c.server) for c in cells}
-        self.assertEqual(len(servers), 9)
+        self.assertEqual(len(servers), 7)
+        self.assertEqual(
+            {(c.quant, c.server) for c in cells if c.quant == "jang_4m"},
+            {("jang_4m", "osaurus")},
+        )
         for cell in cells:
             self.assertTrue(cell.base_url.startswith("http://127.0.0.1:"))
             self.assertTrue(cell.base_url.endswith("/v1"))
@@ -45,7 +49,7 @@ class MatrixConfigTests(unittest.TestCase):
         campaign = Campaign.load(ROOT / "config" / "matrix" / "gemma-4-12b-qat-campaign.json")
         self.assertEqual(campaign.campaign_id, "gemma-4-12b-qat-3x3")
         self.assertEqual(campaign.memory_floor_percent, 20)
-        self.assertEqual(len(campaign.cell_paths), 9)
+        self.assertEqual(len(campaign.cell_paths), 7)
         self.assertEqual(campaign.ports, {"osaurus": 1337, "omlx": 8100, "optiq": 8080})
 
     def test_gemma_campaign_loads_with_family_id(self) -> None:
@@ -216,7 +220,7 @@ class MatrixConfigTests(unittest.TestCase):
         self.assertEqual(campaign.family_id, "ornith-35b")
         self.assertEqual(campaign.family.family_id, "ornith-35b")
         self.assertEqual(campaign.memory_floor_percent, 20)
-        self.assertEqual(len(campaign.cell_paths), 9)
+        self.assertEqual(len(campaign.cell_paths), 7)
         self.assertEqual(campaign.ready_timeout_seconds, 300)
         self.assertEqual(campaign.request_timeout_seconds, 180)
         self.assertEqual(campaign.ports, {"osaurus": 1337, "omlx": 8100, "optiq": 8080})
@@ -224,9 +228,13 @@ class MatrixConfigTests(unittest.TestCase):
     def test_all_nine_ornith_cells_load(self) -> None:
         campaign = Campaign.load(ORNITH_CAMPAIGN)
         cells = [Cell.load(path, family=ORNITH_FAMILY) for path in campaign.cell_paths]
-        self.assertEqual(len(cells), 9)
+        self.assertEqual(len(cells), 7)
         servers = {(c.quant, c.server) for c in cells}
-        self.assertEqual(len(servers), 9)
+        self.assertEqual(len(servers), 7)
+        self.assertEqual(
+            {(c.quant, c.server) for c in cells if c.quant == "ornith_jang_4m"},
+            {("ornith_jang_4m", "osaurus")},
+        )
         for cell in cells:
             self.assertTrue(cell.base_url.startswith("http://127.0.0.1:"))
             self.assertTrue(cell.base_url.endswith("/v1"))
@@ -280,6 +288,14 @@ class MatrixConfigTests(unittest.TestCase):
         self.assertTrue(cell.model_id.endswith(":no-think"), cell.model_id)
         self.assertEqual(cell.server, "optiq")
 
+    def test_osaurus_native_quant_rejects_non_osaurus_server(self) -> None:
+        with self.assertRaises(MatrixError) as context:
+            Cell.load(
+                ROOT / "config/matrix/cells/jang_4m__optiq.json",
+                family=GEMMA_FAMILY,
+            )
+        self.assertIn("osaurus_native", str(context.exception))
+
     def test_family_quant_rejects_unknown_role(self) -> None:
         payload = {
             "family_id": "bad-role-family",
@@ -302,15 +318,19 @@ class MatrixConfigTests(unittest.TestCase):
         self.assertEqual(campaign.campaign_id, "qwen36-35b-a3b-3x3")
         self.assertEqual(campaign.family_id, "qwen36-35b-a3b")
         self.assertEqual(campaign.family.family_id, "qwen36-35b-a3b")
-        self.assertEqual(len(campaign.cell_paths), 9)
+        self.assertEqual(len(campaign.cell_paths), 7)
         self.assertEqual(campaign.ports, {"osaurus": 1337, "omlx": 8100, "optiq": 8080})
 
     def test_all_nine_qwen_cells_load(self) -> None:
         campaign = Campaign.load(QWEN_CAMPAIGN)
         cells = [Cell.load(path, family=QWEN_FAMILY) for path in campaign.cell_paths]
-        self.assertEqual(len(cells), 9)
+        self.assertEqual(len(cells), 7)
         servers = {(c.quant, c.server) for c in cells}
-        self.assertEqual(len(servers), 9)
+        self.assertEqual(len(servers), 7)
+        self.assertEqual(
+            {(c.quant, c.server) for c in cells if c.quant == "qwen_mxfp4"},
+            {("qwen_mxfp4", "osaurus")},
+        )
         for cell in cells:
             self.assertTrue(cell.base_url.startswith("http://127.0.0.1:"))
             self.assertTrue(cell.base_url.endswith("/v1"))
