@@ -136,10 +136,12 @@ Benchmark Coordinator
 The contract fixes schema `3.5.0`, mode `harness_inference_probe`, comparison class `gemma-optiq-042-harness-route-smoke`, profile `gemma-4-12b-optiq-4bit` revision `4`, suite `gemma-optiq-042-harness-route-smoke-v1` revision `1`, `service_ownership: harness`, and `provider_activation: verify_routed_id_only`. Provider *edit* remains forbidden; the harness verifies the exact routed inventory ID after OptiQ is up. If reconnect is required and no safe non-editing API exists, at most one operator reconnect tap is documented — see `docs/superpowers/notes/2026-07-22-slice-1c-provider-reconnect-note.md`.
 
 Gate A is `GATE_A_PASSED`. Live Gate B–D for harness-unattended **smoke** sealed
-**PASS** on `stage2-20260723-003` (2026-07-23). A harness-unattended **72-POST
-benchmark** design is accepted (`3.6.0`; Gate A not yet implemented) — see
+**PASS** on `stage2-20260723-003` (2026-07-23). Harness-unattended **72-POST
+route benchmark** (Design 2) Gate A is **landed** (fake-only; schema `3.6.0`,
+mode `harness_route_benchmark`, profile revision `5`) — see
 `docs/superpowers/specs/2026-07-23-harness-unattended-route-benchmark-design.md`
-and `docs/stage-2-harness-unattended-gate-a.md`.
+and `docs/stage-2-harness-unattended-gate-a.md`. Live Gate B–D for the benchmark
+remain separately gated; no usable run ID or live manifest is created by Gate A.
 
 ## Shared Harness Lifecycle (Slice 1a)
 

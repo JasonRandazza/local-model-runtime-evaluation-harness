@@ -136,4 +136,4 @@ def _require_operator_shutdown(run_id: str) -> bool:
             matches.append(raw)
     if len(matches) != 1:
         return True
-    return matches[0].get("mode") != "harness_inference_probe"
+    return matches[0].get("mode") not in {"harness_inference_probe", "harness_route_benchmark"}

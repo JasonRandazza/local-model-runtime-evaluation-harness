@@ -1,9 +1,9 @@
 # Harness-Unattended Gemma OptiQ 0.4.2 Route Benchmark Design
 
-**Status:** Design accepted in conversation (Jason, 2026-07-23). Design 1 Gate A
-+ live inventory-wait proof are closed — Gate A implementation may proceed
-(fake-only / docs first). Does **not** authorize live manifests, usable run
-IDs, POSTs, provider edits, or plugin rebuild.
+**Status:** Gate A **landed** (fake-only; 2026-07-23). Design accepted in
+conversation (Jason, 2026-07-23). Design 1 Gate A + live inventory-wait proof
+are closed. Does **not** authorize live manifests, usable run IDs, POSTs,
+provider edits, or plugin rebuild. Live Gate B–D remain separately gated.
 
 **Depends on:**  
 1. Reconnect-tap elimination Gate A accepted —

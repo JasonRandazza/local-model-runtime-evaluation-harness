@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-from local_model_runtime_evaluation.wait_for_review import wait_for_review
+from local_model_runtime_evaluation import wait_for_review as wait_for_review_module
+from local_model_runtime_evaluation.wait_for_review import (
+    _require_operator_shutdown,
+    wait_for_review,
+)
 
 
 class WaitForReviewTest(unittest.TestCase):
@@ -53,6 +61,42 @@ class WaitForReviewTest(unittest.TestCase):
             30,
             require_operator_shutdown=False,
         )
+        self.assertEqual(result["overall"], "READY_FOR_COORDINATOR")
+        self.assertEqual(result["state"], "awaiting_review")
+        self.assertNotIn("operator_action_required", result)
+
+    def test_harness_route_benchmark_skips_operator_shutdown(self) -> None:
+        run_id = "stage2-20260723-903"
+        with tempfile.TemporaryDirectory() as temp:
+            manifests = Path(temp) / "manifests"
+            manifests.mkdir()
+            (manifests / "harness-bench.json").write_text(
+                json.dumps({"run_id": run_id, "mode": "harness_route_benchmark"}),
+                encoding="utf-8",
+            )
+            mock_module_path = MagicMock()
+            mock_resolved = MagicMock()
+            mock_resolved.parents.__getitem__.return_value = Path(temp)
+            mock_module_path.resolve.return_value = mock_resolved
+
+            def path_factory(arg: str | Path) -> Path | MagicMock:
+                if arg == wait_for_review_module.__file__:
+                    return mock_module_path
+                return Path(arg)
+
+            with patch.object(
+                wait_for_review_module, "Path", side_effect=path_factory,
+            ):
+                self.assertFalse(_require_operator_shutdown(run_id))
+                result = wait_for_review(
+                    run_id,
+                    lambda requested: {
+                        "run_id": requested, "state": "awaiting_review", "sequence": 9,
+                    },
+                    lambda seconds: None,
+                    30,
+                    require_operator_shutdown=_require_operator_shutdown(run_id),
+                )
         self.assertEqual(result["overall"], "READY_FOR_COORDINATOR")
         self.assertEqual(result["state"], "awaiting_review")
         self.assertNotIn("operator_action_required", result)

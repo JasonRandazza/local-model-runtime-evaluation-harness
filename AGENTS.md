@@ -128,5 +128,13 @@ profile `gemma-4-12b-optiq-4bit` revision `3` and launcher
 - Provider *edit* is forbidden (`provider_activation: verify_routed_id_only`). The harness verifies the exact routed inventory ID after OptiQ is up. If reconnect is required and no safe non-editing API exists, at most **one** operator reconnect tap is documented — prefer eliminating it later. See `docs/superpowers/notes/2026-07-22-slice-1c-provider-reconnect-note.md`. Osaurus must not keep unapproved native models resident (only idle or `gemma-4-12b-it-qat-jang_4m`).
 - Profile revision `5` (`verify_routed_id_only_no_tap`) is the no-tap harness
   pin for follow-on lanes; sealed smoke `003` remains revision `4`.
+- **Design 2 (harness route benchmark):** Gate A **landed** (fake-only;
+  2026-07-23). Schema `3.6.0`, mode `harness_route_benchmark`, comparison
+  `gemma-optiq-042-harness-route-benchmark`, profile revision `5`, suite
+  `gemma-optiq-042-harness-route-benchmark-v1` revision `1`, 72-POST limit.
+  See
+  `docs/superpowers/specs/2026-07-23-harness-unattended-route-benchmark-design.md`
+  and `docs/stage-2-harness-unattended-gate-a.md`. Gate A does **not** create a
+  usable run ID or live manifest; live Gate B–D remain separately gated.
 - Do not create run IDs or live manifests, upgrade OptiQ on disk further, edit Osaurus providers, rebuild plugin `0.3.0`, or issue further live POSTs without Jason's separate current-session authorization.
 - Operator-owned rollback unchanged: Stage 2A revision `3`, Stage 2B-1 schema `3.3.0` / profile revision `2` (sealed `005`), Stage 2B-2 schema `3.4.0` / profile revision `2` (sealed `006`), plus operator OptiQ `0.4.2` revision-`3` smoke/benchmark seals (`stage2-20260723-006` / `007`). Those lanes still require operator OptiQ lifecycle and `service_lifecycle_actions: 0`.

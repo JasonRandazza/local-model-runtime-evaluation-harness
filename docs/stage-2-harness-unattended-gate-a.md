@@ -13,8 +13,17 @@ Do not reuse `001`–`003`.
 inventory-wait proof **PASS** (revision `5`, `verify_routed_id_only_no_tap`,
 `reconnect_tap_used: false`) —
 `docs/superpowers/verification/2026-07-23-slice-1c-inventory-wait-r5-proof.md`.
-Schema `3.6.0` harness benchmark remains separately gated — see
+
+**Follow-on Design 2 (harness route benchmark):** Gate A **landed** (fake-only;
+2026-07-23). Schema `3.6.0`, mode `harness_route_benchmark`, comparison
+`gemma-optiq-042-harness-route-benchmark`, profile revision `5`, suite
+`gemma-optiq-042-harness-route-benchmark-v1` revision `1`, 72-POST limit.
+Implementation plan:
+`docs/superpowers/plans/2026-07-23-harness-unattended-route-benchmark-gate-a.md`.
+Design authority:
 `docs/superpowers/specs/2026-07-23-harness-unattended-route-benchmark-design.md`.
+Gate A does **not** create a usable run ID or live manifest, authorize POSTs,
+or grant live Gate B–D authority — those remain separately gated.
 
 **Prerequisite slices:** Slice 1a (`harness_lifecycle.py`) and Slice 1b
 (revision `3` / `0.4.2` pin constants). Live pin-confirm on disk remains

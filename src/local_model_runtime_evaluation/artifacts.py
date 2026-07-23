@@ -121,6 +121,12 @@ class ArtifactBundle:
             ):
                 return STAGE_TWO_BENCHMARK_REQUIRED_FILES
             if (
+                manifest.get("mode") == "harness_route_benchmark"
+                and manifest.get("schema_version") == "3.6.0"
+                and manifest.get("runtime_profile_revision") == "5"
+            ):
+                return STAGE_TWO_BENCHMARK_REQUIRED_FILES
+            if (
                 manifest.get("mode") == "operator_inference_probe"
                 and (
                     (
