@@ -63,8 +63,8 @@ generated output, request payloads, headers, credentials, or process details.
 |---|---|---|
 | **A** | Code, tests, schemas, suite, docs, non-installed prompt draft | **Passed** (review closed) |
 | **B** | Live read-only readiness (launcher, provider, identities, memory); no POST | Ready to authorize separately |
-| **C** | Jason authorizes one unused run ID + short-lived `3.4.0` manifest | Blocked |
-| **D** | 72 POSTs, manual shutdown, cleanup, manager review | Blocked |
+| **C** | Jason authorizes one unused run ID + short-lived `3.4.0` manifest | **Authorized** — `stage2-20260721-006` through EOD Eastern |
+| **D** | 72 POSTs, manual shutdown, cleanup, manager review | **Complete** — `stage2-20260721-006` sealed PASS |
 
 Gate A is implementation and deterministic verification only. It does not create a
 live manifest, select a usable run ID, install a Coordinator prompt into Osaurus,
