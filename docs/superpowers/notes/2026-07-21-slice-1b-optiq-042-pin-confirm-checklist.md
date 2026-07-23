@@ -232,8 +232,13 @@ authorization for the distinct post–template-sync evidence names:
 (fake-only) — design
 `docs/superpowers/specs/2026-07-23-operator-042-route-lanes-design.md`,
 plan `docs/superpowers/plans/2026-07-23-operator-042-route-lanes-gate-a.md`,
-launcher `bin/lmre-stage2-operator-serve-gemma-042`. Live Gate B–D remain
-separately gated.
+launcher `bin/lmre-stage2-operator-serve-gemma-042`.
+
+**Update (2026-07-23, later):** Operator **smoke** live Gate B–D accepted —
+manager review
+`docs/superpowers/verification/2026-07-23-operator-042-smoke-manager-review.md`
+(canonical sealed PASS `stage2-20260723-006`; prior `005` PASS; `004` STOPPED).
+Operator **benchmark** Gate B–D remain separately gated.
 
 ---
 

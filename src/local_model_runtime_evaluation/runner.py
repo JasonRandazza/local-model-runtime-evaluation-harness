@@ -335,11 +335,14 @@ class StageZeroRunner:
             }
         if operation is Operation.CLEANUP:
             state = lifecycle.read(run_id)
+            # Failed preflight before operator-service-identity was written has no
+            # recorded process to assert_stopped against. Use bounded partial cleanup
+            # (Stage 2A path) for any Stage 2 mode that recorded preflight-recovery.
+            identity_path = output_root / run_id / "operator-service-identity.json"
             if (
-                (manifest.schema_version, manifest.mode) == ("3.1.0", "operator_route_probe")
-                and
                 state.status in {RunStatus.FAILED, RunStatus.CLEANED}
                 and self._has_stage_two_preflight_recovery(output_root, run_id)
+                and not identity_path.is_file()
             ):
                 result = self._cleanup_stage_two_preflight_failure(manifest, output_root, lifecycle)
                 lock.release(run_id)

@@ -167,7 +167,7 @@ class StageTwoInferenceRunnerTest(unittest.TestCase):
         self.assertTrue(engines[-1].lock_owned_during_cleanup)
         self.assertFalse((output / ".active-run.lock").exists())
 
-    def test_failed_preflight_cleanup_requires_engine_shutdown_validation_before_lock_release(self) -> None:
+    def test_failed_preflight_without_identity_uses_bounded_partial_cleanup(self) -> None:
         runner, output, engines, _ = self._runner(FailingInferencePreflight)
 
         with self.assertRaises(RunnerError) as raised:
@@ -180,19 +180,28 @@ class StageTwoInferenceRunnerTest(unittest.TestCase):
         self.assertEqual(recovery["comparison_class"], "gemma-optiq-operator-route-smoke")
         self.assertEqual(recovery["http_post_attempts"], 0)
         self.assertTrue((output / ".active-run.lock").exists())
+        self.assertFalse((output / self.run_id / "operator-service-identity.json").exists())
 
         result = runner.dispatch(Operation.CLEANUP, self.run_id)
 
-        self.assertEqual(result["manual_shutdown_validation"], "PASS")
+        self.assertEqual(result["state"], "cleaned")
+        self.assertEqual(result["disposition"], "STOPPED")
         self.assertEqual(result["checksum_validation"], "PASS")
-        self.assertEqual(engines[-1].cleanup_calls, 1)
-        self.assertTrue(engines[-1].lock_owned_during_cleanup)
+        self.assertTrue(result["manager_review_required"])
+        self.assertEqual(result["operator_cleanup_invoked"], False)
+        self.assertEqual(engines[-1].cleanup_calls, 0)
         self.assertFalse((output / ".active-run.lock").exists())
 
     def test_cleanup_sealing_failure_retains_the_inference_lock_for_retry(self) -> None:
         runner, output, engines, _ = self._runner(RetryableInferenceCleanup)
         with self.assertRaises(RunnerError):
             runner.dispatch(Operation.PREFLIGHT, self.run_id)
+        # Identity present → engine cleanup path (not bounded preflight-recovery).
+        (output / self.run_id / "operator-service-identity.json").write_text(
+            json.dumps({"pid": 1, "parent_pid": 0, "process_group_id": 1, "started_at": "t", "command_sha256": "x"}),
+            encoding="utf-8",
+        )
+        RetryableInferenceCleanup.cleanup_attempts = 0
 
         with self.assertRaisesRegex(RuntimeError, "inference cleanup sealing failed"):
             runner.dispatch(Operation.CLEANUP, self.run_id)
