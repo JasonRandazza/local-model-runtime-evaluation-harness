@@ -12,6 +12,7 @@ FIXTURE = Path(__file__).parent / "fixtures" / "valid-stage-2.json"
 INFERENCE_FIXTURE = Path(__file__).parent / "fixtures" / "valid-stage-2-inference.json"
 GEMMA_INFERENCE_FIXTURE = Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json"
 HARNESS_SMOKE_FIXTURE = Path(__file__).parent / "fixtures" / "valid-stage-2-harness-smoke.json"
+HARNESS_BENCHMARK_FIXTURE = Path(__file__).parent / "fixtures" / "valid-stage-2-harness-benchmark.json"
 
 
 class StageTwoManifestTest(unittest.TestCase):
@@ -98,6 +99,71 @@ class StageTwoManifestTest(unittest.TestCase):
                 "total_request_limit": 8,
             },
         )
+
+    def test_valid_stage_two_harness_benchmark_manifest_loads(self) -> None:
+        data = json.loads(HARNESS_BENCHMARK_FIXTURE.read_text())
+        now = datetime(2026, 7, 23, tzinfo=timezone.utc)
+        manifest = validate_manifest(data, now=now)
+        self.assertEqual(manifest.schema_version, "3.6.0")
+        self.assertEqual(manifest.mode, "harness_route_benchmark")
+        self.assertEqual(manifest.comparison_class, "gemma-optiq-042-harness-route-benchmark")
+        self.assertEqual(manifest.runtime_profile_id, "gemma-4-12b-optiq-4bit")
+        self.assertEqual(manifest.runtime_profile_revision, "5")
+        self.assertEqual(manifest.suite_id, "gemma-optiq-042-harness-route-benchmark-v1")
+        self.assertEqual(manifest.suite_revision, "1")
+        self.assertEqual(manifest.repetitions, 1)
+        self.assertEqual(manifest.route_order, "counterbalanced")
+        self.assertEqual(
+            manifest.limits,
+            {
+                "request_timeout_seconds": 120,
+                "memory_stop_level": "warning",
+                "maximum_in_flight_requests": 1,
+                "total_request_limit": 72,
+            },
+        )
+
+    def test_schema_360_rejects_profile_revision_four(self) -> None:
+        data = json.loads(HARNESS_BENCHMARK_FIXTURE.read_text())
+        data["runtime_profile_revision"] = "4"
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=datetime(2026, 7, 23, tzinfo=timezone.utc))
+
+    def test_schema_360_rejects_operator_comparison_class(self) -> None:
+        data = json.loads(HARNESS_BENCHMARK_FIXTURE.read_text())
+        data["comparison_class"] = "gemma-optiq-042-operator-route-benchmark"
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=datetime(2026, 7, 23, tzinfo=timezone.utc))
+
+    def test_schema_350_rejects_harness_benchmark_comparison_class(self) -> None:
+        data = json.loads(HARNESS_SMOKE_FIXTURE.read_text())
+        data["comparison_class"] = "gemma-optiq-042-harness-route-benchmark"
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=datetime(2026, 7, 22, tzinfo=timezone.utc))
+
+    def test_schema_340_rejects_profile_revision_five(self) -> None:
+        data = json.loads(GEMMA_INFERENCE_FIXTURE.read_text())
+        data.update({
+            "schema_version": "3.4.0",
+            "mode": "operator_route_benchmark",
+            "comparison_class": "gemma-optiq-operator-route-benchmark",
+            "runtime_profile_revision": "5",
+            "suite_id": "gemma-optiq-route-benchmark-v1",
+            "limits": {
+                "request_timeout_seconds": 120,
+                "memory_stop_level": "warning",
+                "maximum_in_flight_requests": 1,
+                "total_request_limit": 72,
+            },
+        })
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=datetime(2026, 7, 21, tzinfo=timezone.utc))
+
+    def test_schema_350_rejects_profile_revision_five(self) -> None:
+        data = json.loads(HARNESS_SMOKE_FIXTURE.read_text())
+        data["runtime_profile_revision"] = "5"
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=datetime(2026, 7, 22, tzinfo=timezone.utc))
 
     def test_schema_350_rejects_operator_comparison_class(self) -> None:
         data = json.loads(HARNESS_SMOKE_FIXTURE.read_text())

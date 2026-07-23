@@ -177,6 +177,84 @@ class PolicyTest(unittest.TestCase):
         with self.assertRaises(ManifestError):
             validate_manifest(data, now=datetime(2026, 7, 21, tzinfo=timezone.utc))
 
+    def test_harness_benchmark_manifest_authorizes_all_six_operations(self) -> None:
+        fixture = Path(__file__).parent / "fixtures" / "valid-stage-2-harness-benchmark.json"
+        manifest = load_manifest(fixture, now=datetime(2026, 7, 23, tzinfo=timezone.utc))
+        policy = StageTwoPolicy()
+        for operation in Operation:
+            policy.authorize(manifest, operation)
+
+    def test_harness_benchmark_rejects_operator_comparison_class(self) -> None:
+        data = json.loads((
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-benchmark.json"
+        ).read_text())
+        data["comparison_class"] = "gemma-optiq-042-operator-route-benchmark"
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=datetime(2026, 7, 23, tzinfo=timezone.utc))
+
+    def test_harness_benchmark_rejects_profile_revision_four(self) -> None:
+        data = json.loads((
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-benchmark.json"
+        ).read_text())
+        data["runtime_profile_revision"] = "4"
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=datetime(2026, 7, 23, tzinfo=timezone.utc))
+
+    def test_harness_smoke_rejects_harness_benchmark_comparison_class(self) -> None:
+        data = json.loads((
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-smoke.json"
+        ).read_text())
+        data["comparison_class"] = "gemma-optiq-042-harness-route-benchmark"
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=datetime(2026, 7, 22, tzinfo=timezone.utc))
+
+    def test_operator_benchmark_rejects_profile_revision_five(self) -> None:
+        data = json.loads((
+            Path(__file__).parent / "fixtures" / "valid-stage-2-inference-gemma.json"
+        ).read_text())
+        data.update({
+            "schema_version": "3.4.0",
+            "mode": "operator_route_benchmark",
+            "comparison_class": "gemma-optiq-operator-route-benchmark",
+            "runtime_profile_revision": "5",
+            "suite_id": "gemma-optiq-route-benchmark-v1",
+            "limits": {
+                "request_timeout_seconds": 120,
+                "memory_stop_level": "warning",
+                "maximum_in_flight_requests": 1,
+                "total_request_limit": 72,
+            },
+        })
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=datetime(2026, 7, 21, tzinfo=timezone.utc))
+
+    def test_harness_smoke_rejects_profile_revision_five(self) -> None:
+        data = json.loads((
+            Path(__file__).parent / "fixtures" / "valid-stage-2-harness-smoke.json"
+        ).read_text())
+        data["runtime_profile_revision"] = "5"
+        with self.assertRaises(ManifestError):
+            validate_manifest(data, now=datetime(2026, 7, 22, tzinfo=timezone.utc))
+
+    def test_harness_benchmark_rejects_wrong_comparison_under_policy(self) -> None:
+        fixture = Path(__file__).parent / "fixtures" / "valid-stage-2-harness-benchmark.json"
+        manifest = load_manifest(fixture, now=datetime(2026, 7, 23, tzinfo=timezone.utc))
+        policy = StageTwoPolicy()
+        with self.assertRaises(PolicyError) as ctx:
+            policy.authorize(
+                replace(manifest, comparison_class="gemma-optiq-042-operator-route-benchmark"),
+                Operation.INVENTORY,
+            )
+        self.assertEqual(ctx.exception.code, "stage_forbidden")
+
+    def test_harness_benchmark_rejects_wrong_revision_under_policy(self) -> None:
+        fixture = Path(__file__).parent / "fixtures" / "valid-stage-2-harness-benchmark.json"
+        manifest = load_manifest(fixture, now=datetime(2026, 7, 23, tzinfo=timezone.utc))
+        policy = StageTwoPolicy()
+        with self.assertRaises(PolicyError) as ctx:
+            policy.authorize(replace(manifest, runtime_profile_revision="4"), Operation.INVENTORY)
+        self.assertEqual(ctx.exception.code, "stage_forbidden")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -62,7 +62,7 @@ def validate_manifest(
     if stage not in {0, 1, 2}:
         raise ManifestError("stage_forbidden", "stage must be 0, 1, or 2")
     schema_version = data.get("schema_version")
-    if stage == 2 and schema_version in {"3.2.0", "3.3.0", "3.4.0", "3.5.0"}:
+    if stage == 2 and schema_version in {"3.2.0", "3.3.0", "3.4.0", "3.5.0", "3.6.0"}:
         required_keys = STAGE_TWO_INFERENCE_KEYS
     else:
         required_keys = (
@@ -81,7 +81,7 @@ def validate_manifest(
     elif stage == 1:
         allowed_schemas = {"2.0.0"}
     else:
-        allowed_schemas = {"3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0"}
+        allowed_schemas = {"3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0", "3.6.0"}
     if data["schema_version"] not in allowed_schemas:
         raise ManifestError("unsupported_schema", "schema_version does not match stage")
     if stage == 0:
@@ -94,6 +94,8 @@ def validate_manifest(
         expected_mode = "operator_route_probe"
     elif data["schema_version"] == "3.4.0":
         expected_mode = "operator_route_benchmark"
+    elif data["schema_version"] == "3.6.0":
+        expected_mode = "harness_route_benchmark"
     elif data["schema_version"] == "3.5.0":
         expected_mode = "harness_inference_probe"
     else:
@@ -177,8 +179,21 @@ def validate_manifest(
             "limits": dict(limits),
         }
     else:
-        if data["schema_version"] in {"3.2.0", "3.3.0", "3.4.0", "3.5.0"}:
-            if data["schema_version"] == "3.5.0":
+        if data["schema_version"] in {"3.2.0", "3.3.0", "3.4.0", "3.5.0", "3.6.0"}:
+            if data["schema_version"] == "3.6.0":
+                if data["comparison_class"] != "gemma-optiq-042-harness-route-benchmark":
+                    raise ManifestError("comparison_forbidden", "Stage 2B comparison contract is not approved")
+                if data["runtime_profile_id"] != "gemma-4-12b-optiq-4bit":
+                    raise ManifestError("profile_forbidden", "Stage 2B requires the approved runtime profile")
+                if data["runtime_profile_revision"] != "5":
+                    raise ManifestError("profile_revision_forbidden", "Stage 2B requires runtime profile revision 5")
+                if (
+                    data["suite_id"] != "gemma-optiq-042-harness-route-benchmark-v1"
+                    or data["suite_revision"] != "1"
+                ):
+                    raise ManifestError("suite_forbidden", "Stage 2B requires the approved harness benchmark suite")
+                total_request_limit = 72
+            elif data["schema_version"] == "3.5.0":
                 if data["comparison_class"] != "gemma-optiq-042-harness-route-smoke":
                     raise ManifestError("comparison_forbidden", "Stage 2B comparison contract is not approved")
                 if data["runtime_profile_id"] != "gemma-4-12b-optiq-4bit":

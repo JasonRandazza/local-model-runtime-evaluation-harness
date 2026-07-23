@@ -72,6 +72,10 @@ class StageTwoPolicy:
                 "3.5.0", "harness_inference_probe",
                 "gemma-optiq-042-harness-route-smoke", "4",
             ),
+            (
+                "3.6.0", "harness_route_benchmark",
+                "gemma-optiq-042-harness-route-benchmark", "5",
+            ),
         }
         contract = (
             manifest.schema_version, manifest.mode,
