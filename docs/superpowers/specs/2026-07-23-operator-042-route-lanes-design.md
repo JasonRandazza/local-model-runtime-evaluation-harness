@@ -1,9 +1,8 @@
 # Operator-Owned Gemma OptiQ 0.4.2 Route Lanes — Gate A Design
 
-**Status:** Gate A landed. Operator **smoke** live Gate B–D accepted
-(`stage2-20260723-006` PASS; manager review 2026-07-23). Operator **benchmark**
-Gate B–D remain separately gated. Does **not** authorize benchmark manifests or
-POSTs.
+**Status:** Gate A landed. Operator **smoke** and **benchmark** live Gate B–D
+accepted (`stage2-20260723-006` / `007` PASS; manager reviews 2026-07-23).
+Lane pair complete for this authorization window.
 
 **Depends on:** Slice 1b pin-confirm PASS (`0.4.2` on disk; profile revision
 `3` constants verified); Slice 1c harness lane sealed PASS on

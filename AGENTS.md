@@ -88,6 +88,29 @@ Applies to schema `3.4.0` and profile revision `2`. The harness-unattended lane 
 - For **this operator-owned lane**, Jason remains the sole owner of the foreground OptiQ service lifecycle and existing-provider reconnect. The harness never starts, stops, signals, restarts, configures, loads, or unloads OptiQ or Osaurus on schema `3.4.0` / profile revision `2`.
 - Preserve Stage 2B-1 `3.3.0` smoke and Stage 2A revision-3 as rollback. Plugin `0.3.0` unchanged; do not rebuild or reinstall it.
 
+## Stage 2 Operator OptiQ 0.4.2 Route Lanes (profile revision `3`)
+
+Applies to comparison classes `gemma-optiq-042-operator-route-smoke` (schema
+`3.3.0`) and `gemma-optiq-042-operator-route-benchmark` (schema `3.4.0`) with
+profile `gemma-4-12b-optiq-4bit` revision `3` and launcher
+`bin/lmre-stage2-operator-serve-gemma-042`. Distinct from revision-`2` sealed
+`stage2-20260721-005` / `006`.
+
+- Current decision: operator **smoke** and **benchmark** live Gate B–D accepted
+  (Jason, 2026-07-23). Smoke canonical seal `stage2-20260723-006` PASS (also
+  `005` PASS; `004` STOPPED). Benchmark seal `stage2-20260723-007` PASS
+  (72/72 POSTs; manager-reviewed). See
+  `docs/superpowers/verification/2026-07-23-operator-042-smoke-manager-review.md`
+  and
+  `docs/superpowers/verification/2026-07-23-operator-042-benchmark-manager-review-007.md`.
+- Ownership remains operator-owned (`service_lifecycle_actions: 0`). Do not
+  operate OptiQ/Osaurus lifecycle from the harness on these comparison classes.
+- Do not reuse consumed same-day IDs `stage2-20260723-004`–`007` (or harness
+  `001`–`003`). Do not authorize another `042` operator run without Jason's
+  separate current-session authorization.
+- Fail-closed pairing: revision `2` ↔ historical `gemma-optiq-operator-route-*`
+  only; revision `3` ↔ `gemma-optiq-042-operator-route-*` only.
+
 ## Stage 2 Harness-Unattended Boundary (Slice 1c)
 
 - Current decision: Gate A `GATE_A_PASSED`; Gate B
@@ -104,4 +127,4 @@ Applies to schema `3.4.0` and profile revision `2`. The harness-unattended lane 
 - The harness **may** start and stop OptiQ via Slice 1a `LifecycleController` for this lane only. It records honest `service_lifecycle_actions > 0` at preflight (cross-process summary may under-count). Cleanup uses harness-owned process-group stop (mlx-optiq `0.4.2` has no `optiq stop` CLI); port `8080` must be free twice. Not operator `Ctrl+C`.
 - Provider *edit* is forbidden (`provider_activation: verify_routed_id_only`). The harness verifies the exact routed inventory ID after OptiQ is up. If reconnect is required and no safe non-editing API exists, at most **one** operator reconnect tap is documented — prefer eliminating it later. See `docs/superpowers/notes/2026-07-22-slice-1c-provider-reconnect-note.md`. Osaurus must not keep unapproved native models resident (only idle or `gemma-4-12b-it-qat-jang_4m`).
 - Do not create run IDs or live manifests, upgrade OptiQ on disk further, edit Osaurus providers, rebuild plugin `0.3.0`, or issue further live POSTs without Jason's separate current-session authorization.
-- Operator-owned rollback unchanged: Stage 2A revision `3`, Stage 2B-1 schema `3.3.0` / profile revision `2` (sealed `005`), Stage 2B-2 schema `3.4.0` / profile revision `2` (sealed `006`). Those lanes still require operator OptiQ lifecycle and `service_lifecycle_actions: 0`.
+- Operator-owned rollback unchanged: Stage 2A revision `3`, Stage 2B-1 schema `3.3.0` / profile revision `2` (sealed `005`), Stage 2B-2 schema `3.4.0` / profile revision `2` (sealed `006`), plus operator OptiQ `0.4.2` revision-`3` smoke/benchmark seals (`stage2-20260723-006` / `007`). Those lanes still require operator OptiQ lifecycle and `service_lifecycle_actions: 0`.

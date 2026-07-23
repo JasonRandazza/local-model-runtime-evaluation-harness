@@ -238,7 +238,9 @@ launcher `bin/lmre-stage2-operator-serve-gemma-042`.
 manager review
 `docs/superpowers/verification/2026-07-23-operator-042-smoke-manager-review.md`
 (canonical sealed PASS `stage2-20260723-006`; prior `005` PASS; `004` STOPPED).
-Operator **benchmark** Gate B–D remain separately gated.
+Operator **benchmark** live Gate B–D accepted —
+`docs/superpowers/verification/2026-07-23-operator-042-benchmark-manager-review-007.md`
+(`stage2-20260723-007` PASS, 72/72).
 
 ---
 

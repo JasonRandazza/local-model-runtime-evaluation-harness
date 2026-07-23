@@ -31,6 +31,6 @@ bounded partial cleanup so the active-run lock can release (`runner.py`).
 
 ## Still separately gated
 
-- Operator `0.4.2` **benchmark** (`gemma-optiq-042-operator-route-benchmark`, 72 POSTs)
-- Do not reuse consumed run IDs `004`–`006`
-- Sealed revision-`2` cohorts `stage2-20260721-005` / `006` unchanged
+- None for this `042` operator route-lane pair (smoke + benchmark sealed).
+- Do not reuse consumed run IDs `004`–`007` (or harness `001`–`003`).
+- Sealed revision-`2` cohorts `stage2-20260721-005` / `006` unchanged.
