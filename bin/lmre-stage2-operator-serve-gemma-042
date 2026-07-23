@@ -1,0 +1,9 @@
+#!/bin/zsh
+set -euo pipefail
+
+if (( $# != 0 )); then
+  print -u2 "lmre-stage2-operator-serve-gemma-042 accepts no arguments"
+  exit 64
+fi
+
+exec /Users/jrazz/Dev/tools/mlx-optiq/.venv/bin/optiq serve --model /Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit --host 127.0.0.1 --port 8080 --no-anthropic --no-responses --no-auth --single-model --max-concurrent 1 --idle-timeout 0 --max-context 8192 --context-scale 1.0 --no-stream-experts --decode-concurrency 1 --prompt-concurrency 1

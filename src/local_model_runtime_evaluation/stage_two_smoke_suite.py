@@ -45,6 +45,7 @@ _APPROVED_SUITE_IDS = frozenset({
     "optiq-route-smoke-v1",
     "gemma-optiq-route-smoke-v1",
     "gemma-optiq-042-harness-route-smoke-v1",
+    "gemma-optiq-042-operator-route-smoke-v1",
 })
 _SCHEDULE = (
     SmokeRequest("short-chat", "direct", False, 1, 0),

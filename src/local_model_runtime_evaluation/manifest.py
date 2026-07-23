@@ -192,24 +192,46 @@ def validate_manifest(
                     raise ManifestError("suite_forbidden", "Stage 2B requires the approved harness smoke suite")
                 total_request_limit = 8
             elif data["schema_version"] == "3.4.0":
-                if data["comparison_class"] != "gemma-optiq-operator-route-benchmark":
+                if data["comparison_class"] == "gemma-optiq-042-operator-route-benchmark":
+                    if data["runtime_profile_id"] != "gemma-4-12b-optiq-4bit":
+                        raise ManifestError("profile_forbidden", "Stage 2B requires the approved runtime profile")
+                    if data["runtime_profile_revision"] != "3":
+                        raise ManifestError("profile_revision_forbidden", "Stage 2B requires runtime profile revision 3")
+                    if (
+                        data["suite_id"] != "gemma-optiq-042-operator-route-benchmark-v1"
+                        or data["suite_revision"] != "1"
+                    ):
+                        raise ManifestError("suite_forbidden", "Stage 2B requires the approved 042 benchmark suite")
+                elif data["comparison_class"] == "gemma-optiq-operator-route-benchmark":
+                    if data["runtime_profile_id"] != "gemma-4-12b-optiq-4bit":
+                        raise ManifestError("profile_forbidden", "Stage 2B requires the approved runtime profile")
+                    if data["runtime_profile_revision"] != "2":
+                        raise ManifestError("profile_revision_forbidden", "Stage 2B requires runtime profile revision 2")
+                    if data["suite_id"] != "gemma-optiq-route-benchmark-v1" or data["suite_revision"] != "1":
+                        raise ManifestError("suite_forbidden", "Stage 2B requires the approved benchmark suite")
+                else:
                     raise ManifestError("comparison_forbidden", "Stage 2B comparison contract is not approved")
-                if data["runtime_profile_id"] != "gemma-4-12b-optiq-4bit":
-                    raise ManifestError("profile_forbidden", "Stage 2B requires the approved runtime profile")
-                if data["runtime_profile_revision"] != "2":
-                    raise ManifestError("profile_revision_forbidden", "Stage 2B requires runtime profile revision 2")
-                if data["suite_id"] != "gemma-optiq-route-benchmark-v1" or data["suite_revision"] != "1":
-                    raise ManifestError("suite_forbidden", "Stage 2B requires the approved benchmark suite")
                 total_request_limit = 72
             elif data["schema_version"] == "3.3.0":
-                if data["comparison_class"] != "gemma-optiq-operator-route-smoke":
+                if data["comparison_class"] == "gemma-optiq-042-operator-route-smoke":
+                    if data["runtime_profile_id"] != "gemma-4-12b-optiq-4bit":
+                        raise ManifestError("profile_forbidden", "Stage 2B requires the approved runtime profile")
+                    if data["runtime_profile_revision"] != "3":
+                        raise ManifestError("profile_revision_forbidden", "Stage 2B requires runtime profile revision 3")
+                    if (
+                        data["suite_id"] != "gemma-optiq-042-operator-route-smoke-v1"
+                        or data["suite_revision"] != "1"
+                    ):
+                        raise ManifestError("suite_forbidden", "Stage 2B requires the approved 042 smoke suite")
+                elif data["comparison_class"] == "gemma-optiq-operator-route-smoke":
+                    if data["runtime_profile_id"] != "gemma-4-12b-optiq-4bit":
+                        raise ManifestError("profile_forbidden", "Stage 2B requires the approved runtime profile")
+                    if data["runtime_profile_revision"] != "2":
+                        raise ManifestError("profile_revision_forbidden", "Stage 2B requires runtime profile revision 2")
+                    if data["suite_id"] != "gemma-optiq-route-smoke-v1" or data["suite_revision"] != "1":
+                        raise ManifestError("suite_forbidden", "Stage 2B requires the approved smoke suite")
+                else:
                     raise ManifestError("comparison_forbidden", "Stage 2B comparison contract is not approved")
-                if data["runtime_profile_id"] != "gemma-4-12b-optiq-4bit":
-                    raise ManifestError("profile_forbidden", "Stage 2B requires the approved runtime profile")
-                if data["runtime_profile_revision"] != "2":
-                    raise ManifestError("profile_revision_forbidden", "Stage 2B requires runtime profile revision 2")
-                if data["suite_id"] != "gemma-optiq-route-smoke-v1" or data["suite_revision"] != "1":
-                    raise ManifestError("suite_forbidden", "Stage 2B requires the approved smoke suite")
                 total_request_limit = 8
             else:
                 if data["comparison_class"] != "optiq-operator-route-smoke":

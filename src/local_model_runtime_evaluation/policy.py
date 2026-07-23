@@ -57,8 +57,16 @@ class StageTwoPolicy:
                 "gemma-optiq-operator-route-smoke", "2",
             ),
             (
+                "3.3.0", "operator_inference_probe",
+                "gemma-optiq-042-operator-route-smoke", "3",
+            ),
+            (
                 "3.4.0", "operator_route_benchmark",
                 "gemma-optiq-operator-route-benchmark", "2",
+            ),
+            (
+                "3.4.0", "operator_route_benchmark",
+                "gemma-optiq-042-operator-route-benchmark", "3",
             ),
             (
                 "3.5.0", "harness_inference_probe",

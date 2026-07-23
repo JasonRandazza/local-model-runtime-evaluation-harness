@@ -43,7 +43,10 @@ _WORKLOADS = (
         "stage2b-status-tool-json",
     ),
 )
-_APPROVED_SUITE_IDS = frozenset({"gemma-optiq-route-benchmark-v1"})
+_APPROVED_SUITE_IDS = frozenset({
+    "gemma-optiq-route-benchmark-v1",
+    "gemma-optiq-042-operator-route-benchmark-v1",
+})
 
 
 def _build_schedule() -> tuple[BenchmarkRequest, ...]:

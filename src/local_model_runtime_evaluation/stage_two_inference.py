@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, fields
+from dataclasses import asdict, fields, replace
 import hashlib
 import json
 from pathlib import Path
@@ -131,6 +131,17 @@ _STAGE_2B_1_PROFILE = RuntimeProfile(
     service_ownership="operator",
     provider_activation="operator_reconnect_required",
 )
+_STAGE_2B_1_042_PROFILE = replace(
+    _STAGE_2B_1_PROFILE,
+    revision="3",
+    runtime_version="0.4.2",
+    package_versions=MappingProxyType({
+        "mlx-optiq": "0.4.2",
+        "mlx": "0.32.0",
+        "mlx-lm": "0.31.3",
+        "transformers": "5.12.1",
+    }),
+)
 
 
 class StageTwoInferenceTransportProtocol(Protocol):
@@ -158,7 +169,12 @@ class StageTwoInferenceEngine:
         self._validate_contract(manifest, profile, suite)
         self._harness = self._is_harness_contract(manifest)
         self.manifest = manifest
-        self.profile = profile if self._harness else _STAGE_2B_1_PROFILE
+        if self._harness:
+            self.profile = profile
+        elif manifest.comparison_class == "gemma-optiq-042-operator-route-smoke":
+            self.profile = _STAGE_2B_1_042_PROFILE
+        else:
+            self.profile = _STAGE_2B_1_PROFILE
         self.suite = suite
         self.output_root = output_root
         self.resource_probe = resource_probe
@@ -231,14 +247,11 @@ class StageTwoInferenceEngine:
             if not valid_profile or not valid_suite:
                 raise ValueError("StageTwoInferenceEngine requires the fixed Stage 2 harness contract")
             return
-        valid_manifest = (
+        operator_common_manifest = (
             manifest.stage == 2
             and manifest.schema_version == "3.3.0"
             and manifest.mode == "operator_inference_probe"
-            and manifest.comparison_class == "gemma-optiq-operator-route-smoke"
             and manifest.runtime_profile_id == "gemma-4-12b-optiq-4bit"
-            and manifest.runtime_profile_revision == "2"
-            and manifest.suite_id == "gemma-optiq-route-smoke-v1"
             and manifest.suite_revision == "1"
             and manifest.repetitions == 1
             and manifest.route_order == "counterbalanced"
@@ -246,12 +259,22 @@ class StageTwoInferenceEngine:
             and dict(manifest.routes or {}) == _STAGE_2B_1_ROUTES
             and dict(manifest.limits or {}) == _STAGE_2B_1_LIMITS
         )
-        if not valid_manifest:
+        historical_manifest = (
+            operator_common_manifest
+            and manifest.comparison_class == "gemma-optiq-operator-route-smoke"
+            and manifest.runtime_profile_revision == "2"
+            and manifest.suite_id == "gemma-optiq-route-smoke-v1"
+        )
+        operator_042_manifest = (
+            operator_common_manifest
+            and manifest.comparison_class == "gemma-optiq-042-operator-route-smoke"
+            and manifest.runtime_profile_revision == "3"
+            and manifest.suite_id == "gemma-optiq-042-operator-route-smoke-v1"
+        )
+        if not (historical_manifest or operator_042_manifest):
             raise ValueError("StageTwoInferenceEngine requires the fixed Stage 2B-1 contract")
-        valid_profile = profile == _STAGE_2B_1_PROFILE
-        valid_suite = (
-            suite.suite_id == "gemma-optiq-route-smoke-v1"
-            and suite.revision == "1"
+        valid_suite_common = (
+            suite.revision == "1"
             and suite.temperature == 0
             and suite.streaming is True
             and tuple(
@@ -263,6 +286,18 @@ class StageTwoInferenceEngine:
                 for item in suite.schedule()
             ) == _STAGE_2B_1_SCHEDULE
         )
+        if historical_manifest:
+            valid_profile = profile == _STAGE_2B_1_PROFILE
+            valid_suite = (
+                valid_suite_common
+                and suite.suite_id == "gemma-optiq-route-smoke-v1"
+            )
+        else:
+            valid_profile = profile == _STAGE_2B_1_042_PROFILE
+            valid_suite = (
+                valid_suite_common
+                and suite.suite_id == "gemma-optiq-042-operator-route-smoke-v1"
+            )
         if not valid_profile or not valid_suite:
             raise ValueError("StageTwoInferenceEngine requires the fixed Stage 2B-1 contract")
 

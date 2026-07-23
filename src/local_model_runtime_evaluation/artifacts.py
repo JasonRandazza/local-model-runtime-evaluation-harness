@@ -117,7 +117,7 @@ class ArtifactBundle:
             if (
                 manifest.get("mode") == "operator_route_benchmark"
                 and manifest.get("schema_version") == "3.4.0"
-                and manifest.get("runtime_profile_revision") == "2"
+                and manifest.get("runtime_profile_revision") in {"2", "3"}
             ):
                 return STAGE_TWO_BENCHMARK_REQUIRED_FILES
             if (
@@ -125,7 +125,7 @@ class ArtifactBundle:
                 and (
                     (
                         manifest.get("schema_version") == "3.3.0"
-                        and manifest.get("runtime_profile_revision") == "2"
+                        and manifest.get("runtime_profile_revision") in {"2", "3"}
                     )
                     or (
                         manifest.get("schema_version") == "3.2.0"

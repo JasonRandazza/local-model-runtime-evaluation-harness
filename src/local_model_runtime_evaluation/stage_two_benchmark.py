@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, fields
+from dataclasses import asdict, fields, replace
 import hashlib
 import json
 from pathlib import Path
@@ -123,6 +123,17 @@ _STAGE_2B_2_PROFILE = RuntimeProfile(
     service_ownership="operator",
     provider_activation="operator_reconnect_required",
 )
+_STAGE_2B_2_042_PROFILE = replace(
+    _STAGE_2B_2_PROFILE,
+    revision="3",
+    runtime_version="0.4.2",
+    package_versions=MappingProxyType({
+        "mlx-optiq": "0.4.2",
+        "mlx": "0.32.0",
+        "mlx-lm": "0.31.3",
+        "transformers": "5.12.1",
+    }),
+)
 
 
 class StageTwoBenchmarkTransportProtocol(Protocol):
@@ -149,7 +160,10 @@ class StageTwoBenchmarkEngine:
     ) -> None:
         self._validate_contract(manifest, profile, suite)
         self.manifest = manifest
-        self.profile = _STAGE_2B_2_PROFILE
+        if manifest.comparison_class == "gemma-optiq-042-operator-route-benchmark":
+            self.profile = _STAGE_2B_2_042_PROFILE
+        else:
+            self.profile = _STAGE_2B_2_PROFILE
         self.suite = suite
         self.output_root = output_root
         self.resource_probe = resource_probe
@@ -170,14 +184,11 @@ class StageTwoBenchmarkEngine:
         profile: RuntimeProfile,
         suite: StageTwoBenchmarkSuite,
     ) -> None:
-        valid_manifest = (
+        common_manifest = (
             manifest.stage == 2
             and manifest.schema_version == "3.4.0"
             and manifest.mode == "operator_route_benchmark"
-            and manifest.comparison_class == "gemma-optiq-operator-route-benchmark"
             and manifest.runtime_profile_id == "gemma-4-12b-optiq-4bit"
-            and manifest.runtime_profile_revision == "2"
-            and manifest.suite_id == "gemma-optiq-route-benchmark-v1"
             and manifest.suite_revision == "1"
             and manifest.repetitions == 1
             and manifest.route_order == "counterbalanced"
@@ -185,12 +196,22 @@ class StageTwoBenchmarkEngine:
             and dict(manifest.routes or {}) == _STAGE_2B_2_ROUTES
             and dict(manifest.limits or {}) == _STAGE_2B_2_LIMITS
         )
-        if not valid_manifest:
+        historical_manifest = (
+            common_manifest
+            and manifest.comparison_class == "gemma-optiq-operator-route-benchmark"
+            and manifest.runtime_profile_revision == "2"
+            and manifest.suite_id == "gemma-optiq-route-benchmark-v1"
+        )
+        operator_042_manifest = (
+            common_manifest
+            and manifest.comparison_class == "gemma-optiq-042-operator-route-benchmark"
+            and manifest.runtime_profile_revision == "3"
+            and manifest.suite_id == "gemma-optiq-042-operator-route-benchmark-v1"
+        )
+        if not (historical_manifest or operator_042_manifest):
             raise ValueError("StageTwoBenchmarkEngine requires the fixed Stage 2B-2 contract")
-        valid_profile = profile == _STAGE_2B_2_PROFILE
-        valid_suite = (
-            suite.suite_id == "gemma-optiq-route-benchmark-v1"
-            and suite.revision == "1"
+        valid_suite_common = (
+            suite.revision == "1"
             and suite.temperature == 0
             and suite.streaming is True
             and tuple(
@@ -205,6 +226,18 @@ class StageTwoBenchmarkEngine:
                 for item in _STAGE_2B_2_SCHEDULE
             )
         )
+        if historical_manifest:
+            valid_profile = profile == _STAGE_2B_2_PROFILE
+            valid_suite = (
+                valid_suite_common
+                and suite.suite_id == "gemma-optiq-route-benchmark-v1"
+            )
+        else:
+            valid_profile = profile == _STAGE_2B_2_042_PROFILE
+            valid_suite = (
+                valid_suite_common
+                and suite.suite_id == "gemma-optiq-042-operator-route-benchmark-v1"
+            )
         if not valid_profile or not valid_suite:
             raise ValueError("StageTwoBenchmarkEngine requires the fixed Stage 2B-2 contract")
 

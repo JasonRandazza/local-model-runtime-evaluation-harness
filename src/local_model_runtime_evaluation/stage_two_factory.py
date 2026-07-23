@@ -36,14 +36,11 @@ PROVIDER_CONFIG = Path("/Users/jrazz/.osaurus/providers/remote.json")
 
 
 def _validate_stage_two_inference_manifest(manifest) -> None:
-    fixed_contract = (
+    common = (
         manifest.stage == 2
         and manifest.schema_version == "3.3.0"
         and manifest.mode == "operator_inference_probe"
-        and manifest.comparison_class == "gemma-optiq-operator-route-smoke"
         and manifest.runtime_profile_id == "gemma-4-12b-optiq-4bit"
-        and manifest.runtime_profile_revision == "2"
-        and manifest.suite_id == "gemma-optiq-route-smoke-v1"
         and manifest.suite_revision == "1"
         and manifest.repetitions == 1
         and manifest.route_order == "counterbalanced"
@@ -51,7 +48,17 @@ def _validate_stage_two_inference_manifest(manifest) -> None:
         and dict(manifest.routes or {}) == _STAGE_2B_1_ROUTES
         and dict(manifest.limits or {}) == _STAGE_2B_1_LIMITS
     )
-    if not fixed_contract:
+    historical = (
+        manifest.comparison_class == "gemma-optiq-operator-route-smoke"
+        and manifest.runtime_profile_revision == "2"
+        and manifest.suite_id == "gemma-optiq-route-smoke-v1"
+    )
+    operator_042 = (
+        manifest.comparison_class == "gemma-optiq-042-operator-route-smoke"
+        and manifest.runtime_profile_revision == "3"
+        and manifest.suite_id == "gemma-optiq-042-operator-route-smoke-v1"
+    )
+    if not (common and (historical or operator_042)):
         raise ValueError("unsupported Stage 2 mode")
 
 
@@ -76,14 +83,11 @@ def _validate_stage_two_harness_manifest(manifest) -> None:
 
 
 def _validate_stage_two_benchmark_manifest(manifest) -> None:
-    fixed_contract = (
+    common = (
         manifest.stage == 2
         and manifest.schema_version == "3.4.0"
         and manifest.mode == "operator_route_benchmark"
-        and manifest.comparison_class == "gemma-optiq-operator-route-benchmark"
         and manifest.runtime_profile_id == "gemma-4-12b-optiq-4bit"
-        and manifest.runtime_profile_revision == "2"
-        and manifest.suite_id == "gemma-optiq-route-benchmark-v1"
         and manifest.suite_revision == "1"
         and manifest.repetitions == 1
         and manifest.route_order == "counterbalanced"
@@ -91,7 +95,17 @@ def _validate_stage_two_benchmark_manifest(manifest) -> None:
         and dict(manifest.routes or {}) == _STAGE_2B_2_ROUTES
         and dict(manifest.limits or {}) == _STAGE_2B_2_LIMITS
     )
-    if not fixed_contract:
+    historical = (
+        manifest.comparison_class == "gemma-optiq-operator-route-benchmark"
+        and manifest.runtime_profile_revision == "2"
+        and manifest.suite_id == "gemma-optiq-route-benchmark-v1"
+    )
+    operator_042 = (
+        manifest.comparison_class == "gemma-optiq-042-operator-route-benchmark"
+        and manifest.runtime_profile_revision == "3"
+        and manifest.suite_id == "gemma-optiq-042-operator-route-benchmark-v1"
+    )
+    if not (common and (historical or operator_042)):
         raise ValueError("unsupported Stage 2 mode")
 
 
@@ -111,8 +125,13 @@ def build_stage_two_engine(
         manifest.runtime_profile_id, manifest.runtime_profile_revision
     )
     if contract == ("3.4.0", "operator_route_benchmark"):
+        benchmark_suite_name = (
+            "gemma-optiq-042-operator-route-benchmark-v1.json"
+            if manifest.comparison_class == "gemma-optiq-042-operator-route-benchmark"
+            else "gemma-optiq-route-benchmark-v1.json"
+        )
         suite = StageTwoBenchmarkSuite.load(
-            repository_root / "suites" / "gemma-optiq-route-benchmark-v1.json"
+            repository_root / "suites" / benchmark_suite_name
         )
         transport = StageTwoInferenceTransport(set(manifest.routes.values()), timeout_seconds=120)
         controller = OperatorOptiQController(
@@ -171,8 +190,13 @@ def build_stage_two_engine(
             controller, transport, lock.owner,
         )
     if contract == ("3.3.0", "operator_inference_probe"):
+        smoke_suite_name = (
+            "gemma-optiq-042-operator-route-smoke-v1.json"
+            if manifest.comparison_class == "gemma-optiq-042-operator-route-smoke"
+            else "gemma-optiq-route-smoke-v1.json"
+        )
         suite = StageTwoSmokeSuite.load(
-            repository_root / "suites" / "gemma-optiq-route-smoke-v1.json"
+            repository_root / "suites" / smoke_suite_name
         )
         transport = StageTwoInferenceTransport(set(manifest.routes.values()), timeout_seconds=120)
         controller = OperatorOptiQController(
