@@ -159,8 +159,11 @@ class StageTwoBenchmarkEngine:
         lock_owner: Callable[[], str | None],
     ) -> None:
         self._validate_contract(manifest, profile, suite)
+        self._harness = self._is_harness_contract(manifest)
         self.manifest = manifest
-        if manifest.comparison_class == "gemma-optiq-042-operator-route-benchmark":
+        if self._harness:
+            self.profile = profile
+        elif manifest.comparison_class == "gemma-optiq-042-operator-route-benchmark":
             self.profile = _STAGE_2B_2_042_PROFILE
         else:
             self.profile = _STAGE_2B_2_PROFILE
@@ -179,11 +182,62 @@ class StageTwoBenchmarkEngine:
         self.observations: list[SmokeObservation] = []
 
     @staticmethod
+    def _is_harness_contract(manifest: BenchmarkManifest) -> bool:
+        return (
+            manifest.schema_version == "3.6.0"
+            and manifest.mode == "harness_route_benchmark"
+        )
+
+    @staticmethod
     def _validate_contract(
         manifest: BenchmarkManifest,
         profile: RuntimeProfile,
         suite: StageTwoBenchmarkSuite,
     ) -> None:
+        if StageTwoBenchmarkEngine._is_harness_contract(manifest):
+            valid_manifest = (
+                manifest.stage == 2
+                and manifest.schema_version == "3.6.0"
+                and manifest.mode == "harness_route_benchmark"
+                and manifest.comparison_class == "gemma-optiq-042-harness-route-benchmark"
+                and manifest.runtime_profile_id == "gemma-4-12b-optiq-4bit"
+                and manifest.runtime_profile_revision == "5"
+                and manifest.suite_id == "gemma-optiq-042-harness-route-benchmark-v1"
+                and manifest.suite_revision == "1"
+                and manifest.repetitions == 1
+                and manifest.route_order == "counterbalanced"
+                and tuple(manifest.operations) == _STAGE_2B_2_OPERATIONS
+                and dict(manifest.routes or {}) == _STAGE_2B_2_ROUTES
+                and dict(manifest.limits or {}) == _STAGE_2B_2_LIMITS
+            )
+            if not valid_manifest:
+                raise ValueError("StageTwoBenchmarkEngine requires the fixed Stage 2 harness contract")
+            valid_profile = (
+                profile.profile_id == "gemma-4-12b-optiq-4bit"
+                and profile.revision == "5"
+                and profile.service_ownership == "harness"
+                and profile.runtime_version == "0.4.2"
+            )
+            valid_suite = (
+                suite.suite_id == "gemma-optiq-042-harness-route-benchmark-v1"
+                and suite.revision == "1"
+                and suite.temperature == 0
+                and suite.streaming is True
+                and tuple(
+                    (item.workload_id, item.prompt, item.max_tokens, item.response_contract)
+                    for item in suite.workloads
+                ) == _STAGE_2B_2_WORKLOADS
+                and tuple(
+                    (item.workload_id, item.route, item.measured, item.sequence, item.repetition)
+                    for item in suite.schedule()
+                ) == tuple(
+                    (item.workload_id, item.route, item.measured, item.sequence, item.repetition)
+                    for item in _STAGE_2B_2_SCHEDULE
+                )
+            )
+            if not valid_profile or not valid_suite:
+                raise ValueError("StageTwoBenchmarkEngine requires the fixed Stage 2 harness contract")
+            return
         common_manifest = (
             manifest.stage == 2
             and manifest.schema_version == "3.4.0"

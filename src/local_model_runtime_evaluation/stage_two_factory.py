@@ -82,6 +82,26 @@ def _validate_stage_two_harness_manifest(manifest) -> None:
         raise ValueError("unsupported Stage 2 mode")
 
 
+def _validate_stage_two_harness_benchmark_manifest(manifest) -> None:
+    fixed_contract = (
+        manifest.stage == 2
+        and manifest.schema_version == "3.6.0"
+        and manifest.mode == "harness_route_benchmark"
+        and manifest.comparison_class == "gemma-optiq-042-harness-route-benchmark"
+        and manifest.runtime_profile_id == "gemma-4-12b-optiq-4bit"
+        and manifest.runtime_profile_revision == "5"
+        and manifest.suite_id == "gemma-optiq-042-harness-route-benchmark-v1"
+        and manifest.suite_revision == "1"
+        and manifest.repetitions == 1
+        and manifest.route_order == "counterbalanced"
+        and tuple(manifest.operations) == _STAGE_2B_2_OPERATIONS
+        and dict(manifest.routes or {}) == _STAGE_2B_2_ROUTES
+        and dict(manifest.limits or {}) == _STAGE_2B_2_LIMITS
+    )
+    if not fixed_contract:
+        raise ValueError("unsupported Stage 2 mode")
+
+
 def _validate_stage_two_benchmark_manifest(manifest) -> None:
     common = (
         manifest.stage == 2
@@ -119,6 +139,8 @@ def build_stage_two_engine(
         _validate_stage_two_benchmark_manifest(manifest)
     elif contract == ("3.5.0", "harness_inference_probe"):
         _validate_stage_two_harness_manifest(manifest)
+    elif contract == ("3.6.0", "harness_route_benchmark"):
+        _validate_stage_two_harness_benchmark_manifest(manifest)
     elif contract != ("3.1.0", "operator_route_probe"):
         raise ValueError("unsupported Stage 2 mode")
     profile = RuntimeProfileRegistry(repository_root / "config" / "runtime-profiles").get(
@@ -185,6 +207,46 @@ def build_stage_two_engine(
             return snapshot_from_health(HostResourceProbe().free_memory_percent(), health, None)
 
         return StageTwoInferenceEngine(
+            manifest, profile, suite, output_root, resources,
+            lambda: HostValidator(profile, PROVIDER_CONFIG).validate(),
+            controller, transport, lock.owner,
+        )
+    if contract == ("3.6.0", "harness_route_benchmark"):
+        suite = StageTwoBenchmarkSuite.load(
+            repository_root / "suites" / "gemma-optiq-042-harness-route-benchmark-v1.json"
+        )
+        transport = StageTwoInferenceTransport(set(manifest.routes.values()), timeout_seconds=120)
+
+        def wait_ready(pin: ServerPin, process: ManagedProcess | None) -> None:
+            del pin, process
+            deadline = time.monotonic() + _HARNESS_OPTIQ_READY_TIMEOUT_SECONDS
+            last_error: Exception | None = None
+            while time.monotonic() < deadline:
+                try:
+                    health = transport.health(profile.direct_base_url)
+                    if health.get("status") == "ok":
+                        return
+                except Exception as error:  # noqa: BLE001 — poll until ready or timeout
+                    last_error = error
+                time.sleep(0.5)
+            message = "harness OptiQ did not become ready"
+            if last_error is not None:
+                message = f"{message}: {last_error}"
+            raise TimeoutError(message)
+
+        controller = HarnessOptiQController(
+            free_memory=lambda: HostResourceProbe().free_memory_percent(),
+            port_free=port_is_free,
+            lab_closed=default_lab_closed,
+            profile=profile,
+            wait_ready=wait_ready,
+        )
+        lock = RunLock(output_root)
+
+        def resources(health: dict[str, object]):
+            return snapshot_from_health(HostResourceProbe().free_memory_percent(), health, None)
+
+        return StageTwoBenchmarkEngine(
             manifest, profile, suite, output_root, resources,
             lambda: HostValidator(profile, PROVIDER_CONFIG).validate(),
             controller, transport, lock.owner,
