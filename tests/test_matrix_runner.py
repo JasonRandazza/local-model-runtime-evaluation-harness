@@ -115,8 +115,8 @@ class MatrixRunnerTest(unittest.TestCase):
             self.assertEqual(raw["cells"][0]["na_reason"], "unloadable")
             self.assertEqual(raw["cells"][1]["status"], "PASS")
             report = (out / "report.md").read_text()
-            self.assertIn("N/A unloadable", report)
-            self.assertIn("PASS 1.5s", report)
+            self.assertIn("N/A (unloadable)", report)
+            self.assertIn("PASS", report)
 
     def test_memory_floor_stops_campaign(self) -> None:
         campaign = self._campaign()

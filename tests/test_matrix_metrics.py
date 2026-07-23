@@ -47,7 +47,7 @@ class MatrixMetricsTest(unittest.TestCase):
 
     def test_report_includes_metric_tables(self) -> None:
         raw = {
-            "campaign_id": "gemma-4-12b-qat-3x3",
+            "campaign_id": "gemma-4-12b-qat-native",
             "mode": "screen",
             "suite_id": "gemma-matrix-v1",
             "suite_revision": "1",
@@ -87,10 +87,14 @@ class MatrixMetricsTest(unittest.TestCase):
             ],
         }
         report = render_report(raw)
+        self.assertIn("## Native triple results", report)
+        self.assertNotIn("## 3×3 results", report)
+        self.assertNotIn("| quant \\\\ server | osaurus | omlx | optiq |", report)
+        self.assertIn("| quant | native server | result |", report)
+        self.assertIn("| jang_4m | osaurus |", report)
         self.assertIn("## Metrics", report)
         self.assertIn("### Median TTFT", report)
-        self.assertIn("### Median decode tok/s (exact)", report)
-        self.assertIn("### Median decode tok/s (estimated)", report)
+        self.assertIn("| quant | native server |", report)
         self.assertIn("1.20s", report)
         self.assertIn("40.0", report)
         self.assertIn("18.5 est.", report)
@@ -98,7 +102,7 @@ class MatrixMetricsTest(unittest.TestCase):
 
     def test_report_quant_order_follows_campaign_cells(self) -> None:
         raw = {
-            "campaign_id": "qwen36-35b-a3b-3x3",
+            "campaign_id": "qwen36-35b-a3b-native",
             "mode": "screen",
             "suite_id": "gemma-matrix-v1",
             "suite_revision": "1",
@@ -154,6 +158,7 @@ class MatrixMetricsTest(unittest.TestCase):
             ],
         }
         report = render_report(raw)
+        self.assertIn("## Native triple results", report)
         mxfp_at = report.index("| qwen_mxfp4 |")
         oq4_at = report.index("| qwen_oq4 |")
         optiq_at = report.index("| qwen_optiq_4bit |")

@@ -35,7 +35,7 @@ class MatrixCliTest(unittest.TestCase):
         self.assertEqual(code, 0)
         payload = json.loads(buffer.getvalue())
         self.assertEqual(payload["family_id"], "ornith-35b")
-        self.assertEqual(payload["cell_count"], 7)
+        self.assertEqual(payload["cell_count"], 3)
         missing = payload["artifact_missing"]
         self.assertIsInstance(missing, list)
         for path in missing:
@@ -50,7 +50,7 @@ class MatrixCliTest(unittest.TestCase):
         self.assertEqual(code, 0)
         payload = json.loads(buffer.getvalue())
         self.assertEqual(payload["family_id"], "qwen36-35b-a3b")
-        self.assertEqual(payload["cell_count"], 7)
+        self.assertEqual(payload["cell_count"], 3)
         missing = payload["artifact_missing"]
         self.assertIsInstance(missing, list)
         for path in missing:

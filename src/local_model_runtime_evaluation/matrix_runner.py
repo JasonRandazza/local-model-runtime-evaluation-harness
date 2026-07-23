@@ -1,4 +1,4 @@
-"""Campaign orchestration and 3×3 report for the Gemma matrix."""
+"""Campaign orchestration and native-triple report for matrix campaigns."""
 
 from __future__ import annotations
 
@@ -29,18 +29,7 @@ from .matrix_servers import (
 from .resources import HostResourceProbe
 from .transport import LoopbackTransport
 
-SERVER_ORDER = ("osaurus", "omlx", "optiq")
 PORT_VERIFY_TIMEOUT_SECONDS = 5.0
-
-
-def _quant_order(cells: Sequence[dict[str, Any]]) -> tuple[str, ...]:
-    """Preserve first-seen quant order from campaign cell list."""
-    ordered: list[str] = []
-    for item in cells:
-        quant = str(item["quant"])
-        if quant not in ordered:
-            ordered.append(quant)
-    return tuple(ordered)
 
 
 BuildServer = Callable[[Cell, LoopbackTransport, Path, Credential | None], ServerHandle]
@@ -70,26 +59,13 @@ def _port_from_base_url(base_url: str) -> int:
     return parsed.port
 
 
-def _short_reason(reason: str | None) -> str:
-    if not reason:
-        return "unavailable"
-    return reason.split("\n", maxsplit=1)[0].strip()
-
-
-def _format_table_cell(entry: dict[str, Any] | None) -> str:
+def _format_status_cell(entry: dict[str, Any] | None) -> str:
     if entry is None:
-        return "-"
-    status = entry["status"]
-    if status == "N/A":
-        return f"N/A {_short_reason(entry.get('na_reason'))}"
-    if status == "PASS":
-        median = (entry.get("summary") or {}).get("median_total_seconds")
-        if isinstance(median, (int, float)):
-            return f"PASS {median:.1f}s"
-        return "PASS"
-    if status == "FAIL":
-        return "FAIL"
-    return "-"
+        return "—"
+    status = entry.get("status")
+    if status == "N/A" and entry.get("na_reason"):
+        return f"N/A ({entry['na_reason']})"
+    return str(status or "—")
 
 
 def _format_metric_cell(
@@ -128,20 +104,19 @@ def _metric_table(
     title: str,
     key: str,
     kind: str,
-    quant_order: Sequence[str],
+    cells: Sequence[dict[str, Any]],
 ) -> list[str]:
     lines = [
         f"### {title}",
         "",
-        "| quant \\\\ server | osaurus | omlx | optiq |",
-        "|---|---|---|---|",
+        "| quant | native server | value |",
+        "|---|---|---|",
     ]
-    for quant in quant_order:
-        cells = [
-            _format_metric_cell(by_key.get((quant, server)), key=key, kind=kind)
-            for server in SERVER_ORDER
-        ]
-        lines.append(f"| {quant} | {' | '.join(cells)} |")
+    for item in cells:
+        quant = item["quant"]
+        server = item["server"]
+        value = _format_metric_cell(by_key.get((quant, server)), key=key, kind=kind)
+        lines.append(f"| {quant} | {server} | {value} |")
     lines.append("")
     return lines
 
@@ -184,22 +159,23 @@ def _na_result(reason: str, memory_before: int | None) -> CellResult:
 
 
 def render_report(raw: dict[str, Any]) -> str:
-    by_key = {(item["quant"], item["server"]): item for item in raw["cells"]}
-    quant_order = _quant_order(raw["cells"])
+    cells = list(raw["cells"])
+    by_key = {(item["quant"], item["server"]): item for item in cells}
     lines = [
         f"# Matrix campaign {raw['campaign_id']}",
         "",
         f"Mode: `{raw['mode']}`",
         f"Suite: `{raw['suite_id']}` revision `{raw['suite_revision']}`",
         "",
-        "## 3×3 results",
+        "## Native triple results",
         "",
-        "| quant \\\\ server | osaurus | omlx | optiq |",
-        "|---|---|---|---|",
+        "| quant | native server | result |",
+        "|---|---|---|",
     ]
-    for quant in quant_order:
-        cells = [_format_table_cell(by_key.get((quant, server))) for server in SERVER_ORDER]
-        lines.append(f"| {quant} | {' | '.join(cells)} |")
+    for item in cells:
+        lines.append(
+            f"| {item['quant']} | {item['server']} | {_format_status_cell(item)} |"
+        )
     if raw.get("stopped_early"):
         lines.extend(["", f"Campaign stopped early: `{raw.get('stop_reason')}`"])
     lines.extend([
@@ -211,41 +187,14 @@ def render_report(raw: dict[str, Any]) -> str:
         "timing exists (labeled `est.`). Incomparable cells show `—`.",
         "",
     ])
-    lines.extend(_metric_table(
-        by_key,
-        title="Median total latency",
-        key="median_total_seconds",
-        kind="seconds",
-        quant_order=quant_order,
-    ))
-    lines.extend(_metric_table(
-        by_key,
-        title="Median TTFT",
-        key="median_ttft_seconds",
-        kind="seconds",
-        quant_order=quant_order,
-    ))
-    lines.extend(_metric_table(
-        by_key,
-        title="Median decode tok/s (exact)",
-        key="median_decode_tokens_per_second",
-        kind="toks",
-        quant_order=quant_order,
-    ))
-    lines.extend(_metric_table(
-        by_key,
-        title="Median decode tok/s (estimated)",
-        key="median_estimated_decode_tokens_per_second",
-        kind="toks_est",
-        quant_order=quant_order,
-    ))
-    lines.extend(_metric_table(
-        by_key,
-        title="Contract passes / successes",
-        key="",
-        kind="ratio",
-        quant_order=quant_order,
-    ))
+    for title, key, kind in (
+        ("Median total latency", "median_total_seconds", "seconds"),
+        ("Median TTFT", "median_ttft_seconds", "seconds"),
+        ("Median decode tok/s (exact)", "median_decode_tokens_per_second", "toks"),
+        ("Median decode tok/s (estimated)", "median_estimated_decode_tokens_per_second", "toks_est"),
+        ("Contract passes / successes", "", "ratio"),
+    ):
+        lines.extend(_metric_table(by_key, title=title, key=key, kind=kind, cells=cells))
     return "\n".join(lines)
 
 
@@ -425,7 +374,7 @@ def _parse_cell_filter(raw: str | None) -> tuple[str, ...] | None:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="lmre-matrix",
-        description="Gemma 4 12B QAT 3×3 matrix campaign across Osaurus, oMLX, and OptiQ.",
+        description="Multi-family native-control triple matrix campaign across Osaurus, oMLX, and OptiQ.",
     )
     parser.add_argument(
         "--campaign",
@@ -436,7 +385,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--mode", choices=sorted(MODES), default="screen")
     parser.add_argument(
         "--cells",
-        help="Comma-separated cell ids to run (default: all nine)",
+        help="Comma-separated cell ids to run (default: all campaign cells)",
     )
     parser.add_argument(
         "--results-dir",
