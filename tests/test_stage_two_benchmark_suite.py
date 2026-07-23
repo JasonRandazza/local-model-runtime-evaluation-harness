@@ -171,6 +171,13 @@ class StageTwoBenchmarkSuiteTest(unittest.TestCase):
         with self.assertRaises(TypeError):
             suite.schedule("anything")  # type: ignore[call-arg]
 
+    def test_harness_route_benchmark_suite_loads_approved_id(self) -> None:
+        suite = StageTwoBenchmarkSuite.load(
+            REPO / "suites" / "gemma-optiq-042-harness-route-benchmark-v1.json"
+        )
+        self.assertEqual(suite.suite_id, "gemma-optiq-042-harness-route-benchmark-v1")
+        self.assertEqual(len(suite.schedule()), 72)
+
     def test_validates_only_supported_response_contracts(self) -> None:
         self.assertEqual(StageTwoBenchmarkSuite.validate_response("text", " response "), (True, "PASS"))
         self.assertEqual(StageTwoBenchmarkSuite.validate_response("text", "\n\t"), (False, "EMPTY_TEXT"))

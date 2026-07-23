@@ -46,6 +46,7 @@ _WORKLOADS = (
 _APPROVED_SUITE_IDS = frozenset({
     "gemma-optiq-route-benchmark-v1",
     "gemma-optiq-042-operator-route-benchmark-v1",
+    "gemma-optiq-042-harness-route-benchmark-v1",
 })
 
 
