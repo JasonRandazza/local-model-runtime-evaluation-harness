@@ -221,12 +221,19 @@ authorization for the distinct post–template-sync evidence names:
 - Smoke: `gemma-optiq-042-operator-route-smoke`
 - Benchmark: `gemma-optiq-042-operator-route-benchmark`
 
-- [ ] Do **not** add these classes to policy allowlists during pin-confirm.
-- [ ] Do **not** reuse sealed `005`/`006` run IDs or mix revision `2` manifests
+- [x] Do **not** add these classes to policy allowlists during pin-confirm.
+- [x] Do **not** reuse sealed `005`/`006` run IDs or mix revision `2` manifests
       with `0.4.2` lifecycle.
-- [ ] Do **not** authorize live inference under revision `3` until that
+- [x] Do **not** authorize live inference under revision `3` until that
       separate plan passes Gate A review and Jason authorizes Gate B+ with a
       fresh unused run ID and short-lived manifest.
+
+**Update (2026-07-23):** Gate A for these comparison classes is landed
+(fake-only) — design
+`docs/superpowers/specs/2026-07-23-operator-042-route-lanes-design.md`,
+plan `docs/superpowers/plans/2026-07-23-operator-042-route-lanes-gate-a.md`,
+launcher `bin/lmre-stage2-operator-serve-gemma-042`. Live Gate B–D remain
+separately gated.
 
 ---
 
