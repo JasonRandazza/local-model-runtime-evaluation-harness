@@ -1,14 +1,14 @@
 {
   "schema_version": "1.0.0",
   "suite_id": "gemma-matrix-v1",
-  "revision": "1",
+  "revision": "2",
   "temperature": 0,
   "streaming": true,
   "workloads": [
     {
       "workload_id": "short-instruction",
       "prompt": "In two sentences, explain why a personal local-model choice should prefer wall-clock time and reliability over lab-grade metric purity.",
-      "max_tokens": 128,
+      "max_tokens": 512,
       "response_contract": "text"
     },
     {
@@ -20,7 +20,7 @@
     {
       "workload_id": "wiki-constraint-summary",
       "prompt": "Read this policy: repository files define executable truth; durable notes explain intent and history; generated evidence requires review before becoming policy. Summarize the precedence in three short bullets and do not invent new rules.",
-      "max_tokens": 256,
+      "max_tokens": 768,
       "response_contract": "text"
     }
   ]
