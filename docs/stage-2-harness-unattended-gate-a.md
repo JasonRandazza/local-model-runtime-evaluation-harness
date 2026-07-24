@@ -17,14 +17,12 @@ inventory-wait proof **PASS** (revision `5`, `verify_routed_id_only_no_tap`,
 `reconnect_tap_used: false`) —
 `docs/superpowers/verification/2026-07-23-slice-1c-inventory-wait-r5-proof.md`.
 
-**Follow-on Design 2 (harness route benchmark):** Gate A–D **closed** for this
-window. Cohort `stage2-20260723-008` sealed **PASS** (72/72; schema `3.6.0` /
-profile revision `5`; `service_lifecycle_actions: 2`). See
-`docs/superpowers/verification/2026-07-23-design2-harness-benchmark-stage2-20260723-008-pass.md`
-and Gate B
-`docs/superpowers/verification/2026-07-23-design2-harness-benchmark-gate-b.md`.
-Do not reuse `008`. A *new* Design 2 cohort needs Jason's separate unused-ID
-authorization.
+**Follow-on Design 2 (harness route benchmark):** Gate A–D **closed**. Cohort
+`stage2-20260723-008` sealed **PASS** (72/72; schema `3.6.0` / profile revision
+`5`; `service_lifecycle_actions: 2`). Re-evidence **PASS** on
+`stage2-20260724-002` (72/72; lifecycle 2; no reconnect tap) —
+`docs/superpowers/verification/2026-07-24-design2-harness-benchmark-stage2-20260724-002-pass.md`.
+Do not reuse `008` or `stage2-20260724-002`.
 
 **Prerequisite slices:** Slice 1a (`harness_lifecycle.py`) and Slice 1b
 (revision `3` / `0.4.2` pin constants). Live pin-confirm on disk remains

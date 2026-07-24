@@ -100,5 +100,7 @@ Qwen mxfp4 ≈ 1.2s / oQ ≈ 1.4s / OptiQ ≈ 1.3s.
    `stage2-20260723-003` and re-evidenced **PASS** on `stage2-20260724-001`
    (`3.5.0` / profile r4; see
    `docs/superpowers/verification/2026-07-24-slice-1c-stage2-20260724-001-pass.md`).
-   Design 2 harness benchmark sealed on `stage2-20260723-008` (`3.6.0` / r5).
+   Design 2 harness benchmark sealed on `stage2-20260723-008` and re-evidenced
+   **PASS** on `stage2-20260724-002` (`3.6.0` / r5; see
+   `docs/superpowers/verification/2026-07-24-design2-harness-benchmark-stage2-20260724-002-pass.md`).
    Do not reuse those IDs.
