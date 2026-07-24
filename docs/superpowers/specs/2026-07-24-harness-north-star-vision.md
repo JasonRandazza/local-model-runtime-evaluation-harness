@@ -1,7 +1,7 @@
 # Harness north-star vision (2026-07-24)
 
 **Status:** APPROVED direction (Jason, 2026-07-24) — vision only; does not authorize implementation  
-**Next bounded slice (agreed):** Discovery MVP (detect servers + catalog artifacts; still schedule curated native triples under the hood)  
+**Next bounded slice (agreed):** Discovery MVP — design `docs/superpowers/specs/2026-07-24-discovery-mvp-design.md`; Gate A plan `docs/superpowers/plans/2026-07-24-discovery-mvp-gate-a.md`; operator docs `docs/discovery.md`  
 **Not next:** free-form cell scheduling, cross-family free mixes, or UI shell
 
 ## North star

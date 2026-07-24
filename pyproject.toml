@@ -8,3 +8,4 @@ dependencies = []
 [project.scripts]
 lmre-stage0 = "local_model_runtime_evaluation.cli:main"
 lmre-personal-select = "local_model_runtime_evaluation.personal_selection:main"
+lmre-discover = "local_model_runtime_evaluation.discovery_cli:main"
