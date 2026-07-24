@@ -60,7 +60,7 @@ class FakeHandle:
 
 class CollectCellTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.suite = PreferenceSuite.load(ROOT / "suites/gemma-preference-v1.json")
+        self.suite = PreferenceSuite.load(ROOT / "suites/multi-family-preference-v1.json")
         self.cell = _cell()
         self.log_dir = Path("/tmp/lmre-preference-test-logs")
         self.cancel = threading.Event()
@@ -252,7 +252,7 @@ class RunCollectTests(unittest.TestCase):
 
             run_dir = run_collect(
                 tuple(cell.cell_id for cell in cells),
-                ROOT / "suites/gemma-preference-v1.json",
+                ROOT / "suites/multi-family-preference-v1.json",
                 cells_root,
                 Path(tmp) / "results" / "preference",
                 family_id="gemma-4-12b-qat",
@@ -268,7 +268,7 @@ class RunCollectTests(unittest.TestCase):
             self.assertTrue(run_dir.name.startswith("gemma-4-12b-qat-preference-"))
             self.assertEqual(run_dir.parent.name, "preference")
             raw = json.loads((run_dir / "raw.json").read_text(encoding="utf-8"))
-            self.assertEqual(raw["suite_id"], "gemma-preference-v1")
+            self.assertEqual(raw["suite_id"], "multi-family-preference-v1")
             self.assertEqual(raw["cell_ids"], ["jang_4m__osaurus", "oq4_fp16__omlx"])
             self.assertEqual(raw["family_id"], "gemma-4-12b-qat")
             self.assertIn("started_at", raw)

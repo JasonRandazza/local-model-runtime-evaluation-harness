@@ -77,7 +77,7 @@ Gemma default (three native cells):
 ./bin/lmre-preference collect --dry-config
 ```
 
-Prints JSON with `ok: true`, `"family_id": "gemma-4-12b-qat"`, the three native cell ids, and `prompts: 6`. No network or server start.
+Prints JSON with `ok: true`, `"family_id": "gemma-4-12b-qat"`, `"suite_id": "multi-family-preference-v1"`, the three native cell ids, and `prompts: 6`. No network or server start.
 
 Ornith three-cell native recipe:
 

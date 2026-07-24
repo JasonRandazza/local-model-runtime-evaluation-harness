@@ -103,9 +103,9 @@ class PreferenceCliTests(unittest.TestCase):
     def test_review_and_tally_roundtrip_fakes(self) -> None:
         from local_model_runtime_evaluation.preference_config import PreferenceSuite
 
-        suite = PreferenceSuite.load(ROOT / "suites/gemma-preference-v1.json")
+        suite = PreferenceSuite.load(ROOT / "suites/multi-family-preference-v1.json")
         with TemporaryDirectory() as tmp:
-            run_dir = Path(tmp) / "gemma-preference-test"
+            run_dir = Path(tmp) / "gemma-4-12b-qat-preference-test"
             answers_dir = run_dir / "answers"
             answers_dir.mkdir(parents=True)
             for index, cell_id in enumerate(DEFAULT_PREFERENCE_CELLS):
@@ -170,7 +170,7 @@ class PreferenceCliTests(unittest.TestCase):
 
     def test_judge_dry_config_ok(self) -> None:
         with TemporaryDirectory() as tmp:
-            run_dir = Path(tmp) / "gemma-preference-judge-dry"
+            run_dir = Path(tmp) / "preference-judge-dry"
             run_dir.mkdir()
             (run_dir / "answers").mkdir()
             (run_dir / "pairs.json").write_text(
@@ -208,7 +208,7 @@ class PreferenceCliTests(unittest.TestCase):
 
     def test_judge_dry_config_judge_cell_override(self) -> None:
         with TemporaryDirectory() as tmp:
-            run_dir = Path(tmp) / "gemma-preference-judge-dry"
+            run_dir = Path(tmp) / "preference-judge-dry"
             run_dir.mkdir()
             (run_dir / "answers").mkdir()
             (run_dir / "pairs.json").write_text(
@@ -240,7 +240,7 @@ class PreferenceCliTests(unittest.TestCase):
 
     def test_judge_dry_config_rejects_empty_pairs(self) -> None:
         with TemporaryDirectory() as tmp:
-            run_dir = Path(tmp) / "gemma-preference-judge-dry"
+            run_dir = Path(tmp) / "preference-judge-dry"
             run_dir.mkdir()
             (run_dir / "answers").mkdir()
             (run_dir / "pairs.json").write_text(
@@ -256,7 +256,7 @@ class PreferenceCliTests(unittest.TestCase):
 
     def test_judge_dry_config_rejects_invalid_pair(self) -> None:
         with TemporaryDirectory() as tmp:
-            run_dir = Path(tmp) / "gemma-preference-judge-dry"
+            run_dir = Path(tmp) / "preference-judge-dry"
             run_dir.mkdir()
             (run_dir / "answers").mkdir()
             (run_dir / "pairs.json").write_text(
@@ -280,7 +280,7 @@ class PreferenceCliTests(unittest.TestCase):
 
     def test_judge_live_delegates_to_run_judge(self) -> None:
         with TemporaryDirectory() as tmp:
-            run_dir = Path(tmp) / "gemma-preference-judge-live"
+            run_dir = Path(tmp) / "preference-judge-live"
             run_dir.mkdir()
             (run_dir / "answers").mkdir()
             (run_dir / "pairs.json").write_text(

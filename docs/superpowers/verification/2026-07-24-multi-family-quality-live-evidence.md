@@ -16,8 +16,10 @@ Native screens + four-leg overhead for Gemma / Ornith / Qwen: see the
 
 ## Preference (native triples)
 
-Suite `gemma-preference-v1` (Gemma collect on r1; Ornith/Qwen on r2 = all prompts
-`max_tokens` 2048). Recipes trimmed to the native diagonal (`9a5f705`).
+Suite `gemma-preference-v1` for sealed live collects (Gemma on r1; Ornith/Qwen on
+r2 = all prompts `max_tokens` 2048). Current CLI default is
+`multi-family-preference-v1` (same prompt pack / budgets; naming cleanup
+2026-07-24). Recipes trimmed to the native diagonal (`9a5f705`).
 Self-judge bias accepted (judge is one of the three contestant cells).
 
 | Family | Run dir | Suite | Judge | #1 | #2 | #3 |
@@ -26,9 +28,9 @@ Self-judge bias accepted (judge is one of the three contestant cells).
 | Ornith | `results/preference/gemma-preference-20260723-160331` | r2 | `ornith_optiq_4bit__optiq` | oQ **0.583** (7–5) | JANG 0.500 (6–6) | OptiQ 0.417 (5–7) |
 | Qwen | `results/preference/gemma-preference-20260724-102551` | r2 | `qwen_optiq_4bit__optiq` | oQ **0.667** (8–4) | mxfp4 0.583 (7–5) | OptiQ 0.250 (3–9) |
 
-Win rates are pairwise tallies over 18 judgments (3 pairs × 6 prompts). Run
-directory prefix remains `gemma-preference-*` because `suite_id` is still
-`gemma-preference-v1` (naming polish deferred).
+Win rates are pairwise tallies over 18 judgments (3 pairs × 6 prompts). Sealed
+run directories used historical `gemma-preference-*` prefixes; new collects use
+`<family_id>-preference-*`.
 
 ## RAG (native triples)
 

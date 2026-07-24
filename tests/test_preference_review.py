@@ -20,17 +20,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _prompt_ids() -> tuple[str, ...]:
-    suite = PreferenceSuite.load(ROOT / "suites/gemma-preference-v1.json")
+    suite = PreferenceSuite.load(ROOT / "suites/multi-family-preference-v1.json")
     return tuple(prompt.prompt_id for prompt in suite.prompts)
 
 
 def _prompts_by_id() -> dict[str, str]:
-    suite = PreferenceSuite.load(ROOT / "suites/gemma-preference-v1.json")
+    suite = PreferenceSuite.load(ROOT / "suites/multi-family-preference-v1.json")
     return {prompt.prompt_id: prompt.prompt for prompt in suite.prompts}
 
 
 def _answers_by_cell() -> dict[str, dict]:
-    suite = PreferenceSuite.load(ROOT / "suites/gemma-preference-v1.json")
+    suite = PreferenceSuite.load(ROOT / "suites/multi-family-preference-v1.json")
     answers: dict[str, dict] = {}
     for index, cell_id in enumerate(DEFAULT_PREFERENCE_CELLS):
         answers[cell_id] = {

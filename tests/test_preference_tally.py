@@ -115,11 +115,11 @@ class RenderTallyReportTests(unittest.TestCase):
         }
         report = render_tally_report(
             stats,
-            run_id="gemma-preference-test",
-            suite_id="gemma-preference-v1",
+            run_id="preference-test",
+            suite_id="multi-family-preference-v1",
         )
-        self.assertIn("gemma-preference-test", report)
-        self.assertIn("gemma-preference-v1", report)
+        self.assertIn("preference-test", report)
+        self.assertIn("multi-family-preference-v1", report)
         self.assertIn("c1", report)
         self.assertIn("c2", report)
         self.assertIn("latency was not used", report.lower())
@@ -132,7 +132,7 @@ class RunTallyTests(unittest.TestCase):
         ]
         judgments = [{"pair_id": "p1", "winner": "A"}]
         with TemporaryDirectory() as tmp:
-            run_dir = Path(tmp) / "gemma-preference-test"
+            run_dir = Path(tmp) / "preference-test"
             run_dir.mkdir()
             (run_dir / "pairs.json").write_text(
                 json.dumps({"pairs": pairs}, indent=2) + "\n",
@@ -145,7 +145,7 @@ class RunTallyTests(unittest.TestCase):
             (run_dir / "raw.json").write_text(
                 json.dumps(
                     {
-                        "suite_id": "gemma-preference-v1",
+                        "suite_id": "multi-family-preference-v1",
                         "suite_revision": "1",
                         "cell_ids": ["c1", "c2"],
                     },
@@ -158,7 +158,7 @@ class RunTallyTests(unittest.TestCase):
             self.assertEqual(result, run_dir)
             report = (run_dir / "report.md").read_text(encoding="utf-8")
             self.assertIn("c1", report)
-            self.assertIn("gemma-preference-v1", report)
+            self.assertIn("multi-family-preference-v1", report)
             tally_json = json.loads((run_dir / "tally.json").read_text(encoding="utf-8"))
             self.assertIn("cells", tally_json)
             self.assertIn("c1", tally_json["cells"])
@@ -169,7 +169,7 @@ class RunTallyTests(unittest.TestCase):
         ]
         judgments = [{"pair_id": "p1", "winner": "tie"}]
         with TemporaryDirectory() as tmp:
-            run_dir = Path(tmp) / "gemma-preference-fallback"
+            run_dir = Path(tmp) / "preference-fallback"
             run_dir.mkdir()
             (run_dir / "pairs.json").write_text(
                 json.dumps({"pairs": pairs}, indent=2) + "\n",
@@ -181,7 +181,7 @@ class RunTallyTests(unittest.TestCase):
             )
             run_tally(run_dir)
             report = (run_dir / "report.md").read_text(encoding="utf-8")
-            self.assertIn("gemma-preference-fallback", report)
+            self.assertIn("preference-fallback", report)
 
 
 if __name__ == "__main__":
