@@ -17,7 +17,12 @@ Revision `4` sets **all** workload `max_tokens` to `2048` (including `strict-too
 previously `512`) so Osaurus-native builds that emit long `reasoning_content` preambles
 can still reach visible `content` (Ornith JANG consistently fills smaller budgets before
 answer tokens). Revisions `1`–`3` remain historical.
-Free-form Approach 3 cells are a later goal — not implemented here.
+Free-form Approach 3 cells and open cross-family mixes are **not** the near-term
+product goal. See the north-star vision:
+`docs/superpowers/specs/2026-07-24-harness-north-star-vision.md`
+(Deep Wiki: Tier 5 *North Star Vision - 2026-07-24*). Historical full **3×3**
+grids remain lab history; this campaign path schedules the **native diagonal**
+only. Next product slice (separately designed): **discovery MVP**.
 
 **Multi-family quality (sealed):** preference, RAG, and native finalists — see
 [preference.md](preference.md), [rag.md](rag.md), and
