@@ -12,10 +12,11 @@ Family quant entries require `"native_server"` (`osaurus`, `omlx`, or `optiq`). 
 | Ornith 1.0 35B native | `ornith-35b` | `config/matrix/ornith-35b-campaign.json` |
 | Qwen 3.6 35B-A3B native | `qwen36-35b-a3b` | `config/matrix/qwen36-35b-a3b-campaign.json` |
 
-All reuse suite `suites/gemma-matrix-v1.json` revision `3` and the same screen/finalist depth.
-Revision `3` sets freeform `max_tokens` to `2048` (`short-instruction`, `wiki-constraint-summary`) so
-Osaurus-native builds that emit long `reasoning_content` preambles can still reach visible `content`
-(Ornith JANG needed ~1400 completion tokens on the short prompt). Revisions `1`–`2` remain historical.
+All reuse suite `suites/gemma-matrix-v1.json` revision `4` and the same screen/finalist depth.
+Revision `4` sets **all** workload `max_tokens` to `2048` (including `strict-tool-json`,
+previously `512`) so Osaurus-native builds that emit long `reasoning_content` preambles
+can still reach visible `content` (Ornith JANG consistently fills smaller budgets before
+answer tokens). Revisions `1`–`3` remain historical.
 Free-form Approach 3 cells are a later goal — not implemented here.
 
 **Multi-family quality (next):** preference and RAG recipes are in-tree — see

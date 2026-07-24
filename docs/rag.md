@@ -2,6 +2,8 @@
 
 Family-first oracle-injected gold context or **keyword** term-overlap retrieval on matrix **PASS** cells. Automatic **fact-hit rate** scoring for all modes; keyword runs also score **recall@k** and **precision@k** against suite gold chunk ids. Separate from `lmre-preference` and `lmre-matrix`; Stage 0–2B machinery stays frozen.
 
+Suite `suites/gemma-rag-oracle-v1.json` revision `2` sets every question `max_tokens` to `2048` so Osaurus-native thinking builds (notably Ornith JANG) can emit visible `content` after `reasoning_content`. Revision `1` (`256`) remains historical evidence only.
+
 **Related:** matrix campaign — see [matrix.md](matrix.md); preference POC — see [preference.md](preference.md); routing overhead — see [overhead.md](overhead.md).
 
 ## Family selection
@@ -24,13 +26,12 @@ Cell ids come from `--cells` or the selected family’s recipe in `config/rag/fa
   "cells": [
     "jang_4m__osaurus",
     "oq4_fp16__omlx",
-    "optiq_4bit__omlx",
     "optiq_4bit__optiq"
   ]
 }
 ```
 
-Four screen 12/12 cells (adds `optiq_4bit__omlx` to the prior three-cell default).
+Native diagonal only (same recipe as preference): Osaurus × JANG, oMLX × oQ, OptiQ × OptiQ-4bit.
 
 ### Ornith override
 
@@ -38,7 +39,7 @@ Four screen 12/12 cells (adds `optiq_4bit__omlx` to the prior three-cell default
 ./bin/lmre-rag collect --dry-config --family ornith-35b
 ```
 
-Ornith recipe (four screen 12/12 cells): `ornith_jang_4m__omlx`, `ornith_oq4__omlx`, `ornith_optiq_4bit__omlx`, `ornith_optiq_4bit__optiq`.
+Ornith native triple: `ornith_jang_4m__osaurus`, `ornith_oq4__omlx`, `ornith_optiq_4bit__optiq`.
 
 ### Qwen override
 
@@ -46,7 +47,7 @@ Ornith recipe (four screen 12/12 cells): `ornith_jang_4m__omlx`, `ornith_oq4__om
 ./bin/lmre-rag collect --dry-config --family qwen36-35b-a3b
 ```
 
-Qwen recipe (four screen PASS cells from `qwen36-35b-a3b-3x3-screen-20260720-201114`): `qwen_mxfp4__osaurus`, `qwen_oq4__omlx`, `qwen_optiq_4bit__omlx`, `qwen_optiq_4bit__optiq`.
+Qwen native triple: `qwen_mxfp4__osaurus`, `qwen_oq4__omlx`, `qwen_optiq_4bit__optiq`.
 
 ## Modes
 
@@ -77,29 +78,29 @@ Unit tests use fakes only — no live Osaurus, oMLX, or OptiQ contact.
 
 ## Validate config (dry-config)
 
-Gemma default (four cells):
+Gemma default (native triple):
 
 ```bash
 ./bin/lmre-rag collect --dry-config
 ```
 
-Prints JSON with `ok: true`, `"family_id": "gemma-4-12b-qat"`, four default cell ids (including `optiq_4bit__omlx`), `questions: 6`, `corpus_id: rag-oracle-v1`, `mode`, and `top_k`. No network or server start.
+Prints JSON with `ok: true`, `"family_id": "gemma-4-12b-qat"`, three native cell ids, `questions: 6`, `corpus_id: rag-oracle-v1`, `mode`, and `top_k`. No network or server start.
 
-Ornith four-cell recipe:
+Ornith native triple:
 
 ```bash
 ./bin/lmre-rag collect --dry-config --family ornith-35b
 ```
 
-Prints JSON with `ok: true`, `"family_id": "ornith-35b"`, four `ornith_*` cell ids.
+Prints JSON with `ok: true`, `"family_id": "ornith-35b"`, three `ornith_*` cell ids.
 
-Qwen four-cell recipe:
+Qwen native triple:
 
 ```bash
 ./bin/lmre-rag collect --dry-config --family qwen36-35b-a3b
 ```
 
-Prints JSON with `ok: true`, `"family_id": "qwen36-35b-a3b"`, four `qwen_*` cell ids.
+Prints JSON with `ok: true`, `"family_id": "qwen36-35b-a3b"`, three `qwen_*` cell ids.
 
 Keyword mode:
 

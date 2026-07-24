@@ -168,11 +168,11 @@ class MatrixConfigTests(unittest.TestCase):
     def test_matrix_suite_loads_gemma_matrix_v1(self) -> None:
         suite = MatrixSuite.load(ROOT / "suites" / "gemma-matrix-v1.json")
         self.assertEqual(suite.suite_id, "gemma-matrix-v1")
-        self.assertEqual(suite.revision, "3")
+        self.assertEqual(suite.revision, "4")
         self.assertEqual(len(suite.workloads), 3)
         by_id = {item.workload_id: item for item in suite.workloads}
         self.assertEqual(by_id["short-instruction"].max_tokens, 2048)
-        self.assertEqual(by_id["strict-tool-json"].max_tokens, 512)
+        self.assertEqual(by_id["strict-tool-json"].max_tokens, 2048)
         self.assertEqual(by_id["wiki-constraint-summary"].max_tokens, 2048)
 
     def test_optiq_native_cell_uses_no_think_model_id(self) -> None:

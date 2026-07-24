@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "suite_id": "gemma-rag-oracle-v1",
-  "revision": "1",
+  "revision": "2",
   "temperature": 0,
   "streaming": true,
   "corpus_id": "rag-oracle-v1",
@@ -9,44 +9,76 @@
     {
       "prompt_id": "ports-lookup",
       "question": "According to the context only, what TCP ports do Osaurus, oMLX, and OptiQ use for the matrix campaign?",
-      "gold_chunk_ids": ["syn-ports"],
-      "required_facts": ["OSAURUS_PORT=1337", "OMLX_PORT=8100", "OPTIQ_PORT=8080"],
-      "max_tokens": 256
+      "gold_chunk_ids": [
+        "syn-ports"
+      ],
+      "required_facts": [
+        "OSAURUS_PORT=1337",
+        "OMLX_PORT=8100",
+        "OPTIQ_PORT=8080"
+      ],
+      "max_tokens": 2048
     },
     {
       "prompt_id": "auth-lookup",
       "question": "According to the context only, what are the Osaurus Keychain service name, oMLX loopback API key, and OptiQ no-auth flag for the matrix campaign?",
-      "gold_chunk_ids": ["syn-auth"],
-      "required_facts": ["KEYCHAIN_SERVICE=local.jrazz.lmre.osaurus", "OMLX_LOOPBACK_KEY=lmre-matrix-local", "OPTIQ_FLAG=--no-auth"],
-      "max_tokens": 256
+      "gold_chunk_ids": [
+        "syn-auth"
+      ],
+      "required_facts": [
+        "KEYCHAIN_SERVICE=local.jrazz.lmre.osaurus",
+        "OMLX_LOOPBACK_KEY=lmre-matrix-local",
+        "OPTIQ_FLAG=--no-auth"
+      ],
+      "max_tokens": 2048
     },
     {
       "prompt_id": "ram-floor",
       "question": "According to the context only, what memory floor percentage and server ready timeout apply to the matrix campaign?",
-      "gold_chunk_ids": ["syn-ram"],
-      "required_facts": ["MEMORY_FLOOR_PERCENT=20", "READY_TIMEOUT_SECONDS=180"],
-      "max_tokens": 256
+      "gold_chunk_ids": [
+        "syn-ram"
+      ],
+      "required_facts": [
+        "MEMORY_FLOOR_PERCENT=20",
+        "READY_TIMEOUT_SECONDS=180"
+      ],
+      "max_tokens": 2048
     },
     {
       "prompt_id": "lifecycle-rule",
       "question": "According to the context only, what lifecycle constraints apply to matrix cells and Stage 2B?",
-      "gold_chunk_ids": ["syn-lifecycle"],
-      "required_facts": ["ONE_CELL_AT_A_TIME=true", "STAGE2B_FROZEN=true"],
-      "max_tokens": 256
+      "gold_chunk_ids": [
+        "syn-lifecycle"
+      ],
+      "required_facts": [
+        "ONE_CELL_AT_A_TIME=true",
+        "STAGE2B_FROZEN=true"
+      ],
+      "max_tokens": 2048
     },
     {
       "prompt_id": "keychain-account",
       "question": "According to the context only, what Keychain account name and service name store the Osaurus matrix credential?",
-      "gold_chunk_ids": ["excerpt-matrix-auth"],
-      "required_facts": ["local.jrazz.lmre.osaurus", "benchmark-harness"],
-      "max_tokens": 256
+      "gold_chunk_ids": [
+        "excerpt-matrix-auth"
+      ],
+      "required_facts": [
+        "local.jrazz.lmre.osaurus",
+        "benchmark-harness"
+      ],
+      "max_tokens": 2048
     },
     {
       "prompt_id": "preference-cli-name",
       "question": "According to the context only, what CLI runs the Gemma preference POC and which suite id does it use?",
-      "gold_chunk_ids": ["excerpt-preference-pointer"],
-      "required_facts": ["lmre-preference", "gemma-preference-v1"],
-      "max_tokens": 256
+      "gold_chunk_ids": [
+        "excerpt-preference-pointer"
+      ],
+      "required_facts": [
+        "lmre-preference",
+        "gemma-preference-v1"
+      ],
+      "max_tokens": 2048
     }
   ]
 }

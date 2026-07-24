@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "suite_id": "gemma-matrix-v1",
-  "revision": "3",
+  "revision": "4",
   "temperature": 0,
   "streaming": true,
   "workloads": [
@@ -14,7 +14,7 @@
     {
       "workload_id": "strict-tool-json",
       "prompt": "Return exactly this JSON object with no markdown or extra text: {\"name\":\"status\",\"arguments\":{\"run_id\":\"stage1-test\",\"include_details\":false}}",
-      "max_tokens": 512,
+      "max_tokens": 2048,
       "response_contract": "status-tool-json"
     },
     {

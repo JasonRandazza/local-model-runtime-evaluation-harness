@@ -18,7 +18,7 @@ from .transport import LoopbackTransport, TransportError
 
 DEFAULT_JUDGE_CELL: str = "jang_4m__osaurus"
 REASON_MAX_CHARS: int = 500
-JUDGE_MAX_TOKENS: int = 256
+JUDGE_MAX_TOKENS: int = 2048
 
 DEFAULT_READY_TIMEOUT_SECONDS = 180.0
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 120.0

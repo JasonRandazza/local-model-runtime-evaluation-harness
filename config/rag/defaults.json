@@ -3,7 +3,6 @@
   "cells": [
     "jang_4m__osaurus",
     "oq4_fp16__omlx",
-    "optiq_4bit__omlx",
     "optiq_4bit__optiq"
   ]
 }

@@ -140,6 +140,8 @@ Default judge cell: `jang_4m__osaurus`. Override with `--judge-cell`:
   --judge-cell oq4_fp16__omlx
 ```
 
+Judge completion budget is `2048` tokens (`JUDGE_MAX_TOKENS`) so thinking Osaurus-native judges (Ornith JANG) can emit a parseable JSON winner after reasoning.
+
 ### Self-preference bias
 
 Pairs that include the judge cell are still judged. For this POC, self-preference bias is accepted. To avoid a cell judging its own answers, override `--judge-cell` to a different candidate cell.
