@@ -4,10 +4,13 @@
 
 `GATE_A_PASSED`. Gate B `READY_FOR_MANIFEST_AUTHORIZATION` (2026-07-23). Gate C/D
 live smoke sealed **PASS** on unused run `stage2-20260723-003` (8/8 POSTs;
-schema `3.5.0` / profile revision `4`). Prior same-day IDs `001`/`002` cleaned
-STOPPED (reconnect / Ornith residency). See
+schema `3.5.0` / profile revision `4`). Re-evidence **PASS** on
+`stage2-20260724-001` (8/8; `service_lifecycle_actions: 2`; no reconnect tap) —
+`docs/superpowers/verification/2026-07-24-slice-1c-stage2-20260724-001-pass.md`.
+Prior same-day IDs `001`/`002` (2026-07-23) cleaned STOPPED (reconnect / Ornith
+residency). See
 `docs/superpowers/verification/2026-07-23-slice-1c-stage2-20260723-003-pass.md`.
-Do not reuse `001`–`003`.
+Do not reuse `001`–`003` (2026-07-23) or `stage2-20260724-001`.
 
 **Follow-on Design 1:** reconnect-tap elimination Gate A landed; live
 inventory-wait proof **PASS** (revision `5`, `verify_routed_id_only_no_tap`,

@@ -104,7 +104,9 @@ Qwen mxfp4 ≈ 1.2s / oQ ≈ 1.4s / OptiQ ≈ 1.3s.
 1. ~~Finalist matrix~~ — sealed above.
 2. ~~Polish~~ — run dirs use `<family_id>-preference-*` / `<family_id>-rag-*`
    (historical `gemma-preference-*` / `gemma-rag-*` remain valid).
-3. Stage 2 harness-unattended Slice 1c — smoke Gate B–D already sealed on
-   `stage2-20260723-003` (`3.5.0` / profile r4). Design 2 harness benchmark
-   sealed on `stage2-20260723-008` (`3.6.0` / r5). A *new* cohort needs Jason's
-   separate unused-ID authorization (do not reuse `001`–`003` or `008`).
+3. Stage 2 harness-unattended Slice 1c — smoke Gate B–D sealed on
+   `stage2-20260723-003` and re-evidenced **PASS** on `stage2-20260724-001`
+   (`3.5.0` / profile r4; see
+   `docs/superpowers/verification/2026-07-24-slice-1c-stage2-20260724-001-pass.md`).
+   Design 2 harness benchmark sealed on `stage2-20260723-008` (`3.6.0` / r5).
+   Do not reuse those IDs.
