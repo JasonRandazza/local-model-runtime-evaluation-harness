@@ -41,26 +41,18 @@ Suite `gemma-rag-oracle-v1`. Modes: oracle (gold chunks injected) and keyword
 |---|---|---|---|---|
 | Gemma | oracle | `results/rag/gemma-rag-20260724-103631` | r1 | oQ **0.833**, OptiQ **0.833**, JANG 0.667 |
 | Gemma | keyword | `results/rag/gemma-rag-20260724-103809` | r1 | all **0.667** (R@k=1.0, P@k=0.5) |
-| Ornith | oracle | composite (see note) | r1 + r2 | oQ **1.000**, OptiQ **0.833**, JANG **0.500** |
-| Ornith | keyword | composite (see note) | r1 + r2 | oQ **1.000**, OptiQ **0.833**, JANG **0.500** |
+| Ornith | oracle | `results/rag/ornith-35b-rag-20260724-122039` | multi-family r1 | OptiQ **0.833**, JANG **0.500**, oQ **0.500** |
+| Ornith | keyword | `results/rag/ornith-35b-rag-20260724-122444` | multi-family r1 | OptiQ **0.833**, JANG/oQ **0.500** (R@k=1.0, P@k=0.5) |
 | Qwen | oracle | `results/rag/gemma-rag-20260724-104524` | r1 | all **0.667** |
 | Qwen | keyword | `results/rag/gemma-rag-20260724-104652` | r1 | mxfp4 **0.833**, others 0.667 (R@k=1.0, P@k=0.5) |
 
-### Ornith JANG composite note
+### Ornith RAG note (composite superseded)
 
-First Ornith full runs (`…-104019` oracle, `…-104250` keyword, suite r1 /
-`max_tokens` 256): oQ + OptiQ scored as above; JANG **0.000** (6/6
-`chat stream produced no content` — reasoning filled the budget).
-
-After suite **r2** (`max_tokens` 2048), JANG-only re-runs:
-
-| Mode | Run dir | Success | Mean hit |
-|---|---|---|---|
-| oracle | `results/rag/gemma-rag-20260724-112406` | 6/6, 0 empty | **0.500** |
-| keyword | `results/rag/gemma-rag-20260724-112604` | 6/6, 0 empty | **0.500** |
-
-Treat oQ/OptiQ from the r1 full runs and JANG from the r2 re-runs as the sealed
-Ornith RAG native triple.
+Earlier Ornith full runs on suite `gemma-rag-oracle-v1` r1 (`max_tokens` 256)
+had JANG empty-content zeros; JANG-only r2 re-runs patched that cell. A later
+**full triple** on `multi-family-rag-oracle-v1` (`…-122039` / `…-122444`) is now
+canonical — oQ fact-hit fell to **0.500** vs the earlier composite **1.000**.
+Historical composite dirs remain evidence only.
 
 ## Suite / budget lineage (thinking models)
 

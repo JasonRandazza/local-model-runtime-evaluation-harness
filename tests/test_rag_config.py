@@ -28,9 +28,9 @@ class RagConfigTests(unittest.TestCase):
         self.assertIn("OSAURUS_PORT=1337", corpus.get("syn-ports").text)
 
     def test_suite_loads_six_questions(self) -> None:
-        suite = RagSuite.load(ROOT / "suites/gemma-rag-oracle-v1.json")
-        self.assertEqual(suite.suite_id, "gemma-rag-oracle-v1")
-        self.assertEqual(suite.revision, "2")
+        suite = RagSuite.load(ROOT / "suites/multi-family-rag-oracle-v1.json")
+        self.assertEqual(suite.suite_id, "multi-family-rag-oracle-v1")
+        self.assertEqual(suite.revision, "1")
         self.assertEqual(suite.corpus_id, "rag-oracle-v1")
         self.assertEqual(len(suite.questions), 6)
         self.assertTrue(all(q.max_tokens == 2048 for q in suite.questions))
@@ -41,6 +41,11 @@ class RagConfigTests(unittest.TestCase):
             ("jang_4m__osaurus", "oq4_fp16__omlx", "optiq_4bit__optiq"),
         )
         self.assertEqual(len(DEFAULT_RAG_CELLS), 3)
+
+    def test_historical_gemma_rag_suite_still_loads(self) -> None:
+        suite = RagSuite.load(ROOT / "suites/gemma-rag-oracle-v1.json")
+        self.assertEqual(suite.suite_id, "gemma-rag-oracle-v1")
+        self.assertEqual(suite.revision, "2")
 
     def test_defaults_load_gemma_family(self) -> None:
         defaults = load_rag_defaults()

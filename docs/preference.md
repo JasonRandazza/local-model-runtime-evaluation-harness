@@ -2,6 +2,8 @@
 
 Family-first pairwise human preference on matrix **PASS** cells using a six-prompt pack. Separate from `lmre-matrix` performance reports; Stage 0–2B machinery stays frozen.
 
+Default suite: `suites/multi-family-preference-v1.json` (`max_tokens` 2048). Historical `suites/gemma-preference-v1.json` remains loadable for old run artifacts.
+
 **RAG oracle Phase 1:** oracle-injected gold context fact-hit scoring — see [rag.md](rag.md).
 
 ## Family selection

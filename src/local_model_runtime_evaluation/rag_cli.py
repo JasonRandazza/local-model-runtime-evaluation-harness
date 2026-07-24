@@ -18,7 +18,7 @@ from .rag_config import (
 )
 from .rag_score import score_run
 
-DEFAULT_SUITE = REPOSITORY_ROOT / "suites" / "gemma-rag-oracle-v1.json"
+DEFAULT_SUITE = REPOSITORY_ROOT / "suites" / "multi-family-rag-oracle-v1.json"
 DEFAULT_CORPUS = REPOSITORY_ROOT / "corpora" / "rag-oracle-v1"
 DEFAULT_RESULTS = REPOSITORY_ROOT / "results" / "rag"
 DEFAULT_CELLS_ROOT = REPOSITORY_ROOT / "config" / "matrix" / "cells"

@@ -20,7 +20,7 @@ from .preference_judge import DEFAULT_JUDGE_CELL, load_pairs, resolve_judge_fami
 from .preference_review import run_review
 from .preference_tally import run_tally
 
-DEFAULT_SUITE = REPOSITORY_ROOT / "suites" / "gemma-preference-v1.json"
+DEFAULT_SUITE = REPOSITORY_ROOT / "suites" / "multi-family-preference-v1.json"
 DEFAULT_RESULTS = REPOSITORY_ROOT / "results" / "preference"
 DEFAULT_CELLS_ROOT = REPOSITORY_ROOT / "config" / "matrix" / "cells"
 DEFAULT_REVIEW_SEED = 0

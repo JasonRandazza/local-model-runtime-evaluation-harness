@@ -26,7 +26,7 @@ class PreferenceCliTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["cells"], list(DEFAULT_PREFERENCE_CELLS))
         self.assertEqual(payload["prompts"], 6)
-        self.assertEqual(payload["suite_id"], "gemma-preference-v1")
+        self.assertEqual(payload["suite_id"], "multi-family-preference-v1")
 
     def test_collect_dry_config_includes_family_id(self) -> None:
         buffer = io.StringIO()

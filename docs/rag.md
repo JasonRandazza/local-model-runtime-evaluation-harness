@@ -2,7 +2,7 @@
 
 Family-first oracle-injected gold context or **keyword** term-overlap retrieval on matrix **PASS** cells. Automatic **fact-hit rate** scoring for all modes; keyword runs also score **recall@k** and **precision@k** against suite gold chunk ids. Separate from `lmre-preference` and `lmre-matrix`; Stage 0–2B machinery stays frozen.
 
-Suite `suites/gemma-rag-oracle-v1.json` revision `2` sets every question `max_tokens` to `2048` so Osaurus-native thinking builds (notably Ornith JANG) can emit visible `content` after `reasoning_content`. Revision `1` (`256`) remains historical evidence only.
+Suite default: `suites/multi-family-rag-oracle-v1.json` (`max_tokens` 2048) so Osaurus-native thinking builds (notably Ornith JANG) can emit visible `content` after `reasoning_content`. Historical `suites/gemma-rag-oracle-v1.json` revision `2` remains loadable; its revision `1` (`256`) is evidence-only.
 
 **Related:** matrix campaign — see [matrix.md](matrix.md); preference POC — see [preference.md](preference.md); routing overhead — see [overhead.md](overhead.md).
 
