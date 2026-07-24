@@ -57,7 +57,7 @@ Expected: JSON with `"ok": true`.
 - [ ] All discovery unit tests PASS
 - [ ] `./bin/lmre-discover dry-config` succeeds
 - [ ] Design spec status APPROVED (Jason, 2026-07-24)
-- [ ] Jason accepts Gate A → decision line becomes `GATE_A_PASSED`
+- [x] Jason accepts Gate A → decision line becomes `GATE_A_PASSED`
 
 Live propose/execute remains separately gated after Gate A closes.
 
