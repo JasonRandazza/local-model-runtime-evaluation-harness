@@ -111,12 +111,12 @@ Prints JSON with `ok: true`, default judge cell, run dir, and pair count. No net
 ```bash
 ./bin/lmre-preference collect
 
-./bin/lmre-preference review --run results/preference/gemma-preference-<timestamp>
+./bin/lmre-preference review --run results/preference/gemma-4-12b-qat-preference-<timestamp>
 
-./bin/lmre-preference judge --run results/preference/gemma-preference-<timestamp>
+./bin/lmre-preference judge --run results/preference/gemma-4-12b-qat-preference-<timestamp>
 # optional: inspect / edit judgments.json
 
-./bin/lmre-preference tally --run results/preference/gemma-preference-<timestamp>
+./bin/lmre-preference tally --run results/preference/gemma-4-12b-qat-preference-<timestamp>
 ```
 
 Ornith live collect (only after separate operator authorize):

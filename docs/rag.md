@@ -135,7 +135,7 @@ Optional filters: `--family`, `--cells id,id`, `--suite PATH`, `--corpus-root PA
 2. **Score** — fact-hit rate per prompt and mean hit rate per cell; keyword runs add retrieval metrics:
 
 ```bash
-./bin/lmre-rag score --run results/rag/gemma-rag-<timestamp>
+./bin/lmre-rag score --run results/rag/<family>-rag-<timestamp>
 ```
 
 ## Metrics
@@ -165,7 +165,7 @@ Not CI — manual operator verification only:
 - [ ] `./bin/lmre-rag collect --dry-config`
 - [ ] Obtain Jason's in-session authorization for live collect
 - [ ] `./bin/lmre-rag collect`
-- [ ] `./bin/lmre-rag score --run results/rag/gemma-rag-<timestamp>`
+- [ ] `./bin/lmre-rag score --run results/rag/gemma-4-12b-qat-rag-<timestamp>`
 - [ ] Confirm `report.md` ranks cells by mean hit rate
 
 **Keyword (Phase 2):**
@@ -173,13 +173,13 @@ Not CI — manual operator verification only:
 - [ ] `./bin/lmre-rag collect --mode keyword --dry-config`
 - [ ] Obtain Jason's in-session authorization for live keyword collect
 - [ ] `./bin/lmre-rag collect --mode keyword --top-k 2`
-- [ ] `./bin/lmre-rag score --run results/rag/gemma-rag-<timestamp>`
+- [ ] `./bin/lmre-rag score --run results/rag/gemma-4-12b-qat-rag-<timestamp>`
 - [ ] Confirm `report.md` includes retrieval and fact-hit rankings
 - [ ] Confirm `answers/*.json` rows include `retrieved_chunk_ids`
 
 ## Outputs
 
-Under `results/rag/gemma-rag-<timestamp>/`:
+Under `results/rag/<family>-rag-<timestamp>/` (historical runs may still use `gemma-rag-*`):
 
 - `raw.json` — `family_id`, suite id, corpus id, cell ids, `mode`, `top_k` (when keyword), timestamps
 - `answers/<cell_id>.json` — per-prompt content, success/error, timings; keyword rows include `retrieved_chunk_ids`

@@ -43,6 +43,7 @@ as the sealed native triple. Optional later: one clean Ornith full screen on r3.
 
 ## Next lane (quality)
 
-Preference → RAG on native PASS cells. Preference `config/preference/family-cells.json`
-still lists some non-native cells (e.g. `optiq_4bit__omlx`) — trim to the native
-diagonal before live preference collect.
+**CLOSED** 2026-07-24 — preference + RAG on native PASS cells sealed in
+`docs/superpowers/verification/2026-07-24-multi-family-quality-live-evidence.md`.
+Recipes trimmed to the native diagonal; Ornith JANG required suite token
+ceilings of 2048 (RAG r2 / matrix r4 / preference r2).

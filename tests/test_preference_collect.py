@@ -265,7 +265,7 @@ class RunCollectTests(unittest.TestCase):
                 memory_floor_percent=20,
             )
 
-            self.assertTrue(run_dir.name.startswith("gemma-preference-"))
+            self.assertTrue(run_dir.name.startswith("gemma-4-12b-qat-preference-"))
             self.assertEqual(run_dir.parent.name, "preference")
             raw = json.loads((run_dir / "raw.json").read_text(encoding="utf-8"))
             self.assertEqual(raw["suite_id"], "gemma-preference-v1")

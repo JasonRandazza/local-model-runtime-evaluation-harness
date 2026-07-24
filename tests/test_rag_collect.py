@@ -374,7 +374,7 @@ class RunCollectTests(unittest.TestCase):
                 memory_floor_percent=20,
             )
 
-            self.assertTrue(run_dir.name.startswith("gemma-rag-"))
+            self.assertTrue(run_dir.name.startswith("gemma-4-12b-qat-rag-"))
             self.assertEqual(run_dir.parent.name, "rag")
             raw = json.loads((run_dir / "raw.json").read_text(encoding="utf-8"))
             self.assertEqual(raw["suite_id"], suite.suite_id)

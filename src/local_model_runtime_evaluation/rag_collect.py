@@ -169,7 +169,7 @@ def run_collect(
         lambda base_urls, timeout: LoopbackTransport(base_urls, timeout_seconds=timeout)
     )
 
-    run_dir = results_root / f"gemma-rag-{_stamp()}"
+    run_dir = results_root / f"{family_id}-rag-{_stamp()}"
     run_dir.mkdir(parents=True, exist_ok=False)
     answers_dir = run_dir / "answers"
     answers_dir.mkdir(parents=True, exist_ok=True)

@@ -19,12 +19,12 @@ can still reach visible `content` (Ornith JANG consistently fills smaller budget
 answer tokens). Revisions `1`–`3` remain historical.
 Free-form Approach 3 cells are a later goal — not implemented here.
 
-**Multi-family quality (next):** preference and RAG recipes are in-tree — see
-[preference.md](preference.md) and [rag.md](rag.md). Live preference/RAG should
-consume the sealed native PASS cells documented in
-`docs/superpowers/verification/2026-07-23-native-triple-overhead-live-evidence.md`.
-Routing overhead for all three families is already sealed in that note; see
-[overhead.md](overhead.md) for operator procedure.
+**Multi-family quality (sealed):** preference, RAG, and native finalists — see
+[preference.md](preference.md), [rag.md](rag.md), and
+`docs/superpowers/verification/2026-07-24-multi-family-quality-live-evidence.md`
+(performance baseline:
+`docs/superpowers/verification/2026-07-23-native-triple-overhead-live-evidence.md`).
+Routing overhead procedure: [overhead.md](overhead.md).
 
 ## Prerequisites
 
