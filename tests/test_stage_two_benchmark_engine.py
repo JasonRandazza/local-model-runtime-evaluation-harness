@@ -544,6 +544,16 @@ class StageTwoBenchmarkEngineTest(unittest.TestCase):
             self.assertIn("routed_inventory_waiting", event_names)
             self.assertIn("routed_inventory_ready", event_names)
             self.assertNotIn("provider_reconnect_tap", json.dumps(events))
+            evidence_path = output / manifest.run_id / "request-evidence.jsonl"
+            evidence = [
+                json.loads(line)
+                for line in evidence_path.read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(len(evidence), 4)
+            self.assertEqual(
+                [row["endpoint"] for row in evidence],
+                ["direct_health", "routed_health", "direct_models", "routed_models"],
+            )
 
     def test_harness_rejects_unknown_provider_activation(self) -> None:
         harness_manifest = load_manifest(

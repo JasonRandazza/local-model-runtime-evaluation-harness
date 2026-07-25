@@ -209,4 +209,22 @@ At this check: Osaurus OK, OptiQ still UP (awaiting operator stop for Stage 2), 
 - Root `libOsaurusEvaluationHarness.dylib` left as reviewed `0.3.0` artifact; `osaurus tools list` still `version=0.3.0`.
 - Swift tests: 5/5 PASS for 0.4.0 surface. Approach3 unit tests: 7/7 PASS.
 
+### 2026-07-24 ~21:58 ET — Non-live coding authorization (Jason leaving keyboard)
+
+Jason authorized **non-live coding only**: finish as much as possible, **do not commit untested work**, document often. No live OptiQ start/stop or inference from the agent while he is away. No plugin install without later explicit approval.
+
+**Queue (non-live):**
+1. Fix Stage 2 harness inventory-wait `request-evidence.jsonl` bloat (caused `003` cleanup failure)
+2. Approach 3 RAG collect stubs + tests (preference already scaffolded)
+3. Docs backlog / r5 reconnect-tap note for future harness smoke
+4. Commit+push only after unit tests pass for each slice
+
+### 2026-07-24 ~22:05 ET — Stage 2 wait-loop request-evidence fix (tested)
+
+**Bug:** harness inventory wait appended every failed poll’s GETs into `request-evidence.jsonl`, bloating failed preflights (`003` cleanup `evidence_incomplete`).
+
+**Fix:** `_observe_routes_for_preflight` probes with `record_evidence=False`, then commits one successful observe (`record_evidence=True`). Timeout leaves zero durable GET evidence. Applied to smoke (`stage_two_inference.py`) and benchmark (`stage_two_benchmark.py`).
+
+**Tests:** full `test_stage_two_inference_engine` + `test_stage_two_benchmark_engine` (66) PASS, including new evidence assertions.
+
 _(Subsequent sections appended below as work completes.)_

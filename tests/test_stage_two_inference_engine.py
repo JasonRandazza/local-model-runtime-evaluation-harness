@@ -1283,6 +1283,57 @@ class StageTwoInferenceEngineTest(unittest.TestCase):
             self.assertIn("routed_inventory_waiting", event_names)
             self.assertIn("routed_inventory_ready", event_names)
             self.assertNotIn("provider_reconnect_tap", json.dumps(events))
+            # Failed wait polls must not append request-evidence; only the
+            # successful observe (4 GETs) may be durable.
+            evidence_path = output / manifest.run_id / "request-evidence.jsonl"
+            evidence = [
+                json.loads(line)
+                for line in evidence_path.read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(len(evidence), 4)
+            self.assertEqual(
+                [row["endpoint"] for row in evidence],
+                ["direct_health", "routed_health", "direct_models", "routed_models"],
+            )
+
+    def test_harness_inventory_wait_timeout_does_not_bloat_request_evidence(self) -> None:
+        """Timed-out wait must leave zero durable GET evidence (cleanup-safe)."""
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            transport = FakeTransport(
+                defer_routed_identity_until_routed_models_call=10**9,
+            )
+            engine, manifest, _transport, _controller = self._harness_engine_fixture(
+                output, transport=transport,
+            )
+            clock_values = [0.0, 0.0, 301.0]
+            clock_index = {"i": 0}
+
+            def fake_monotonic() -> float:
+                i = clock_index["i"]
+                clock_index["i"] = i + 1
+                if i < len(clock_values):
+                    return clock_values[i]
+                return 301.0
+
+            with patch(
+                "local_model_runtime_evaluation.stage_two_inference.time.monotonic",
+                fake_monotonic,
+            ), patch(
+                "local_model_runtime_evaluation.stage_two_inference.time.sleep",
+                lambda _seconds: None,
+            ):
+                with self.assertRaises(StageTwoError) as context:
+                    engine.preflight()
+            self.assertEqual(context.exception.code, "route_identity_failed")
+            evidence_path = output / manifest.run_id / "request-evidence.jsonl"
+            if evidence_path.is_file():
+                lines = [
+                    line
+                    for line in evidence_path.read_text(encoding="utf-8").splitlines()
+                    if line.strip()
+                ]
+                self.assertEqual(lines, [])
 
     def test_harness_rejects_unknown_provider_activation(self) -> None:
         harness_manifest = load_manifest(

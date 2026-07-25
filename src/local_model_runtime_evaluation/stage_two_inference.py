@@ -453,24 +453,36 @@ class StageTwoInferenceEngine:
         ).hexdigest()
 
     def _health(
-        self, base_url: str, endpoint: str, sequence: int | None = None,
+        self,
+        base_url: str,
+        endpoint: str,
+        sequence: int | None = None,
+        *,
+        record_evidence: bool = True,
     ) -> dict[str, object]:
         succeeded, payload = self._external_call(lambda: self.transport.health(base_url))
         if not succeeded or not isinstance(payload, dict):
             raise StageTwoError("transport_failed", "Stage 2B-1 health transport failed")
-        self._request_evidence("GET", endpoint, payload, sequence)
+        if record_evidence:
+            self._request_evidence("GET", endpoint, payload, sequence)
         return payload
 
     def _models(
-        self, base_url: str, endpoint: str, sequence: int | None = None,
+        self,
+        base_url: str,
+        endpoint: str,
+        sequence: int | None = None,
+        *,
+        record_evidence: bool = True,
     ) -> tuple[ModelDescriptor, ...]:
         succeeded, result = self._external_call(lambda: self.transport.list_models(base_url))
         if not succeeded or not isinstance(result, tuple):
             raise StageTwoError("transport_failed", "Stage 2B-1 inventory transport failed")
         models = result
-        self._request_evidence(
-            "GET", endpoint, [item.evidence() for item in models], sequence,
-        )
+        if record_evidence:
+            self._request_evidence(
+                "GET", endpoint, [item.evidence() for item in models], sequence,
+            )
         return models
 
     def _memory_sample(self, phase: str, snapshot: ResourceSnapshot) -> None:
@@ -496,30 +508,51 @@ class StageTwoInferenceEngine:
             raise StageTwoError("resource_gate_failed", "Stage 2B-1 requires normal memory pressure")
 
     def _observe_routes(
-        self, sequence: int | None = None,
+        self,
+        sequence: int | None = None,
+        *,
+        record_evidence: bool = True,
     ) -> tuple[dict[str, object], tuple[ModelDescriptor, ...], tuple[ModelDescriptor, ...]]:
-        direct_health = self._health(self.profile.direct_base_url, "direct_health", sequence)
-        routed_health = self._health(self.profile.routed_base_url, "routed_health", sequence)
+        direct_health = self._health(
+            self.profile.direct_base_url, "direct_health", sequence,
+            record_evidence=record_evidence,
+        )
+        routed_health = self._health(
+            self.profile.routed_base_url, "routed_health", sequence,
+            record_evidence=record_evidence,
+        )
         if not self._direct_health_is_safe(direct_health):
             raise StageTwoError("operator_health_failed", "direct health is unavailable or conflicting")
         if not routed_health_is_ready(routed_health):
             raise StageTwoError("route_health_failed", "routed health is unavailable")
-        direct_models = self._models(self.profile.direct_base_url, "direct_models", sequence)
-        routed_models = self._models(self.profile.routed_base_url, "routed_models", sequence)
+        direct_models = self._models(
+            self.profile.direct_base_url, "direct_models", sequence,
+            record_evidence=record_evidence,
+        )
+        routed_models = self._models(
+            self.profile.routed_base_url, "routed_models", sequence,
+            record_evidence=record_evidence,
+        )
         discover_route_identity(self.profile, direct_models, routed_models)
         return routed_health, direct_models, routed_models
 
     def _observe_routes_for_preflight(
         self,
     ) -> tuple[dict[str, object], tuple[ModelDescriptor, ...], tuple[ModelDescriptor, ...]]:
-        """Harness lane: wait for routed inventory, then verify identity (no operator tap)."""
+        """Harness lane: wait for routed inventory, then verify identity (no operator tap).
+
+        Failed wait polls must not append `request-evidence.jsonl` — only the
+        successful observe is durable (keeps failed-preflight cleanup sealable).
+        """
         if not self._harness:
             return self._observe_routes()
         deadline = time.monotonic() + 300.0
         last_error: StageTwoError | None = None
         while time.monotonic() < deadline:
             try:
-                result = self._observe_routes()
+                # Probe without evidence; commit only after identity PASS.
+                self._observe_routes(record_evidence=False)
+                result = self._observe_routes(record_evidence=True)
                 if last_error is not None:
                     self._event("routed_inventory_ready", required_routed_model_id=self.profile.routed_model_id)
                 return result
