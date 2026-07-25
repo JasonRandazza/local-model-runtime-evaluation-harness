@@ -235,4 +235,12 @@ Jason authorized **non-live coding only**: finish as much as possible, **do not 
 - `tests/test_approach3.py` 9/9 PASS
 - Backlog note: `docs/superpowers/notes/2026-07-24-non-live-backlog.md`
 
+### 2026-07-24 ~22:20 ET — Docs + overhead stub (tested)
+
+- README lists `lmre-approach3`
+- `docs/stage-2-harness-unattended-gate-a.md` records `004` PASS, `003` STOPPED, evidence fix
+- `collect-overhead` present but fail-closed `not_implemented` (11 Approach3 tests PASS)
+
+**Non-live session pause point:** further live work needs Jason back for OptiQ/oMLX/provider or new IDs. Coding backlog remains in `2026-07-24-non-live-backlog.md`.
+
 _(Subsequent sections appended below as work completes.)_

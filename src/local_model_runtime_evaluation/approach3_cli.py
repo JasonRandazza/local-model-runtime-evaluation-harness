@@ -217,6 +217,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Required for live RAG collect (UNTESTED seal)",
     )
+
+    overhead = sub.add_parser("collect-overhead")
+    overhead.add_argument("recipe")
+    overhead.add_argument(
+        "--i-understand-live",
+        action="store_true",
+        help="Reserved; overhead Approach 3 is not implemented",
+    )
     return parser
 
 
@@ -257,6 +265,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 results_root=args.results_root,
                 mode=args.mode,
                 confirm_live=args.i_understand_live,
+            )
+        elif args.command == "collect-overhead":
+            raise Approach3Error(
+                "Approach 3 overhead collect is not implemented",
+                code="not_implemented",
             )
         else:
             raise Approach3Error(f"unknown command: {args.command}", code="unknown_command")

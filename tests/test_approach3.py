@@ -76,6 +76,12 @@ class Approach3CliTests(unittest.TestCase):
         code = approach3_main(["dry-config", "gemma-freeform-native-triple-v1"])
         self.assertEqual(code, 0)
 
+    def test_cli_collect_preference_refuses_without_flag(self) -> None:
+        code = approach3_main(
+            ["collect-preference", "gemma-freeform-native-triple-v1"]
+        )
+        self.assertEqual(code, 1)
+
     def test_cli_collect_preference_passes_require_native_false(self) -> None:
         from unittest.mock import patch
         from pathlib import Path
@@ -97,6 +103,12 @@ class Approach3CliTests(unittest.TestCase):
     def test_cli_collect_rag_refuses_without_flag(self) -> None:
         code = approach3_main(
             ["collect-rag", "gemma-freeform-native-triple-v1", "--mode", "oracle"]
+        )
+        self.assertEqual(code, 1)
+
+    def test_cli_collect_overhead_is_not_implemented(self) -> None:
+        code = approach3_main(
+            ["collect-overhead", "gemma-freeform-native-triple-v1", "--i-understand-live"]
         )
         self.assertEqual(code, 1)
 

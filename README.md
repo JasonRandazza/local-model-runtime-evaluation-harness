@@ -48,6 +48,7 @@ A lean Osaurus-front-door screen compared Gemma 4 12B native JANG versus OptiQ-b
 ## Tools / CLIs
 
 - **`lmre-discover`** — Discovery MVP (Gate A / non-live): observe loopback + pinned artifacts, write proposal, execute one ready family’s preference + RAG in-process. See `docs/discovery.md` and `docs/stage-discovery-gate-a.md`. Live propose/execute requires separate authorization after Gate A.
+- **`lmre-approach3`** — Free-form cell recipes (Gate A): `dry-config` / `show` / `collect-preference` / `collect-rag`. Live collect requires `--i-understand-live` and remains UNTESTED until sealed. See `docs/superpowers/specs/2026-07-24-approach-3-free-form-cells-design.md` and `docs/superpowers/notes/2026-07-24-non-live-backlog.md`.
 
 ## Verification
 

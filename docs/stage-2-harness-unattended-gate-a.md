@@ -7,10 +7,17 @@ live smoke sealed **PASS** on unused run `stage2-20260723-003` (8/8 POSTs;
 schema `3.5.0` / profile revision `4`). Re-evidence **PASS** on
 `stage2-20260724-001` (8/8; `service_lifecycle_actions: 2`; no reconnect tap) —
 `docs/superpowers/verification/2026-07-24-slice-1c-stage2-20260724-001-pass.md`.
+Re-evidence again **PASS** on `stage2-20260724-004` after Optiq reconnect —
+`docs/superpowers/verification/2026-07-24-slice-1c-stage2-20260724-004-pass.md`.
+`stage2-20260724-003` cleaned **STOPPED** (routed inventory missing before reconnect).
 Prior same-day IDs `001`/`002` (2026-07-23) cleaned STOPPED (reconnect / Ornith
 residency). See
 `docs/superpowers/verification/2026-07-23-slice-1c-stage2-20260723-003-pass.md`.
-Do not reuse `001`–`003` (2026-07-23) or `stage2-20260724-001`.
+Do not reuse `001`–`003` (2026-07-23) or `stage2-20260724-001` / `003` / `004`.
+
+**Inventory-wait evidence (2026-07-24):** failed wait polls must not append
+`request-evidence.jsonl` GETs (fix in `stage_two_inference` / `stage_two_benchmark`);
+only the successful observe is durable.
 
 **Follow-on Design 1:** reconnect-tap elimination Gate A landed; live
 inventory-wait proof **PASS** (revision `5`, `verify_routed_id_only_no_tap`,
