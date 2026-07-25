@@ -51,6 +51,15 @@ Discovery **never** silently copies, moves, or relocates model weights. Match ch
 
 Gate A tests and docs do not authorize live loopback contact, Stage 2 run IDs, provider edits, or plugin changes. Live `propose` / `execute` against real servers requires Jason’s separate current-session authorization after Gate A acceptance.
 
+## OptiQ lifecycle on execute (A+C)
+
+During preference/RAG collect, OptiQ handling is:
+
+- **Attach (A):** if `:8080` is busy and inventory already lists the cell’s exact `model_id`, reuse that serve and do not kill it on cleanup.
+- **Reclaim + pinned restart (C):** if `:8080` is busy with a different/unknown model, send `pkill -INT -f 'optiq serve'`, wait for the port, then start the cell’s pinned `optiq serve --model …`.
+
+`--allow-model-switch` (pathway B) is **not** used yet — see `docs/superpowers/notes/2026-07-24-optiq-osaurus-model-switch-investigation.md`.
+
 ## Deferred (not in Gate A)
 
 - `lmre-discover place`

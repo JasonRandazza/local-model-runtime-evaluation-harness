@@ -20,6 +20,9 @@ class ServerError(RuntimeError):
 # Loopback-only key for matrix-owned oMLX serves. Not a shared secret.
 MATRIX_OMLX_API_KEY = "lmre-matrix-local"
 
+# Pathway C reclaim: stop foreign/wrong-model OptiQ so pinned serve can bind :8080.
+OPTIQ_RECLAIM_COMMAND = ("pkill", "-INT", "-f", "optiq serve")
+
 
 class TransportProtocol(Protocol):
     def list_models(self, base_url: str, credential: object | None) -> tuple[str, ...]: ...
@@ -70,6 +73,19 @@ class SubprocessServerHandle:
                 if self._port_free(port):
                     self._process = self._spawner(self._cell.start_command, self._log_path)
                     self._owned = True
+            elif self._cell.server == "optiq":
+                if not self._port_free(port):
+                    # A: attach when inventory already has this cell's model.
+                    if self._optiq_model_present():
+                        self._owned = False
+                        self._started = True
+                        return
+                    # C: wrong/unknown resident model — reclaim then spawn pinned serve.
+                    self._stop_runner(OPTIQ_RECLAIM_COMMAND)
+                    wait_port_free(port, timeout_seconds=60)
+                command = self._start_command()
+                self._process = self._spawner(command, self._log_path)
+                self._owned = True
             else:
                 if not self._port_free(port):
                     if self._cell.server == "omlx":
@@ -84,6 +100,13 @@ class SubprocessServerHandle:
         except (LifecycleError, OSError, ValueError) as error:
             raise ServerError(str(error)) from error
         self._started = True
+
+    def _optiq_model_present(self) -> bool:
+        try:
+            models = self._transport.list_models(self._cell.base_url, self._credential)
+        except (TransportError, OSError, TimeoutError, ValueError, KeyError, TypeError):
+            return False
+        return self._cell.model_id in models
 
     def _start_command(self) -> tuple[str, ...]:
         command = self._cell.start_command

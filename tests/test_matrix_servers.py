@@ -44,6 +44,35 @@ def _osaurus(**overrides: object) -> Cell:
     return Cell(**data)  # type: ignore[arg-type]
 
 
+def _optiq(**overrides: object) -> Cell:
+    model_id = (
+        "/Users/jrazz/.cache/huggingface/hub/mlx-community/"
+        "gemma-4-12B-it-qat-OptiQ-4bit:no-think"
+    )
+    artifact = (
+        "/Users/jrazz/.cache/huggingface/hub/mlx-community/"
+        "gemma-4-12B-it-qat-OptiQ-4bit"
+    )
+    data = dict(
+        cell_id="optiq_4bit__optiq",
+        quant="optiq_4bit",
+        server="optiq",
+        base_url="http://127.0.0.1:8080/v1",
+        model_id=model_id,
+        artifact_path=artifact,
+        start_command=(
+            "optiq", "serve", "--model", artifact,
+            "--host", "127.0.0.1", "--port", "8080",
+            "--no-anthropic", "--no-responses", "--no-auth",
+        ),
+        stop_command=(),
+        health_path="/health",
+        notes="",
+    )
+    data.update(overrides)
+    return Cell(**data)  # type: ignore[arg-type]
+
+
 class MatrixServerTests(unittest.TestCase):
     def test_ready_when_model_appears(self) -> None:
         transport = MagicMock()
@@ -159,6 +188,82 @@ class MatrixServerTests(unittest.TestCase):
             )
             handle.start()
             self.assertEqual(seen[0][-2:], ("--api-key", MATRIX_OMLX_API_KEY))
+            handle.stop()
+
+    def test_optiq_attaches_when_busy_and_model_present(self) -> None:
+        transport = MagicMock()
+        model_id = (
+            "/Users/jrazz/.cache/huggingface/hub/mlx-community/"
+            "gemma-4-12B-it-qat-OptiQ-4bit:no-think"
+        )
+        transport.list_models.return_value = (model_id,)
+        spawner = MagicMock()
+        stop_runner = MagicMock()
+        with TemporaryDirectory() as tmp:
+            handle = build_server(
+                _optiq(model_id=model_id), transport, Path(tmp),
+                spawner=spawner,
+                port_free=lambda port: False,
+                stop_runner=stop_runner,
+            )
+            handle.start()
+            spawner.assert_not_called()
+            stop_runner.assert_not_called()
+            handle.wait_ready(model_id, timeout_seconds=1)
+            handle.stop()
+            stop_runner.assert_not_called()
+
+    def test_optiq_reclaims_when_busy_and_model_missing(self) -> None:
+        from unittest.mock import patch
+
+        transport = MagicMock()
+        model_id = (
+            "/Users/jrazz/.cache/huggingface/hub/mlx-community/"
+            "Ornith-1.0-35B-OptiQ-4bit:no-think"
+        )
+        artifact = (
+            "/Users/jrazz/.cache/huggingface/hub/mlx-community/"
+            "Ornith-1.0-35B-OptiQ-4bit"
+        )
+        transport.list_models.return_value = (
+            "/Users/jrazz/.cache/huggingface/hub/mlx-community/"
+            "gemma-4-12B-it-qat-OptiQ-4bit:no-think",
+        )
+        seen: list[tuple[str, ...]] = []
+        stops: list[tuple[str, ...]] = []
+
+        def capture(cmd: tuple[str, ...], log: Path) -> MagicMock:
+            seen.append(cmd)
+            return MagicMock(stop=MagicMock())
+
+        def stop_runner(cmd: tuple[str, ...]) -> None:
+            stops.append(cmd)
+
+        with TemporaryDirectory() as tmp:
+            with patch(
+                "local_model_runtime_evaluation.matrix_servers.wait_port_free",
+            ):
+                handle = build_server(
+                    _optiq(
+                        model_id=model_id,
+                        artifact_path=artifact,
+                        start_command=(
+                            "optiq", "serve", "--model", artifact,
+                            "--host", "127.0.0.1", "--port", "8080",
+                            "--no-anthropic", "--no-responses", "--no-auth",
+                        ),
+                    ),
+                    transport,
+                    Path(tmp),
+                    spawner=capture,
+                    port_free=lambda port: False,
+                    stop_runner=stop_runner,
+                )
+                handle.start()
+            self.assertTrue(stops)
+            self.assertEqual(stops[0][0], "pkill")
+            self.assertEqual(len(seen), 1)
+            self.assertIn(artifact, seen[0])
             handle.stop()
 
 

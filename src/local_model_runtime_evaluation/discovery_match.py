@@ -103,14 +103,14 @@ def match_family(
             if "reason" in entry:
                 cell_result["reason"] = entry["reason"]
         else:
-            credential = credential_for(cell.server) if credential_for else None
             try:
+                credential = credential_for(cell.server) if credential_for else None
                 ids = transport.list_models(native_base_url(cell.server), credential)
                 quant_ids = family.quants[cell.quant].model_ids
                 identity_ok = cell.model_id in ids or any(
                     model_id in ids for model_id in quant_ids
                 )
-            except Exception as error:
+            except Exception:
                 identity_ok = False
                 cell_result["reason"] = "inventory_failed"
             cell_result["identity_ok"] = identity_ok

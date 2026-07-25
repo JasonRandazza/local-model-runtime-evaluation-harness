@@ -33,6 +33,7 @@ from local_model_runtime_evaluation.matrix_config import (
     Cell,
     load_family,
 )
+from local_model_runtime_evaluation.preference_collect import _credential_for
 from local_model_runtime_evaluation.preference_config import load_family_cell_recipes
 from local_model_runtime_evaluation.rag_config import load_rag_family_cell_recipes
 from local_model_runtime_evaluation.transport import LoopbackTransport
@@ -100,6 +101,7 @@ def _cmd_propose(
     path_exists: Callable[[str], bool] | None = None,
     preference_recipes: dict[str, tuple[str, ...]] | None = None,
     rag_recipes: dict[str, tuple[str, ...]] | None = None,
+    credential_for: Callable[[str], object | None] | None = None,
 ) -> dict[str, object]:
     cells_root = cells_root or DEFAULT_CELLS_ROOT
     preference = (
@@ -112,6 +114,7 @@ def _cmd_propose(
         if rag_recipes is not None
         else load_rag_family_cell_recipes()
     )
+    resolve_credential = credential_for if credential_for is not None else _credential_for
     proposal_id = allocate_proposal_id(results_root)
     created_at = datetime.now(timezone.utc).isoformat()
     proposal = build_proposal(
@@ -121,6 +124,7 @@ def _cmd_propose(
         rag_recipes=rag,
         cells_root=cells_root,
         transport=transport,
+        credential_for=resolve_credential,
         path_exists=path_exists,
     )
     path = write_proposal(results_root, proposal)
