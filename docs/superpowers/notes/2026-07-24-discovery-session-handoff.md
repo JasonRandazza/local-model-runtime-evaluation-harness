@@ -166,4 +166,47 @@ optiq serve \
 - Servers at check: Osaurus `1337` OK, OptiQ `8080` OK, **oMLX `8100` DOWN**
 - Next: commit A+C + investigation note + discovery.md; push; Stage 2 Gemma
 
+### 2026-07-24 ~21:40 ET — Server guidance + Approach 3 + Stage 2 manifest + plugin 0.4.0 source
+
+**Operator question answered — leave stack how?**
+
+| Service | For Stage 2 harness smoke (`3.5.0`) | For Discovery / Approach 3 matrix |
+|---------|--------------------------------------|-----------------------------------|
+| **Osaurus `:1337`** | **Leave ON** | Leave ON |
+| **OptiQ `:8080`** | **STOP (Ctrl+C)** before preflight — harness fails closed on busy port (no OptiQ attach in Stage 2 lifecycle) | Leave ON (A+C attach) |
+| **oMLX `:8100`** | Optional / can stay off | Restart if propose needs inventory |
+
+At this check: Osaurus OK, OptiQ still UP (awaiting operator stop for Stage 2), oMLX still down.
+
+**Landed (code):**
+
+- Approach 3 Gate A scaffold: design, recipes, `approach3.py` / `approach3_cli.py`, `bin/lmre-approach3`, `tests/test_approach3.py` (PASS). Live collect gated by `--i-understand-live` + marked UNTESTED.
+- Stage 2 short-lived manifest: `manifests/stage-2-optiq-harness-route-20260724-003.json` (`stage2-20260724-003`, schema `3.5.0`, expires EOD Eastern). **Do not run until OptiQ is stopped.**
+- Plugin source `0.4.0` adds `discover` tool (`dry-config`|`propose` only). Park under `plugins/osaurus-evaluation-harness/parked/0.4.0/` if install skipped; **production remains installed `0.3.0`**.
+
+**Blocked on operator:** Stop OptiQ, then agent runs `./bin/lmre-stage0 preflight stage2-20260724-003` → `run-scenario` → `cleanup` (Metal/`all` perms).
+
+### 2026-07-24 ~21:48 ET — `stage2-20260724-003` FAILED; starting `004`
+
+- OptiQ was off; harness started Gemma OptiQ (`lifecycle_actions: 1`).
+- Preflight waited ~300s for routed ID `optiq//…/gemma-4-12B-it-qat-OptiQ-4bit:no-think`.
+- Osaurus `/v1/models` never listed any OptiQ IDs (local models only) → `route_identity_failed` / preflight error: *OptiQ routed model identity is missing or ambiguous*.
+- `003` is **consumed** (bundle under canonical output; status `failed`). Cleanup then hit `evidence_incomplete` (wait-loop GETs bloated `request-evidence.jsonl`) — leftover OptiQ later gone; port `8080` free.
+- New unused ID **`stage2-20260724-004`** manifest written. Preflight started; **needs one Optiq provider reconnect tap** (no edit) once OptiQ is up.
+
+### 2026-07-24 ~21:49 ET — `stage2-20260724-004` sealed PASS
+
+- Jason confirmed Optiq provider in Osaurus; port `8080` free; lock released after `003` cleanup (`STOPPED`).
+- Preflight **PASS** (`route_identity: PASS`, lifecycle_actions 1).
+- Worker completed 8/8 POSTs → `awaiting_review` → cleanup **PASS** (`inference_path_acceptance` + `behavioral_contract_acceptance` PASS; `checksum_validation` PASS; lifecycle_actions 2).
+- Evidence: `docs/superpowers/verification/2026-07-24-slice-1c-stage2-20260724-004-pass.md`
+- Do not reuse `001`–`004` (2026-07-24 Stage 2 IDs).
+
+### 2026-07-24 ~21:50 ET — Plugin 0.4.0 parked; installed remains 0.3.0
+
+- Source adds `discover` (`dry-config`|`propose`). Built release dylib parked at `plugins/osaurus-evaluation-harness/parked/0.4.0/` — **not installed** (gitignore `*.dylib`; rebuild from source).
+- Parked sha256: `9c2f744a2ee8731e3e0b8fa1192b36c29a338b84ef5447c2166565c25adaff72`
+- Root `libOsaurusEvaluationHarness.dylib` left as reviewed `0.3.0` artifact; `osaurus tools list` still `version=0.3.0`.
+- Swift tests: 5/5 PASS for 0.4.0 surface. Approach3 unit tests: 7/7 PASS.
+
 _(Subsequent sections appended below as work completes.)_

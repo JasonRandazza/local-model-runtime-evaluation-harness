@@ -197,7 +197,13 @@ class Cell:
         )
 
     @classmethod
-    def load(cls, path: Path, *, family: ModelFamily) -> Cell:
+    def load(
+        cls,
+        path: Path,
+        *,
+        family: ModelFamily,
+        require_native_server: bool = True,
+    ) -> Cell:
         data = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             raise MatrixError("cell must be a JSON object")
@@ -217,7 +223,9 @@ class Cell:
             health_path=str(data["health_path"]),
             notes=str(data["notes"]),
         )
-        cell.validate_for_family(family)
+        cell.validate_for_family(
+            family, require_native_server=require_native_server,
+        )
         return cell
 
 

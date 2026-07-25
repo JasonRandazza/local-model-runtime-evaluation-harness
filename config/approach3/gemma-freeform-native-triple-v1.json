@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "recipe_id": "gemma-freeform-native-triple-v1",
+  "revision": "1",
+  "family_id": "gemma-4-12b-qat",
+  "require_native_server": false,
+  "cell_ids": [
+    "jang_4m__osaurus",
+    "oq4_fp16__omlx",
+    "optiq_4bit__optiq"
+  ],
+  "suites": [
+    "preference"
+  ],
+  "notes": "Free-form binding of the Gemma native triple. LIVE COLLECT UNTESTED."
+}
