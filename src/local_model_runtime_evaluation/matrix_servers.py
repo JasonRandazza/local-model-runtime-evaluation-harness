@@ -22,6 +22,9 @@ MATRIX_OMLX_API_KEY = "lmre-matrix-local"
 
 # Pathway C reclaim: stop foreign/wrong-model OptiQ so pinned serve can bind :8080.
 OPTIQ_RECLAIM_COMMAND = ("pkill", "-INT", "-f", "optiq serve")
+# Pathway C reclaim for oMLX: `omlX stop` does not reliably free CLI-started
+# `omlx-server` listeners; match the process name OptiQ reclaim style.
+OMLX_RECLAIM_COMMAND = ("pkill", "-INT", "-f", "omlx-server")
 
 
 class TransportProtocol(Protocol):
@@ -76,7 +79,7 @@ class SubprocessServerHandle:
             elif self._cell.server == "optiq":
                 if not self._port_free(port):
                     # A: attach when inventory already has this cell's model.
-                    if self._optiq_model_present():
+                    if self._model_present():
                         self._owned = False
                         self._started = True
                         return
@@ -86,14 +89,23 @@ class SubprocessServerHandle:
                 command = self._start_command()
                 self._process = self._spawner(command, self._log_path)
                 self._owned = True
+            elif self._cell.server == "omlx":
+                if not self._port_free(port):
+                    # A: attach when inventory already has this cell's model
+                    # (credential must already work against the listener).
+                    if self._model_present():
+                        self._owned = False
+                        self._started = True
+                        return
+                    # C: busy/wrong/unknown — reclaim then spawn pinned serve.
+                    self._stop_runner(OMLX_RECLAIM_COMMAND)
+                    wait_port_free(port, timeout_seconds=60)
+                command = self._start_command()
+                self._process = self._spawner(command, self._log_path)
+                self._owned = True
             else:
                 if not self._port_free(port):
-                    if self._cell.server == "omlx":
-                        # Free managed oMLX so this cell can own a pinned serve.
-                        self._stop_runner(("omlX", "stop"))
-                        wait_port_free(port, timeout_seconds=30)
-                    else:
-                        raise ServerError(f"port {port} is busy")
+                    raise ServerError(f"port {port} is busy")
                 command = self._start_command()
                 self._process = self._spawner(command, self._log_path)
                 self._owned = True
@@ -101,7 +113,7 @@ class SubprocessServerHandle:
             raise ServerError(str(error)) from error
         self._started = True
 
-    def _optiq_model_present(self) -> bool:
+    def _model_present(self) -> bool:
         try:
             models = self._transport.list_models(self._cell.base_url, self._credential)
         except (TransportError, OSError, TimeoutError, ValueError, KeyError, TypeError):

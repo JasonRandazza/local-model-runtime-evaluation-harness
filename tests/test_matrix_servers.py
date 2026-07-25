@@ -190,6 +190,58 @@ class MatrixServerTests(unittest.TestCase):
             self.assertEqual(seen[0][-2:], ("--api-key", MATRIX_OMLX_API_KEY))
             handle.stop()
 
+    def test_omlx_attaches_when_busy_and_model_present(self) -> None:
+        transport = MagicMock()
+        transport.list_models.return_value = ("gemma-4-12B-it-qat-oQ4-fp16",)
+        spawner = MagicMock()
+        stop_runner = MagicMock()
+        with TemporaryDirectory() as tmp:
+            handle = build_server(
+                _cell(), transport, Path(tmp),
+                spawner=spawner,
+                port_free=lambda port: False,
+                stop_runner=stop_runner,
+            )
+            handle.start()
+            spawner.assert_not_called()
+            stop_runner.assert_not_called()
+            handle.wait_ready("gemma-4-12B-it-qat-oQ4-fp16", timeout_seconds=1)
+            handle.stop()
+            stop_runner.assert_not_called()
+
+    def test_omlx_reclaims_when_busy_and_model_missing(self) -> None:
+        from unittest.mock import patch
+
+        transport = MagicMock()
+        transport.list_models.return_value = ("other-model",)
+        seen: list[tuple[str, ...]] = []
+        stops: list[tuple[str, ...]] = []
+
+        def capture(cmd: tuple[str, ...], log: Path) -> MagicMock:
+            seen.append(cmd)
+            return MagicMock(stop=MagicMock())
+
+        def stop_runner(cmd: tuple[str, ...]) -> None:
+            stops.append(cmd)
+
+        with TemporaryDirectory() as tmp:
+            with patch(
+                "local_model_runtime_evaluation.matrix_servers.wait_port_free",
+            ):
+                handle = build_server(
+                    _cell(),
+                    transport,
+                    Path(tmp),
+                    spawner=capture,
+                    port_free=lambda port: False,
+                    stop_runner=stop_runner,
+                )
+                handle.start()
+            self.assertTrue(stops)
+            self.assertEqual(stops[0][0], "pkill")
+            self.assertEqual(len(seen), 1)
+            handle.stop()
+
     def test_optiq_attaches_when_busy_and_model_present(self) -> None:
         transport = MagicMock()
         model_id = (

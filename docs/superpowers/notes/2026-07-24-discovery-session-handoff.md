@@ -251,4 +251,52 @@ Jason authorized:
 - Approach 3 **overhead collector** implementation
 - oMLX is up (`8100` OK); Osaurus up; OptiQ down (harness may start)
 
-_(Subsequent sections appended below as work completes.)_
+### 2026-07-24 ~22:09 ET — Broad live authorization
+
+Jason authorized every needed run ID and full live authority to complete the discussed harness work (plugin already at 0.4.0; Approach 3 overhead collector in tree).
+
+### 2026-07-24 ~22:10–22:18 ET — Stage 2 `006` PASS + Approach 3 preference live
+
+- Abandoned incomplete `005` (lock released; forced `failed`).
+- `stage2-20260724-006` sealed **PASS** (8/8) — `docs/superpowers/verification/2026-07-24-slice-1c-stage2-20260724-006-pass.md`
+- Approach 3 preference live **COLLECT_FINISHED** → `results/preference/gemma-4-12b-qat-preference-20260724-221046` (EXECUTED_UNSEALED)
+- Plugin installed `0.4.0` with consent; Gate B pin updated in tree (`59bce25`)
+- Restarted oMLX serve after preference stopped prior listener; RAG/overhead/Discovery propose in flight
+
+### 2026-07-24 ~22:19–22:23 ET — Approach 3 RAG + overhead live; Discovery propose empty
+
+| Collect | Result dir | Status |
+|---------|------------|--------|
+| RAG oracle | `results/rag/gemma-4-12b-qat-rag-20260724-221912` | COLLECT_FINISHED / EXECUTED_UNSEALED |
+| RAG keyword | `results/rag/gemma-4-12b-qat-rag-20260724-222023` | COLLECT_FINISHED / EXECUTED_UNSEALED |
+| Overhead | `results/overhead/overhead-20260724-222140` | COLLECT_FINISHED / EXECUTED_UNSEALED |
+
+- `discovery-20260725-002` propose: empty `executable_families` (OptiQ+oMLX stopped by collectors).
+
+### 2026-07-24 ~22:26 ET — Servers restored; Discovery propose `004` executable
+
+- Restarted OptiQ Gemma `:8080` + oMLX oQ4 `:8100` as lasting background serves.
+- `discovery-20260725-004` propose: `executable_families: ["gemma-4-12b-qat"]`.
+- Execute in flight: `./bin/lmre-discover execute discovery-20260725-004 --family gemma-4-12b-qat`
+
+### 2026-07-24 ~22:31 ET — Discovery execute FAIL (oMLX port reclaim)
+
+- Preference step failed: `missing answer content … cell 'oq4_fp16__omlx'` — root cause `port 8100 did not free in time` (`omlX stop` does not kill Cursor-started `omlx-server`).
+- Osaurus + OptiQ preference answers were complete; oMLX cell empty.
+- Fix in tree: oMLX A+C attach (model present) / `pkill -INT -f omlx-server` reclaim (tests green).
+- Freed `:8100`; OptiQ left up; re-execute `004` in flight.
+
+### 2026-07-24 ~22:45 ET — Discovery `004` execute PASS; session live stack closed
+
+- `discovery-20260725-004` execute **PASS** (preference + rag_oracle + rag_keyword).
+  Evidence: `docs/superpowers/verification/2026-07-24-discovery-20260725-004-pass.md`
+- Approach 3 live collects (all `EXECUTED_UNSEALED` / `COLLECT_FINISHED`): preference, RAG oracle, RAG keyword, overhead — see table above.
+- Stage 2 harness smoke: `004` + `006` sealed PASS; `005` abandoned; IDs `001`–`006` consumed.
+- Code fix landed: oMLX A+C attach/reclaim (`matrix_servers.py` + tests).
+- Plugin `0.4.0` installed; Gate B pin expects `0.4.0`.
+- Design-2 72-POST (`3.6.0` / r5) **not** run tonight (authorized but optional).
+- Stack at close: Osaurus ON; OptiQ may still be ON; oMLX often stopped by collectors after execute.
+
+**Honest seal note:** Approach 3 live results are `EXECUTED_UNSEALED` — not product-sealed PASS until a separate review pass.
+
+_(End of 2026-07-24 live marathon log.)_
