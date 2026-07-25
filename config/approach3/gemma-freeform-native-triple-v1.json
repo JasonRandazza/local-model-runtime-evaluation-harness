@@ -10,7 +10,8 @@
     "optiq_4bit__optiq"
   ],
   "suites": [
-    "preference"
+    "preference",
+    "rag"
   ],
   "notes": "Free-form binding of the Gemma native triple. LIVE COLLECT UNTESTED."
 }

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Sequence
 
@@ -20,11 +19,13 @@ from local_model_runtime_evaluation.approach3 import (
 )
 from local_model_runtime_evaluation.matrix_config import REPOSITORY_ROOT
 from local_model_runtime_evaluation.preference_collect import run_collect
+from local_model_runtime_evaluation.rag_collect import run_collect as run_rag_collect
 
 DEFAULT_PREFERENCE_SUITE = REPOSITORY_ROOT / "suites" / "multi-family-preference-v1.json"
 DEFAULT_PREFERENCE_RESULTS = REPOSITORY_ROOT / "results" / "preference"
-
-_COMMANDS = frozenset({"dry-config", "show", "list", "collect-preference"})
+DEFAULT_RAG_SUITE = REPOSITORY_ROOT / "suites" / "multi-family-rag-oracle-v1.json"
+DEFAULT_RAG_CORPUS = REPOSITORY_ROOT / "corpora" / "rag-oracle-v1"
+DEFAULT_RAG_RESULTS = REPOSITORY_ROOT / "results" / "rag"
 
 
 def _print(payload: dict[str, object]) -> None:
@@ -86,6 +87,7 @@ def _cmd_collect_preference(
         cells_root,
         results_root,
         family_id=recipe.family_id,
+        require_native_server=recipe.require_native_server,
     )
     return {
         "ok": True,
@@ -93,6 +95,57 @@ def _cmd_collect_preference(
         "live_collect": "EXECUTED_UNSEALED",
         "recipe_id": recipe.recipe_id,
         "family_id": recipe.family_id,
+        "run_dir": str(run_dir),
+    }
+
+
+def _cmd_collect_rag(
+    recipe_ref: str,
+    *,
+    root: Path,
+    cells_root: Path,
+    suite_path: Path,
+    corpus_root: Path,
+    results_root: Path,
+    mode: str,
+    confirm_live: bool,
+) -> dict[str, object]:
+    if not confirm_live:
+        raise Approach3Error(
+            "refusing live collect without --i-understand-live "
+            "(Approach 3 live collect is UNTESTED)",
+            code="live_not_confirmed",
+        )
+    path = resolve_recipe_path(recipe_ref, root=root)
+    recipe = FreeFormRecipe.load(path)
+    if "rag" not in recipe.suites:
+        raise Approach3Error(
+            "recipe does not list rag suite",
+            code="suite_unsupported",
+        )
+    if mode not in {"oracle", "keyword"}:
+        raise Approach3Error(
+            "rag mode must be oracle or keyword",
+            code="rag_mode_invalid",
+        )
+    cells = load_recipe_cells(recipe, cells_root=cells_root)
+    run_dir = run_rag_collect(
+        tuple(cell.cell_id for cell in cells),
+        suite_path,
+        corpus_root,
+        cells_root,
+        results_root,
+        family_id=recipe.family_id,
+        mode=mode,
+        require_native_server=recipe.require_native_server,
+    )
+    return {
+        "ok": True,
+        "status": "COLLECT_FINISHED",
+        "live_collect": "EXECUTED_UNSEALED",
+        "recipe_id": recipe.recipe_id,
+        "family_id": recipe.family_id,
+        "mode": mode,
         "run_dir": str(run_dir),
     }
 
@@ -136,12 +189,44 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Required for live preference collect (UNTESTED seal)",
     )
+
+    rag = sub.add_parser("collect-rag")
+    rag.add_argument("recipe")
+    rag.add_argument(
+        "--mode",
+        choices=("oracle", "keyword"),
+        required=True,
+    )
+    rag.add_argument(
+        "--suite",
+        type=Path,
+        default=DEFAULT_RAG_SUITE,
+    )
+    rag.add_argument(
+        "--corpus-root",
+        type=Path,
+        default=DEFAULT_RAG_CORPUS,
+    )
+    rag.add_argument(
+        "--results-root",
+        type=Path,
+        default=DEFAULT_RAG_RESULTS,
+    )
+    rag.add_argument(
+        "--i-understand-live",
+        action="store_true",
+        help="Required for live RAG collect (UNTESTED seal)",
+    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
-    args = parser.parse_args(argv)
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as error:
+        code = error.code
+        return int(code) if isinstance(code, int) else 1
     try:
         if args.command == "list":
             payload = _cmd_list(root=args.approach3_root)
@@ -160,6 +245,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 cells_root=args.cells_root,
                 suite_path=args.suite,
                 results_root=args.results_root,
+                confirm_live=args.i_understand_live,
+            )
+        elif args.command == "collect-rag":
+            payload = _cmd_collect_rag(
+                args.recipe,
+                root=args.approach3_root,
+                cells_root=args.cells_root,
+                suite_path=args.suite,
+                corpus_root=args.corpus_root,
+                results_root=args.results_root,
+                mode=args.mode,
                 confirm_live=args.i_understand_live,
             )
         else:

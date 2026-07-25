@@ -144,6 +144,7 @@ def run_collect(
     memory_floor_percent: int = DEFAULT_MEMORY_FLOOR_PERCENT,
     mode: str = "oracle",
     top_k: int = 2,
+    require_native_server: bool = True,
 ) -> Path:
     _validate_mode(mode)
     suite = RagSuite.load(suite_path)
@@ -155,7 +156,11 @@ def run_collect(
         )
     family = load_family(family_id)
     loaded_cells = tuple(
-        Cell.load(cells_root / f"{cell_id}.json", family=family)
+        Cell.load(
+            cells_root / f"{cell_id}.json",
+            family=family,
+            require_native_server=require_native_server,
+        )
         for cell_id in cell_ids
     )
     resource_probe = probe if probe is not None else HostResourceProbe()

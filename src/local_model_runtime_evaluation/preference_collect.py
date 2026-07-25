@@ -185,11 +185,16 @@ def run_collect(
     ready_timeout: float = DEFAULT_READY_TIMEOUT_SECONDS,
     request_timeout: float = DEFAULT_REQUEST_TIMEOUT_SECONDS,
     memory_floor_percent: int = DEFAULT_MEMORY_FLOOR_PERCENT,
+    require_native_server: bool = True,
 ) -> Path:
     suite = PreferenceSuite.load(suite_path)
     family = load_family(family_id)
     loaded_cells = tuple(
-        Cell.load(cells_root / f"{cell_id}.json", family=family)
+        Cell.load(
+            cells_root / f"{cell_id}.json",
+            family=family,
+            require_native_server=require_native_server,
+        )
         for cell_id in cell_ids
     )
     resource_probe = probe if probe is not None else HostResourceProbe()

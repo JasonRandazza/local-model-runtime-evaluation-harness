@@ -10,7 +10,8 @@
     "oq4_fp16__optiq"
   ],
   "suites": [
-    "preference"
+    "preference",
+    "rag"
   ],
   "notes": "Demonstrates non-native server remaps within Gemma quants. dry-config only tonight; LIVE COLLECT UNTESTED."
 }

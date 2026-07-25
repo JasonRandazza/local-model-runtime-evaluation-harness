@@ -227,4 +227,12 @@ Jason authorized **non-live coding only**: finish as much as possible, **do not 
 
 **Tests:** full `test_stage_two_inference_engine` + `test_stage_two_benchmark_engine` (66) PASS, including new evidence assertions.
 
+### 2026-07-24 ~22:15 ET — Approach 3 RAG CLI + require_native_server plumbing (tested)
+
+- `collect-rag --mode oracle|keyword` with `--i-understand-live` gate
+- Recipes list `preference` + `rag`
+- `preference_collect.run_collect` / `rag_collect.run_collect` take `require_native_server` (Approach 3 remaps)
+- `tests/test_approach3.py` 9/9 PASS
+- Backlog note: `docs/superpowers/notes/2026-07-24-non-live-backlog.md`
+
 _(Subsequent sections appended below as work completes.)_

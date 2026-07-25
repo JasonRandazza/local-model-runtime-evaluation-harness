@@ -76,11 +76,50 @@ class Approach3CliTests(unittest.TestCase):
         code = approach3_main(["dry-config", "gemma-freeform-native-triple-v1"])
         self.assertEqual(code, 0)
 
-    def test_cli_collect_refuses_without_flag(self) -> None:
+    def test_cli_collect_preference_passes_require_native_false(self) -> None:
+        from unittest.mock import patch
+        from pathlib import Path
+
+        with patch(
+            "local_model_runtime_evaluation.approach3_cli.run_collect",
+            return_value=Path("/tmp/fake-preference-run"),
+        ) as mock_collect:
+            code = approach3_main(
+                [
+                    "collect-preference",
+                    "gemma-freeform-remap-v1",
+                    "--i-understand-live",
+                ]
+            )
+        self.assertEqual(code, 0)
+        self.assertFalse(mock_collect.call_args.kwargs["require_native_server"])
+
+    def test_cli_collect_rag_refuses_without_flag(self) -> None:
         code = approach3_main(
-            ["collect-preference", "gemma-freeform-native-triple-v1"]
+            ["collect-rag", "gemma-freeform-native-triple-v1", "--mode", "oracle"]
         )
         self.assertEqual(code, 1)
+
+    def test_cli_collect_rag_passes_mode_and_require_native(self) -> None:
+        from unittest.mock import patch
+        from pathlib import Path
+
+        with patch(
+            "local_model_runtime_evaluation.approach3_cli.run_rag_collect",
+            return_value=Path("/tmp/fake-rag-run"),
+        ) as mock_collect:
+            code = approach3_main(
+                [
+                    "collect-rag",
+                    "gemma-freeform-native-triple-v1",
+                    "--mode",
+                    "keyword",
+                    "--i-understand-live",
+                ]
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(mock_collect.call_args.kwargs["mode"], "keyword")
+        self.assertFalse(mock_collect.call_args.kwargs["require_native_server"])
 
 
 if __name__ == "__main__":

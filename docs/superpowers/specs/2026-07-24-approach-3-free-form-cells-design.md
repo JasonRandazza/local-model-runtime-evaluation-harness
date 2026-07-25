@@ -27,9 +27,16 @@ ingredient of the north star — not Discovery, not Stage 2.
 ## Out of scope tonight
 
 - Cross-family mixes in one recipe
-- RAG/overhead Approach 3 collectors (preference first)
+- Overhead Approach 3 collectors
 - Plugin tool for Approach 3
 - Deep Wiki
+
+## Collectors
+
+| Command | Status |
+|---------|--------|
+| `collect-preference` | Wired; live UNTESTED; passes `require_native_server` from recipe |
+| `collect-rag --mode oracle\|keyword` | Wired; live UNTESTED; same native-server flag |
 
 ## Definition of done (Gate A)
 
