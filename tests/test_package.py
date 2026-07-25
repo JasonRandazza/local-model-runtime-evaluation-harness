@@ -110,11 +110,11 @@ class PackageTest(unittest.TestCase):
         self.assertEqual(historical["runtime_profile_id"], "vibethinker-3b-optiq-4bit")
         self.assertEqual(historical["runtime_profile_revision"], "3")
         self.assertEqual(historical["approved_by"], "REQUIRES_CURRENT_SESSION_APPROVAL")
-        self.assertEqual(plugin["version"], "0.3.0")
-        match = re.search(r"static let toolIDs = \[(.*?)\]", plugin_source)
+        self.assertEqual(plugin["version"], "0.4.0")
+        match = re.search(r"static let toolIDs = \[(.*?)\]", plugin_source, re.S)
         self.assertIsNotNone(match)
         self.assertEqual(re.findall(r'"([^\"]+)"', match.group(1)), [
-            "inventory", "preflight", "run_scenario", "status", "cancel", "cleanup",
+            "inventory", "preflight", "run_scenario", "status", "cancel", "cleanup", "discover",
         ])
 
     def test_stage_two_benchmark_template_is_non_authorizing(self) -> None:

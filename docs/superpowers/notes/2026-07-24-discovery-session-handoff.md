@@ -243,4 +243,12 @@ Jason authorized **non-live coding only**: finish as much as possible, **do not 
 
 **Non-live session pause point:** further live work needs Jason back for OptiQ/oMLX/provider or new IDs. Coding backlog remains in `2026-07-24-non-live-backlog.md`.
 
+### 2026-07-24 ~22:06 ET — Jason returned: plugin 0.4.0 + collectors + run IDs
+
+Jason authorized:
+- Install plugin **0.4.0**
+- As many unused Stage 2 / Discovery run IDs as needed
+- Approach 3 **overhead collector** implementation
+- oMLX is up (`8100` OK); Osaurus up; OptiQ down (harness may start)
+
 _(Subsequent sections appended below as work completes.)_

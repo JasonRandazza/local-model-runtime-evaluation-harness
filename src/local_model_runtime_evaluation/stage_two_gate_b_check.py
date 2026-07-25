@@ -207,7 +207,7 @@ def build_gate_b_report(
         and static_result.get("optiq_process_count") == 1
         and all(static_result.get(field) == 0 for field in _ZERO_FIELDS)
     )
-    plugin_version_ok = installed_version == "0.3.0"
+    plugin_version_ok = installed_version == "0.4.0"
     plugin_checksum_ok = (
         plugin_version_ok
         and packaged_sha256 is not None

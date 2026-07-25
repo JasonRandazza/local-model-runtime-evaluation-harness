@@ -112,7 +112,7 @@ class StageTwoGateBCheckTest(unittest.TestCase):
 
     def test_reports_ready_for_manifest_after_matching_plugin(self) -> None:
         result = build_gate_b_report(
-            static_result=self.static, installed_version="0.3.0",
+            static_result=self.static, installed_version="0.4.0",
             packaged_sha256="same", installed_sha256="same", manifest=None,
         )
         self.assertEqual(result["overall"], "READY_FOR_MANIFEST_AUTHORIZATION")
@@ -123,7 +123,7 @@ class StageTwoGateBCheckTest(unittest.TestCase):
         static = dict(self.static)
         static["custom_header_count"] = 1
         result = build_gate_b_report(
-            static_result=static, installed_version="0.3.0",
+            static_result=static, installed_version="0.4.0",
             packaged_sha256="same", installed_sha256="same", manifest=None,
         )
         self.assertEqual(result["overall"], "STOPPED")
@@ -321,10 +321,10 @@ class StageTwoGateBCheckTest(unittest.TestCase):
     def test_parses_only_the_active_harness_plugin_version(self) -> None:
         output = """
 other.plugin version=9.9.9
-local.jrazz.model-runtime-evaluation-harness version=0.3.0
+local.jrazz.model-runtime-evaluation-harness version=0.4.0
 """
-        self.assertEqual(parse_active_plugin_version(output), "0.3.0")
-        self.assertIsNone(parse_active_plugin_version("other.plugin version=0.3.0"))
+        self.assertEqual(parse_active_plugin_version(output), "0.4.0")
+        self.assertIsNone(parse_active_plugin_version("other.plugin version=0.4.0"))
 
     def test_collects_packaged_and_active_plugin_checksums(self) -> None:
         with TemporaryDirectory() as directory:
@@ -332,7 +332,7 @@ local.jrazz.model-runtime-evaluation-harness version=0.3.0
             packaged = root / "plugin" / "libOsaurusEvaluationHarness.dylib"
             installed = root / "home" / ".osaurus" / "Tools" / (
                 "local.jrazz.model-runtime-evaluation-harness"
-            ) / "0.3.0" / "libOsaurusEvaluationHarness.dylib"
+            ) / "0.4.0" / "libOsaurusEvaluationHarness.dylib"
             packaged.parent.mkdir(parents=True)
             installed.parent.mkdir(parents=True)
             packaged.write_bytes(b"same")
@@ -342,11 +342,11 @@ local.jrazz.model-runtime-evaluation-harness version=0.3.0
                 packaged_path=packaged, home=root / "home",
                 command_runner=lambda _command: SimpleNamespace(
                     returncode=0,
-                    stdout="local.jrazz.model-runtime-evaluation-harness version=0.3.0\n",
+                    stdout="local.jrazz.model-runtime-evaluation-harness version=0.4.0\n",
                 ),
             )
 
-        self.assertEqual(result["installed_version"], "0.3.0")
+        self.assertEqual(result["installed_version"], "0.4.0")
         self.assertEqual(result["packaged_sha256"], result["installed_sha256"])
 
     def test_loads_one_exact_validated_stage_two_manifest(self) -> None:

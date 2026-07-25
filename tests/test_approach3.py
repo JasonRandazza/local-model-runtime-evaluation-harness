@@ -106,11 +106,31 @@ class Approach3CliTests(unittest.TestCase):
         )
         self.assertEqual(code, 1)
 
-    def test_cli_collect_overhead_is_not_implemented(self) -> None:
+    def test_cli_collect_overhead_refuses_without_flag(self) -> None:
         code = approach3_main(
-            ["collect-overhead", "gemma-freeform-native-triple-v1", "--i-understand-live"]
+            ["collect-overhead", "gemma-freeform-native-triple-v1"]
         )
         self.assertEqual(code, 1)
+
+    def test_cli_collect_overhead_passes_pair_ids(self) -> None:
+        from unittest.mock import patch
+        from pathlib import Path
+
+        with patch(
+            "local_model_runtime_evaluation.approach3_cli.run_overhead",
+            return_value=Path("/tmp/fake-overhead-run"),
+        ) as mock_run:
+            code = approach3_main(
+                [
+                    "collect-overhead",
+                    "gemma-freeform-native-triple-v1",
+                    "--i-understand-live",
+                ]
+            )
+        self.assertEqual(code, 0)
+        pair_ids = mock_run.call_args.args[0]
+        self.assertIn("oq4_fp16", pair_ids)
+        self.assertIn("optiq_4bit", pair_ids)
 
     def test_cli_collect_rag_passes_mode_and_require_native(self) -> None:
         from unittest.mock import patch

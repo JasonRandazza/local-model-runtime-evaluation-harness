@@ -18,6 +18,12 @@ from local_model_runtime_evaluation.approach3 import (
     resolve_recipe_path,
 )
 from local_model_runtime_evaluation.matrix_config import REPOSITORY_ROOT
+from local_model_runtime_evaluation.overhead_config import (
+    DEFAULT_PAIRS_ROOT,
+    OverheadPair,
+    resolve_overhead_selection,
+)
+from local_model_runtime_evaluation.overhead_runner import run_overhead
 from local_model_runtime_evaluation.preference_collect import run_collect
 from local_model_runtime_evaluation.rag_collect import run_collect as run_rag_collect
 
@@ -26,6 +32,8 @@ DEFAULT_PREFERENCE_RESULTS = REPOSITORY_ROOT / "results" / "preference"
 DEFAULT_RAG_SUITE = REPOSITORY_ROOT / "suites" / "multi-family-rag-oracle-v1.json"
 DEFAULT_RAG_CORPUS = REPOSITORY_ROOT / "corpora" / "rag-oracle-v1"
 DEFAULT_RAG_RESULTS = REPOSITORY_ROOT / "results" / "rag"
+DEFAULT_OVERHEAD_SUITE = REPOSITORY_ROOT / "suites" / "gemma-matrix-v1.json"
+DEFAULT_OVERHEAD_RESULTS = REPOSITORY_ROOT / "results" / "overhead"
 
 
 def _print(payload: dict[str, object]) -> None:
@@ -150,6 +158,69 @@ def _cmd_collect_rag(
     }
 
 
+def _pair_ids_for_recipe(
+    recipe: FreeFormRecipe,
+    *,
+    pairs_root: Path = DEFAULT_PAIRS_ROOT,
+) -> tuple[str, ...]:
+    """Select family overhead pairs that touch recipe cells; else all family pairs."""
+    selection = resolve_overhead_selection(family_id=recipe.family_id, pairs=None)
+    cell_set = set(recipe.cell_ids)
+    matched: list[str] = []
+    for pair_id in selection.pairs:
+        pair = OverheadPair.load(pairs_root / f"{pair_id}.json")
+        if pair.direct_cell_id in cell_set or pair.backend_cell_id in cell_set:
+            matched.append(pair_id)
+    if matched:
+        return tuple(matched)
+    return selection.pairs
+
+
+def _cmd_collect_overhead(
+    recipe_ref: str,
+    *,
+    root: Path,
+    cells_root: Path,
+    pairs_root: Path,
+    suite_path: Path,
+    results_root: Path,
+    confirm_live: bool,
+) -> dict[str, object]:
+    if not confirm_live:
+        raise Approach3Error(
+            "refusing live collect without --i-understand-live "
+            "(Approach 3 live collect is UNTESTED)",
+            code="live_not_confirmed",
+        )
+    path = resolve_recipe_path(recipe_ref, root=root)
+    recipe = FreeFormRecipe.load(path)
+    if "overhead" not in recipe.suites:
+        raise Approach3Error(
+            "recipe does not list overhead suite",
+            code="suite_unsupported",
+        )
+    # Validate cells load under recipe rules before measuring.
+    load_recipe_cells(recipe, cells_root=cells_root)
+    pair_ids = _pair_ids_for_recipe(recipe, pairs_root=pairs_root)
+    run_dir = run_overhead(
+        pair_ids,
+        pairs_root,
+        cells_root,
+        suite_path,
+        results_root,
+        family_id=recipe.family_id,
+    )
+    return {
+        "ok": True,
+        "status": "COLLECT_FINISHED",
+        "live_collect": "EXECUTED_UNSEALED",
+        "recipe_id": recipe.recipe_id,
+        "family_id": recipe.family_id,
+        "pair_ids": list(pair_ids),
+        "run_dir": str(run_dir),
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="lmre-approach3")
     parser.add_argument(
@@ -221,9 +292,24 @@ def build_parser() -> argparse.ArgumentParser:
     overhead = sub.add_parser("collect-overhead")
     overhead.add_argument("recipe")
     overhead.add_argument(
+        "--suite",
+        type=Path,
+        default=DEFAULT_OVERHEAD_SUITE,
+    )
+    overhead.add_argument(
+        "--pairs-root",
+        type=Path,
+        default=DEFAULT_PAIRS_ROOT,
+    )
+    overhead.add_argument(
+        "--results-root",
+        type=Path,
+        default=DEFAULT_OVERHEAD_RESULTS,
+    )
+    overhead.add_argument(
         "--i-understand-live",
         action="store_true",
-        help="Reserved; overhead Approach 3 is not implemented",
+        help="Required for live overhead collect (UNTESTED seal)",
     )
     return parser
 
@@ -267,9 +353,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 confirm_live=args.i_understand_live,
             )
         elif args.command == "collect-overhead":
-            raise Approach3Error(
-                "Approach 3 overhead collect is not implemented",
-                code="not_implemented",
+            payload = _cmd_collect_overhead(
+                args.recipe,
+                root=args.approach3_root,
+                cells_root=args.cells_root,
+                pairs_root=args.pairs_root,
+                suite_path=args.suite,
+                results_root=args.results_root,
+                confirm_live=args.i_understand_live,
             )
         else:
             raise Approach3Error(f"unknown command: {args.command}", code="unknown_command")

@@ -11,7 +11,8 @@
   ],
   "suites": [
     "preference",
-    "rag"
+    "rag",
+    "overhead"
   ],
-  "notes": "Demonstrates non-native server remaps within Gemma quants. dry-config only tonight; LIVE COLLECT UNTESTED."
+  "notes": "Demonstrates non-native server remaps within Gemma quants. LIVE COLLECT UNTESTED."
 }

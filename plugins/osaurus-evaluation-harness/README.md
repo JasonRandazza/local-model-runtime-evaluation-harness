@@ -2,8 +2,8 @@
 
 ## Installed production contract
 
-**Keep using installed `0.3.0` until an operator explicitly installs `0.4.0`.**  
-Jason (2026-07-24): build Discovery surface; if install fails, park the new dylib aside and continue on `0.3.0`.
+**Installed:** `0.4.0` (Jason authorized 2026-07-24; Discovery `discover` tool included).  
+Prior reviewed production was `0.3.0`. Rollback via `osaurus tools rollback` if needed.
 
 ## Source tree (`0.4.0`)
 
