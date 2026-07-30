@@ -56,12 +56,14 @@ See: `docs/superpowers/specs/2026-07-24-harness-north-star-vision.md`
 | Item | Authorization |
 |------|----------------|
 | Commit + push to `origin/main` | **Yes** |
-| Discovery live Gemma propose/execute | **Yes** (already evidenced) |
-| **New Stage 2 Gemma runs** (unused IDs + short-lived manifests) | **Yes** — invent unused IDs in-session |
-| Edit Osaurus providers | **No** — OptiQ provider stays Gemma-only |
+| Discovery live Gemma propose/execute | **Yes** (evidenced `discovery-20260724-004`, `discovery-20260725-004`) |
+| **New Stage 2 Gemma runs** (unused IDs + short-lived manifests) | **Yes** — `003`–`006` used; **do not reuse** |
+| **Broad live authority** (Approach 3, overhead, plugin install) | **Yes** (~22:09 ET) |
+| Edit Osaurus providers | **No** — OptiQ provider reconnect tap OK |
 | Pathway B (`--allow-model-switch`) | **No** (spike deferred) |
-| Approach 3 free-form mixes | **Start / build as far as possible**; live test may be incomplete; Gemma-only |
-| Plugin | Rebuild Discovery-related surface (**B**); if install fails, **park aside**, keep using installed `0.3.0` |
+| Approach 3 free-form mixes | **Yes** — live Gemma collects run; `EXECUTED_UNSEALED` |
+| Plugin | **Installed `0.4.0`** with consent; Gate B pin expects `0.4.0` |
+| Design-2 72-POST (`3.6.0` / r5) | Authorized but **not run** this session |
 | Deep Wiki | **No** — repo handoff only |
 
 ---
@@ -105,13 +107,76 @@ In `matrix_servers.py` for OptiQ:
 
 ---
 
-## 5. Build priority tonight (agent order)
+## 5. Session outcome (for Codex — read this first)
 
-1. Handoff doc + commit/push A+C + docs  
-2. Stage 2 **Gemma** new unused run(s) if stack allows  
-3. Approach 3 free-form **Gemma** — push code as far as possible  
-4. Plugin Discovery surface — build; install if possible else park  
-5. Keep this handoff updated; push often  
+**Branch:** `main` @ `3c2768d` (pushed). All meaningful code/docs from this marathon are on `origin/main`.
+
+### Sealed PASS (manager-reviewable)
+
+| Lane | ID | Evidence |
+|------|-----|----------|
+| Stage 2 harness smoke `3.5.0` / r4 | `stage2-20260724-004`, `006` | `docs/superpowers/verification/2026-07-24-slice-1c-stage2-20260724-004-pass.md`, `…-006-pass.md` |
+| Discovery MVP Gemma | `discovery-20260724-004`, `discovery-20260725-004` | `docs/superpowers/verification/2026-07-24-discovery-20260725-004-pass.md` |
+
+### Consumed / do not reuse
+
+- Stage 2: `stage2-20260724-001`–`006` (`003` STOPPED/failed; `005` abandoned `manifest_not_found` then mid-preflight interrupt)
+- Discovery proposals: `discovery-20260725-001`–`003` (empty executable or superseded); live execute evidence on `004`/`20260724-004`
+
+### Live but EXECUTED_UNSEALED (needs review pass)
+
+Approach 3 Gemma `gemma-freeform-native-triple-v1` via `./bin/lmre-approach3`:
+
+| Suite | Result dir |
+|-------|------------|
+| preference | `results/preference/gemma-4-12b-qat-preference-20260724-221046` |
+| RAG oracle | `results/rag/gemma-4-12b-qat-rag-20260724-221912` |
+| RAG keyword | `results/rag/gemma-4-12b-qat-rag-20260724-222023` |
+| overhead | `results/overhead/overhead-20260724-222140` |
+
+Discovery re-execute run dirs (inside `discovery-20260725-004` execution):  
+`…/preference-20260724-223318`, `…/rag-20260724-224228`, `…/rag-20260724-224336`
+
+### Code landed this session (high signal)
+
+| Commit area | What |
+|-------------|------|
+| OptiQ A+C | `matrix_servers.py` — attach if inventory match; reclaim via `pkill -INT -f 'optiq serve'` |
+| oMLX A+C | same file — attach; reclaim via `pkill -INT -f omlx-server` (not `omlX stop`) |
+| Stage 2 wait fix | inventory wait no longer bloats `request-evidence.jsonl` |
+| Approach 3 | `bin/lmre-approach3`, recipes, preference/RAG/overhead collectors |
+| Plugin | `0.4.0` installed; `discover` tool (`dry-config` \| `propose`) |
+
+### Not done (optional next)
+
+- Design-2 harness route benchmark 72-POST (`3.6.0`, profile r5) — authorized, not run
+- Approach 3 **remap** recipe live collect
+- Ornith/Qwen families (OptiQ not available live tonight)
+- Seal/review Approach 3 `EXECUTED_UNSEALED` dirs
+- Future Stage 2 smoke on profile **r5** / `verify_routed_id_only_no_tap` when changing contracts
+
+### Suggested Codex starting commands
+
+```bash
+cd /Users/jrazz/Dev/active/local-model-runtime-evaluation-harness
+export PYTHONPATH=src PATH="/Users/jrazz/.local/bin:/opt/homebrew/bin:$PATH"
+git pull origin main
+/opt/homebrew/bin/python3 -m unittest tests.test_discovery_types tests.test_discovery_match \
+  tests.test_discovery_execute tests.test_discovery_cli tests.test_matrix_servers \
+  tests.test_approach3 -v
+./bin/lmre-discover dry-config
+osaurus tools list | rg evaluation
+```
+
+---
+
+## 5b. Original build priority (historical — session complete)
+
+1. ~~Handoff doc + commit/push A+C + docs~~  
+2. ~~Stage 2 Gemma new run(s)~~ → `004`, `006` PASS  
+3. ~~Approach 3 Gemma live~~ → all four collectors finished UNSEALED  
+4. ~~Plugin 0.4.0~~ → installed  
+5. ~~Discovery execute~~ → `discovery-20260725-004` PASS  
 
 ---
 
@@ -119,12 +184,12 @@ In `matrix_servers.py` for OptiQ:
 
 Documented for the next agent — **do not treat as fully verified**:
 
-1. **OptiQ reclaim via `pkill -INT -f 'optiq serve'`** — may kill operator foreground OptiQ; attach path avoids kill when identity matches. Live reclaim under wrong-model not fully exercised tonight beyond unit tests.  
-2. **Approach 3** — may ship Gate A / partial wiring without full live suite.  
-3. **Plugin** — new build may not install; production remains `0.3.0` until someone installs.  
-4. **Stage 2 new IDs** — only Gemma; provider must already route Gemma OptiQ; no provider edit if reconnect fails.  
-5. **oMLX down at handoff start** (`8100` failed health) — Discovery multi-server propose may need oMLX restarted by operator.  
-6. Burning tokens / incomplete tests — prefer shipping code + honest “UNTESTED” markers over silent claims.
+1. **OptiQ reclaim via `pkill -INT -f 'optiq serve'`** — may kill operator foreground OptiQ; attach path avoids kill when identity matches. Live reclaim under wrong-model not fully exercised beyond unit tests.  
+2. **oMLX reclaim via `pkill -INT -f omlx-server'`** — same pattern as OptiQ; `omlX stop` alone does **not** free CLI-started listeners (Discovery `004` first execute failed on this).  
+3. **Approach 3 live** — all four Gemma collects finished but marked `EXECUTED_UNSEALED`; not product-sealed PASS.  
+4. **Plugin `0.4.0`** — installed; full Osaurus app restart may still be needed for in-memory tool registry reload.  
+5. **Stage 2 new IDs** — only Gemma; provider reconnect tap sometimes required; no provider edit.  
+6. **Stage 2 harness lifecycle** — still no OptiQ attach on smoke lane; port `8080` must be free before preflight.
 
 ---
 
@@ -292,11 +357,17 @@ Jason authorized every needed run ID and full live authority to complete the dis
   Evidence: `docs/superpowers/verification/2026-07-24-discovery-20260725-004-pass.md`
 - Approach 3 live collects (all `EXECUTED_UNSEALED` / `COLLECT_FINISHED`): preference, RAG oracle, RAG keyword, overhead — see table above.
 - Stage 2 harness smoke: `004` + `006` sealed PASS; `005` abandoned; IDs `001`–`006` consumed.
-- Code fix landed: oMLX A+C attach/reclaim (`matrix_servers.py` + tests).
+- Code fix landed: oMLX A+C attach/reclaim (`matrix_servers.py` + tests) — commit `3c2768d`.
 - Plugin `0.4.0` installed; Gate B pin expects `0.4.0`.
 - Design-2 72-POST (`3.6.0` / r5) **not** run tonight (authorized but optional).
-- Stack at close: Osaurus ON; OptiQ may still be ON; oMLX often stopped by collectors after execute.
 
 **Honest seal note:** Approach 3 live results are `EXECUTED_UNSEALED` — not product-sealed PASS until a separate review pass.
+
+### 2026-07-30 — Codex handoff wrap-up (Jason)
+
+- Handoff refreshed: §3 authorizations, §5 Codex outcome table, §6 risks updated for post-marathon reality.
+- **OptiQ gracefully stopped:** `SIGINT` to `optiq serve` (PID from Cursor background session); port `8080` verified free twice.
+- **Machine state at handoff:** Osaurus `:1337` **ON**; OptiQ `:8080` **OFF**; oMLX `:8100` **OFF**.
+- Uncommitted local noise (ignore): `.harness-lifecycle/`, `config/matrix/omlx-roots/**` symlinks, `uv.lock`, egg-info, `.superpowers/sdd/task-6-report.md` local edit.
 
 _(End of 2026-07-24 live marathon log.)_
