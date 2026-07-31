@@ -208,6 +208,21 @@ class RuntimeManager:
                 context.sleep(context.poll_seconds)
         return False
 
+    def _wait_process_exit(
+        self,
+        adapter: RuntimeAdapter,
+        context: RuntimeContext,
+        expected: ProcessIdentity,
+        *,
+        checks: int,
+    ) -> bool:
+        for index in range(max(1, checks)):
+            if not adapter.process_is_alive(expected):
+                return True
+            if index + 1 < max(1, checks):
+                context.sleep(context.poll_seconds)
+        return False
+
     def _notice(
         self,
         requirement: RuntimeRequirement,
@@ -401,6 +416,16 @@ class RuntimeManager:
         ):
             raise RuntimeManagerError(
                 "owned runtime listener remained after cleanup",
+                code="runtime_cleanup_failed",
+            )
+        if not self._wait_process_exit(
+            adapter,
+            context,
+            lease.identity,
+            checks=context.terminate_checks,
+        ):
+            raise RuntimeManagerError(
+                "owned runtime process remained after cleanup",
                 code="runtime_cleanup_failed",
             )
         context.lifecycle_sink(

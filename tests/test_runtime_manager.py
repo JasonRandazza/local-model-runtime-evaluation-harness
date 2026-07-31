@@ -120,6 +120,7 @@ class FakeAdapter:
         observations: list[RuntimeObservation],
         *,
         started_identity: ProcessIdentity | None = None,
+        process_alive: list[bool] | None = None,
     ) -> None:
         self.observations = list(observations)
         self.started_identity = started_identity or _identity(pid=900)
@@ -127,6 +128,8 @@ class FakeAdapter:
         self.terminated: list[ProcessIdentity] = []
         self.released: list[RuntimeLease] = []
         self.started = 0
+        self.process_alive = list(process_alive or [])
+        self.process_checks: list[ProcessIdentity] = []
 
     def inspect(
         self,
@@ -176,12 +179,19 @@ class FakeAdapter:
     ) -> None:
         self.released.append(lease)
 
+    def process_is_alive(self, identity: ProcessIdentity) -> bool:
+        self.process_checks.append(identity)
+        if not self.process_alive:
+            return False
+        return self.process_alive.pop(0)
+
 
 def _context(
     *,
     notices: list[str] | None = None,
     sleeps: list[float] | None = None,
     lifecycle: list[tuple[str, str, dict[str, object]]] | None = None,
+    terminate_checks: int = 1,
 ) -> RuntimeContext:
     notice_list = [] if notices is None else notices
     sleep_list = [] if sleeps is None else sleeps
@@ -198,7 +208,7 @@ def _context(
             (runtime, action, payload)
         ),
         interrupt_checks=1,
-        terminate_checks=1,
+        terminate_checks=terminate_checks,
     )
 
 
@@ -345,6 +355,32 @@ class RuntimeManagerTests(unittest.TestCase):
         lease = manager.prepare(_requirement(), context)
         manager.release(lease, context)
         self.assertEqual(adapter.released, [lease])
+
+    def test_owned_release_waits_for_exact_process_exit_after_listener_closes(
+        self,
+    ) -> None:
+        new = _identity(pid=900)
+        sleeps: list[float] = []
+        adapter = FakeAdapter(
+            [
+                _absent(),
+                _observation(new, compatible=True),
+                _observation(new, compatible=True),
+                _absent(),
+            ],
+            process_alive=[True, False],
+        )
+        manager = RuntimeManager({"omlx": adapter})
+        context = _context(
+            sleeps=sleeps,
+            terminate_checks=2,
+        )
+        lease = manager.prepare(_requirement(), context)
+
+        manager.release(lease, context)
+
+        self.assertEqual(adapter.process_checks, [new, new])
+        self.assertEqual(sleeps, [context.poll_seconds])
 
     def test_owned_release_rejects_changed_identity(self) -> None:
         new = _identity(pid=900)

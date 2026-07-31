@@ -260,3 +260,36 @@ class ProcessInspector:
             current is not None
             and current.fingerprint() == expected.fingerprint()
         )
+
+    def process_is_alive(self, expected: ProcessIdentity) -> bool:
+        presence = self._run(
+            (
+                "/bin/ps",
+                "-p",
+                str(expected.pid),
+                "-o",
+                "pid=",
+            )
+        )
+        if presence.returncode != 0 or not presence.stdout.strip():
+            return False
+        if presence.stdout.strip() != str(expected.pid):
+            raise ProcessInspectionError("runtime process lookup is ambiguous")
+        try:
+            executable = self._executable(expected.pid)
+            ppid = self._integer_ps(expected.pid, "ppid")
+            started_at = self._text_ps(expected.pid, "lstart")
+            command = self._text_ps(expected.pid, "command")
+            argv = tuple(shlex.split(command))
+        except ValueError as error:
+            raise ProcessInspectionError(
+                "runtime process command is not parseable"
+            ) from error
+        if not argv:
+            raise ProcessInspectionError("runtime process command is empty")
+        return (
+            ppid == expected.ppid
+            and executable == expected.executable
+            and argv == expected.argv
+            and started_at == expected.started_at
+        )
