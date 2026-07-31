@@ -36,6 +36,7 @@ See [docs/history.md](docs/history.md) for the historical lane summary and
 | `./bin/lmre-preference` | Collect, review, judge, and tally pairwise preference |
 | `./bin/lmre-rag` | Run oracle or keyword RAG evaluation |
 | `./bin/lmre-overhead` | Compare direct and Osaurus-routed latency for native backends |
+| `./bin/lmre browse` | Generate the read-only static HTML browser for sealed evidence |
 
 For a complete managed run, start with:
 
@@ -54,6 +55,7 @@ Operator documentation:
 - [Preference](docs/preference.md)
 - [RAG](docs/rag.md)
 - [Routing overhead](docs/overhead.md)
+- [Results browser](docs/results-browser.md)
 - [Architecture](docs/architecture.md)
 
 ## Safety Boundary

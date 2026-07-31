@@ -27,6 +27,7 @@ from .operator_policy import (
     load_adopted_policy,
 )
 from .process_inspection import ProcessInspector
+from .results_browser_html import write_browser
 from .run_identity import build_plan
 from .runtime_adapters import (
     OmlxAdapter,
@@ -241,6 +242,17 @@ def _command_report(args: argparse.Namespace) -> dict[str, object]:
     return body
 
 
+def _command_browse(args: argparse.Namespace) -> dict[str, object]:
+    result = write_browser(args.results_root, args.output)
+    return {
+        "ok": True,
+        "index": result["index"],
+        "runs": result["runs"],
+        "results_root": str(args.results_root),
+        "output": str(args.output),
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="lmre",
@@ -306,6 +318,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Verify and read a sealed run summary",
     )
     report.add_argument("run_id")
+
+    browse = commands.add_parser(
+        "browse",
+        help="Render a read-only HTML browser over sealed evidence bundles",
+    )
+    browse.add_argument(
+        "--results-root",
+        type=Path,
+        default=Path("results/runs"),
+    )
+    browse.add_argument(
+        "--output",
+        type=Path,
+        default=Path("results/browser"),
+    )
     return parser
 
 
@@ -322,6 +349,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             body = _command_resume(args)
         elif args.command == "status":
             body = _command_status(args)
+        elif args.command == "browse":
+            body = _command_browse(args)
         else:
             body = _command_report(args)
         _emit(body)
