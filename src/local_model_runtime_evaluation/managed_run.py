@@ -554,18 +554,6 @@ def resume_managed_run(
         _verify_policy_snapshot(bundle, adopted_policy)
         authorize(adopted_policy.policy, bundle.plan.policy_request())
 
-        routed = frozenset(hooks.routed_models(bundle.plan))
-        missing = tuple(
-            route
-            for route in _required_routes(bundle.plan)
-            if route not in routed
-        )
-        if missing:
-            raise RuntimeError(
-                "required routed models are still missing: "
-                + ", ".join(missing)
-            )
-
         attempt = bundle.begin_attempt()
         bundle.append_event(
             "policy_authorized",
@@ -574,6 +562,66 @@ def resume_managed_run(
                 "policy_id": adopted_policy.policy.policy_id,
             },
         )
+        try:
+            routed = frozenset(hooks.routed_models(bundle.plan))
+        except BaseException as error:
+            bundle.transition_step(ManagedStep.OVERHEAD, StepState.RUNNING)
+            terminal_state = (
+                StepState.STOPPED
+                if isinstance(error, KeyboardInterrupt)
+                else StepState.FAIL
+            )
+            terminal_summary = (
+                RunSummaryState.STOPPED
+                if isinstance(error, KeyboardInterrupt)
+                else RunSummaryState.FAIL
+            )
+            bundle.transition_step(
+                ManagedStep.OVERHEAD,
+                terminal_state,
+                detail=_error_detail(error),
+            )
+            summary = _summary(
+                bundle.plan,
+                terminal_summary,
+                attempt=attempt,
+                error=error,
+            )
+            if not _seal_after_cleanup(bundle, runtime_manager, summary):
+                raise RuntimeError("managed runtime cleanup failed") from error
+            raise
+        missing = tuple(
+            route
+            for route in _required_routes(bundle.plan)
+            if route not in routed
+        )
+        if missing:
+            error = RuntimeError(
+                "required routed models are still missing: "
+                + ", ".join(missing)
+            )
+            bundle.transition_step(ManagedStep.OVERHEAD, StepState.RUNNING)
+            bundle.transition_step(
+                ManagedStep.OVERHEAD,
+                StepState.BLOCKED_PROVIDER_RECONNECT,
+                detail={
+                    "missing_routed_model_ids": list(missing),
+                    "operator_action": (
+                        "Reconnect the existing provider in the Osaurus UI, "
+                        "then run lmre resume <run-id>."
+                    ),
+                },
+            )
+            summary = _summary(
+                bundle.plan,
+                RunSummaryState.PARTIAL_BLOCKED,
+                attempt=attempt,
+                missing_routes=missing,
+            )
+            if not _seal_after_cleanup(bundle, runtime_manager, summary):
+                raise RuntimeError("managed runtime cleanup failed") from error
+            raise error
+
         bundle.transition_step(ManagedStep.OVERHEAD, StepState.RUNNING)
         output_root = bundle.step_attempt_dir(
             ManagedStep.OVERHEAD,

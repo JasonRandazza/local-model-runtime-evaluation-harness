@@ -487,6 +487,43 @@ class ManagedRunTests(unittest.TestCase):
         )
         EvidenceBundle.load(self.bundle.run_dir).verify()
 
+    def test_resume_unseals_before_route_check_writes_evidence(self) -> None:
+        execute_managed_run(
+            self.plan,
+            self.adopted,
+            self.bundle,
+            FakeRuntimeManager(),
+            FakeHooks(self.plan, routed_models=()).hooks(),
+        )
+        fake = FakeHooks(self.plan)
+        hooks = fake.hooks()
+
+        def routed_models(plan) -> tuple[str, ...]:
+            del plan
+            self.bundle.append_event("route_probe", {})
+            fake.calls.append("route-check")
+            return fake.models
+
+        writing_hooks = ManagedCollectorHooks(
+            preflight=hooks.preflight,
+            matrix=hooks.matrix,
+            preference=hooks.preference,
+            rag_oracle=hooks.rag_oracle,
+            rag_keyword=hooks.rag_keyword,
+            routed_models=routed_models,
+            overhead=hooks.overhead,
+        )
+
+        summary = resume_managed_run(
+            self.bundle.run_dir,
+            self.adopted,
+            FakeRuntimeManager(),
+            writing_hooks,
+        )
+
+        self.assertEqual(summary["status"], "PASS")
+        EvidenceBundle.load(self.bundle.run_dir).verify()
+
     def test_resume_rejects_missing_route_without_unsealing(self) -> None:
         execute_managed_run(
             self.plan,
