@@ -6,10 +6,10 @@
   "model_id": "Ornith-1.0-35B-MLX-oQ4",
   "artifact_path": "/Users/jrazz/.cache/huggingface/hub/georgeis55/Ornith-1.0-35B-MLX-oQ4",
   "start_command": [
-    "omlX",
+    "omlx",
     "serve",
     "--model-dir",
-    "/Users/jrazz/Dev/active/local-model-runtime-evaluation-harness/config/matrix/omlx-roots/ornith_oq4",
+    "{LMRE_OMLX_CATALOG}",
     "--host",
     "127.0.0.1",
     "--port",

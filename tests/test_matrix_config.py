@@ -26,6 +26,57 @@ QWEN_CAMPAIGN = ROOT / "config" / "matrix" / "qwen36-35b-a3b-campaign.json"
 
 
 class MatrixConfigTests(unittest.TestCase):
+    def test_retained_omlx_cells_use_managed_catalog_token(self) -> None:
+        for family_id, cell_id in (
+            ("gemma-4-12b-qat", "oq4_fp16__omlx"),
+            ("ornith-35b", "ornith_oq4__omlx"),
+            ("qwen36-35b-a3b", "qwen_oq4__omlx"),
+        ):
+            with self.subTest(cell_id=cell_id):
+                family = load_family(family_id)
+                cell = Cell.load(
+                    ROOT / "config" / "matrix" / "cells" / f"{cell_id}.json",
+                    family=family,
+                )
+                self.assertEqual(
+                    cell.start_command.count("{LMRE_OMLX_CATALOG}"),
+                    1,
+                )
+                retired_root = "config/matrix/" + "omlx-roots"
+                self.assertNotIn(retired_root, " ".join(cell.start_command))
+
+    def assert_non_native_cell_rejected(
+        self,
+        *,
+        quant: str,
+        server: str,
+    ) -> None:
+        payload = {
+            "cell_id": f"{quant}__{server}",
+            "quant": quant,
+            "server": server,
+            "base_url": {
+                "osaurus": "http://127.0.0.1:1337/v1",
+                "omlx": "http://127.0.0.1:8100/v1",
+                "optiq": "http://127.0.0.1:8080/v1",
+            }[server],
+            "model_id": "test-model",
+            "artifact_path": "/tmp/test-model",
+            "start_command": ["test-server"],
+            "stop_command": [],
+            "health_path": "/health",
+            "notes": "Synthetic rejection fixture.",
+        }
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(payload, handle)
+            path = Path(handle.name)
+        try:
+            with self.assertRaises(MatrixError) as context:
+                Cell.load(path, family=GEMMA_FAMILY)
+            self.assertIn("native_server", str(context.exception))
+        finally:
+            path.unlink(missing_ok=True)
+
     def test_gemma_native_campaign_loads_three_cells(self) -> None:
         campaign = Campaign.load(GEMMA_CAMPAIGN)
         self.assertEqual(campaign.campaign_id, "gemma-4-12b-qat-native")
@@ -245,20 +296,10 @@ class MatrixConfigTests(unittest.TestCase):
         self.assertEqual(family.quants["jang_4m"].role, "osaurus_native")
 
     def test_oq_quant_rejects_non_native_server(self) -> None:
-        with self.assertRaises(MatrixError) as context:
-            Cell.load(
-                ROOT / "config/matrix/cells/oq4_fp16__optiq.json",
-                family=GEMMA_FAMILY,
-            )
-        self.assertIn("native_server", str(context.exception))
+        self.assert_non_native_cell_rejected(quant="oq4_fp16", server="optiq")
 
     def test_optiq_quant_rejects_non_native_server(self) -> None:
-        with self.assertRaises(MatrixError) as context:
-            Cell.load(
-                ROOT / "config/matrix/cells/optiq_4bit__omlx.json",
-                family=GEMMA_FAMILY,
-            )
-        self.assertIn("native_server", str(context.exception))
+        self.assert_non_native_cell_rejected(quant="optiq_4bit", server="omlx")
 
     def test_load_ornith_family_by_id(self) -> None:
         family = load_family("ornith-35b")
@@ -305,12 +346,7 @@ class MatrixConfigTests(unittest.TestCase):
         self.assertEqual(cell.server, "optiq")
 
     def test_osaurus_native_quant_rejects_non_osaurus_server(self) -> None:
-        with self.assertRaises(MatrixError) as context:
-            Cell.load(
-                ROOT / "config/matrix/cells/jang_4m__optiq.json",
-                family=GEMMA_FAMILY,
-            )
-        self.assertIn("native_server", str(context.exception))
+        self.assert_non_native_cell_rejected(quant="jang_4m", server="optiq")
 
     def test_family_quant_rejects_missing_native_server(self) -> None:
         payload = {
@@ -403,32 +439,6 @@ class MatrixConfigTests(unittest.TestCase):
             with self.assertRaises(MatrixError) as context:
                 Campaign.load(path)
             self.assertIn("exactly three", str(context.exception))
-        finally:
-            path.unlink(missing_ok=True)
-
-    def test_campaign_rejects_cross_server_cell(self) -> None:
-        bad = {
-            "campaign_id": "gemma-4-12b-qat-native",
-            "family_id": "gemma-4-12b-qat",
-            "suite_path": "suites/gemma-matrix-v1.json",
-            "results_root": "results/matrix",
-            "memory_floor_percent": 20,
-            "ready_timeout_seconds": 180,
-            "request_timeout_seconds": 120,
-            "on_cell_failure": "continue",
-            "ports": {"osaurus": 1337, "omlx": 8100, "optiq": 8080},
-            "cells": [
-                "config/matrix/cells/jang_4m__osaurus.json",
-                "config/matrix/cells/oq4_fp16__osaurus.json",
-                "config/matrix/cells/optiq_4bit__optiq.json",
-            ],
-        }
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-            json.dump(bad, handle)
-            path = Path(handle.name)
-        try:
-            with self.assertRaises(MatrixError):
-                Campaign.load(path)
         finally:
             path.unlink(missing_ok=True)
 

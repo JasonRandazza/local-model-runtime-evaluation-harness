@@ -1,5 +1,9 @@
 # Personal Selection Policy — Multi-Family Native Triples (2026-07-24)
 
+> **Historical selection record only.** This note interprets an accepted
+> evidence window but grants no current execution authority. Current operation
+> follows `AGENTS.md` and `docs/managed-runs.md`.
+
 **Date:** 2026-07-24  
 **Status:** OPERATOR DECISION (Jason-authorized evidence window)  
 **Evidence:**  

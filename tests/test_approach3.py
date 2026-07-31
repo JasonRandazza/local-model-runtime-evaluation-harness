@@ -11,7 +11,6 @@ from local_model_runtime_evaluation.approach3 import (
     Approach3Error,
     FreeFormRecipe,
     dry_config,
-    load_recipe_cells,
     resolve_recipe_path,
 )
 from local_model_runtime_evaluation.approach3_cli import main as approach3_main
@@ -19,7 +18,6 @@ from local_model_runtime_evaluation.matrix_config import REPOSITORY_ROOT
 
 ROOT = REPOSITORY_ROOT
 NATIVE = ROOT / "config/approach3/gemma-freeform-native-triple-v1.json"
-REMAP = ROOT / "config/approach3/gemma-freeform-remap-v1.json"
 
 
 class Approach3RecipeTests(unittest.TestCase):
@@ -35,14 +33,6 @@ class Approach3RecipeTests(unittest.TestCase):
         self.assertEqual(report["status"], "DRY_CONFIG_OK")
         self.assertEqual(report["live_collect"], "UNTESTED")
         self.assertEqual(report["servers"], ["osaurus", "omlx", "optiq"])
-
-    def test_remap_loads_with_require_native_false(self) -> None:
-        recipe = FreeFormRecipe.load(REMAP)
-        cells = load_recipe_cells(recipe)
-        self.assertEqual(
-            [cell.cell_id for cell in cells],
-            list(recipe.cell_ids),
-        )
 
     def test_duplicate_cell_ids_fail(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -82,7 +72,7 @@ class Approach3CliTests(unittest.TestCase):
         )
         self.assertEqual(code, 1)
 
-    def test_cli_collect_preference_passes_require_native_false(self) -> None:
+    def test_cli_collect_preference_passes_recipe_native_policy(self) -> None:
         from unittest.mock import patch
         from pathlib import Path
 
@@ -93,7 +83,7 @@ class Approach3CliTests(unittest.TestCase):
             code = approach3_main(
                 [
                     "collect-preference",
-                    "gemma-freeform-remap-v1",
+                    "gemma-freeform-native-triple-v1",
                     "--i-understand-live",
                 ]
             )

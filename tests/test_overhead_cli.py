@@ -5,6 +5,7 @@ import json
 import sys
 import unittest
 from contextlib import redirect_stdout
+from unittest.mock import patch
 
 from local_model_runtime_evaluation.overhead_cli import main
 from local_model_runtime_evaluation.overhead_config import DEFAULT_PAIR_IDS
@@ -70,6 +71,17 @@ class OverheadCliTests(unittest.TestCase):
         with redirect_stdout(buffer):
             code = main(["--dry-config"])
         self.assertEqual(code, 0)
+        payload = json.loads(buffer.getvalue())
+        self.assertTrue(payload["ok"])
+
+    def test_dry_config_before_run_never_enters_live_runner(self) -> None:
+        buffer = io.StringIO()
+        with patch(
+            "local_model_runtime_evaluation.overhead_cli.run_overhead"
+        ) as run_overhead, redirect_stdout(buffer):
+            code = main(["--dry-config", "run"])
+        self.assertEqual(code, 0)
+        self.assertFalse(run_overhead.called)
         payload = json.loads(buffer.getvalue())
         self.assertTrue(payload["ok"])
 

@@ -190,6 +190,37 @@ class MatrixServerTests(unittest.TestCase):
             self.assertEqual(seen[0][-2:], ("--api-key", MATRIX_OMLX_API_KEY))
             handle.stop()
 
+    def test_unmanaged_omlx_rejects_catalog_token(self) -> None:
+        from local_model_runtime_evaluation.omlx_catalog import (
+            OMLX_CATALOG_TOKEN,
+        )
+
+        transport = MagicMock()
+        spawner = MagicMock()
+        with TemporaryDirectory() as tmp:
+            handle = build_server(
+                _cell(
+                    start_command=(
+                        "omlx",
+                        "serve",
+                        "--model-dir",
+                        OMLX_CATALOG_TOKEN,
+                        "--host",
+                        "127.0.0.1",
+                        "--port",
+                        "8100",
+                    )
+                ),
+                transport,
+                Path(tmp),
+                spawner=spawner,
+                port_free=lambda port: True,
+            )
+            with self.assertRaises(ServerError) as context:
+                handle.start()
+        self.assertIn("temporary managed catalog", str(context.exception))
+        spawner.assert_not_called()
+
     def test_omlx_attaches_when_busy_and_model_present(self) -> None:
         transport = MagicMock()
         transport.list_models.return_value = ("gemma-4-12B-it-qat-oQ4-fp16",)
@@ -209,9 +240,7 @@ class MatrixServerTests(unittest.TestCase):
             handle.stop()
             stop_runner.assert_not_called()
 
-    def test_omlx_reclaims_when_busy_and_model_missing(self) -> None:
-        from unittest.mock import patch
-
+    def test_omlx_busy_wrong_model_requires_managed_policy(self) -> None:
         transport = MagicMock()
         transport.list_models.return_value = ("other-model",)
         seen: list[tuple[str, ...]] = []
@@ -225,22 +254,19 @@ class MatrixServerTests(unittest.TestCase):
             stops.append(cmd)
 
         with TemporaryDirectory() as tmp:
-            with patch(
-                "local_model_runtime_evaluation.matrix_servers.wait_port_free",
-            ):
-                handle = build_server(
-                    _cell(),
-                    transport,
-                    Path(tmp),
-                    spawner=capture,
-                    port_free=lambda port: False,
-                    stop_runner=stop_runner,
-                )
+            handle = build_server(
+                _cell(),
+                transport,
+                Path(tmp),
+                spawner=capture,
+                port_free=lambda port: False,
+                stop_runner=stop_runner,
+            )
+            with self.assertRaises(ServerError) as context:
                 handle.start()
-            self.assertTrue(stops)
-            self.assertEqual(stops[0][0], "pkill")
-            self.assertEqual(len(seen), 1)
-            handle.stop()
+        self.assertIn("managed", str(context.exception))
+        self.assertEqual(stops, [])
+        self.assertEqual(seen, [])
 
     def test_optiq_attaches_when_busy_and_model_present(self) -> None:
         transport = MagicMock()
@@ -265,9 +291,7 @@ class MatrixServerTests(unittest.TestCase):
             handle.stop()
             stop_runner.assert_not_called()
 
-    def test_optiq_reclaims_when_busy_and_model_missing(self) -> None:
-        from unittest.mock import patch
-
+    def test_optiq_busy_wrong_model_requires_managed_policy(self) -> None:
         transport = MagicMock()
         model_id = (
             "/Users/jrazz/.cache/huggingface/hub/mlx-community/"
@@ -292,31 +316,27 @@ class MatrixServerTests(unittest.TestCase):
             stops.append(cmd)
 
         with TemporaryDirectory() as tmp:
-            with patch(
-                "local_model_runtime_evaluation.matrix_servers.wait_port_free",
-            ):
-                handle = build_server(
-                    _optiq(
-                        model_id=model_id,
-                        artifact_path=artifact,
-                        start_command=(
-                            "optiq", "serve", "--model", artifact,
-                            "--host", "127.0.0.1", "--port", "8080",
-                            "--no-anthropic", "--no-responses", "--no-auth",
-                        ),
+            handle = build_server(
+                _optiq(
+                    model_id=model_id,
+                    artifact_path=artifact,
+                    start_command=(
+                        "optiq", "serve", "--model", artifact,
+                        "--host", "127.0.0.1", "--port", "8080",
+                        "--no-anthropic", "--no-responses", "--no-auth",
                     ),
-                    transport,
-                    Path(tmp),
-                    spawner=capture,
-                    port_free=lambda port: False,
-                    stop_runner=stop_runner,
-                )
+                ),
+                transport,
+                Path(tmp),
+                spawner=capture,
+                port_free=lambda port: False,
+                stop_runner=stop_runner,
+            )
+            with self.assertRaises(ServerError) as context:
                 handle.start()
-            self.assertTrue(stops)
-            self.assertEqual(stops[0][0], "pkill")
-            self.assertEqual(len(seen), 1)
-            self.assertIn(artifact, seen[0])
-            handle.stop()
+        self.assertIn("managed", str(context.exception))
+        self.assertEqual(stops, [])
+        self.assertEqual(seen, [])
 
 
 if __name__ == "__main__":

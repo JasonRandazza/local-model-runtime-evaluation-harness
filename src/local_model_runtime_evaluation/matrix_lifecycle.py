@@ -44,24 +44,56 @@ class ManagedProcess:
     def is_alive(self) -> bool:
         return self._child.poll() is None
 
-    def stop(self, timeout_seconds: float = 15) -> None:
-        try:
-            os.killpg(self.process_group_id, signal.SIGTERM)
-        except (ProcessLookupError, PermissionError):
-            return
+    def interrupt(self) -> None:
+        interrupt_process_group(self.process_group_id)
+
+    def terminate(self) -> None:
+        terminate_process_group(self.process_group_id)
+
+    def wait(self, timeout_seconds: float) -> bool:
         try:
             self._child.wait(timeout=timeout_seconds)
+            return True
         except subprocess.TimeoutExpired:
-            pass
-        # Always escalate: leader exit after SIGTERM can leave descendants alive.
-        try:
-            os.killpg(self.process_group_id, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
+            return False
+
+    def stop(self, timeout_seconds: float = 15) -> None:
+        self.interrupt()
+        if self.wait(timeout_seconds):
             return
-        try:
-            self._child.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            raise LifecycleError("process group did not exit after SIGKILL") from None
+        self.terminate()
+        if self.wait(timeout_seconds):
+            return
+        raise LifecycleError("process group did not exit after termination")
+
+
+def interrupt_process_group(process_group_id: int) -> None:
+    try:
+        os.killpg(process_group_id, signal.SIGINT)
+    except ProcessLookupError:
+        return
+    except PermissionError as error:
+        raise LifecycleError(
+            "permission denied while interrupting process group"
+        ) from error
+
+
+def terminate_process_group(process_group_id: int) -> None:
+    try:
+        os.killpg(process_group_id, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    except PermissionError as error:
+        raise LifecycleError(
+            "permission denied while terminating process group"
+        ) from error
+
+
+def wait_process_exit(
+    process: ManagedProcess,
+    timeout_seconds: float,
+) -> bool:
+    return process.wait(timeout_seconds)
 
 
 def spawn_pinned(command: tuple[str, ...], log_path: Path) -> ManagedProcess:

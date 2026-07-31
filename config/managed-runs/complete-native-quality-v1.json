@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "recipe_id": "complete-native-quality-v1",
+  "steps": [
+    "preflight",
+    "matrix",
+    "preference",
+    "rag-oracle",
+    "rag-keyword",
+    "overhead",
+    "seal"
+  ],
+  "matrix_mode": "screen",
+  "estimated_minutes": 90,
+  "memory_floor_percent": 20
+}

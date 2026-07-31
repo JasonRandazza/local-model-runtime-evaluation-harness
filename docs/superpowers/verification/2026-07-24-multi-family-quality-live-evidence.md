@@ -1,12 +1,16 @@
 # Multi-Family Quality Live Evidence — Preference + RAG (2026-07-24)
 
+> **Historical evidence only.** This seal preserves results and provenance but
+> grants no current execution authority. Current operation follows
+> `AGENTS.md` and `docs/managed-runs.md`.
+
 **Date:** 2026-07-24  
 **Decision:** quality follow-on **CLOSED** for native-triple preference and RAG  
 **Prerequisite:** `docs/superpowers/verification/2026-07-23-native-triple-overhead-live-evidence.md`  
-**RAG design:** `docs/superpowers/specs/2026-07-24-rag-native-triple-design.md`  
+**Historical RAG design:** sibling archive
 **Commit (config):** `fe93b16` — native RAG recipes + 2048 thinking budgets
 
-Authorized by Jason in-session. Raw artifacts under `results/` are gitignored;
+Historically authorized by Jason for that session. Raw artifacts under `results/` are gitignored;
 this note is the durable seal.
 
 ## Performance baseline (already sealed)
@@ -80,7 +84,7 @@ Treat **2048** as the default ceiling for any suite those cells share.
 
 ## Finalist matrix (suite r4)
 
-Authorized in-session. Depth = 1 warm-up + 5 measured per workload (18 requests
+Historically authorized for that session. Depth = 1 warm-up + 5 measured per workload (18 requests
 per cell). All three native campaigns **3/3 PASS**.
 
 | Family | Run dir | Suite | Result |
@@ -93,16 +97,8 @@ Median total latency (from each `report.md`, indicative): Gemma JANG ≈ 2.3s /
 oQ ≈ 2.6s / OptiQ ≈ 3.5s; Ornith JANG ≈ 29.8s / oQ ≈ 15.4s / OptiQ ≈ 1.3s;
 Qwen mxfp4 ≈ 1.2s / oQ ≈ 1.4s / OptiQ ≈ 1.3s.
 
-## Next lanes
+## Closeout
 
-1. ~~Finalist matrix~~ — sealed above.
-2. ~~Polish~~ — run dirs use `<family_id>-preference-*` / `<family_id>-rag-*`
-   (historical `gemma-preference-*` / `gemma-rag-*` remain valid).
-3. Stage 2 harness-unattended Slice 1c — smoke Gate B–D sealed on
-   `stage2-20260723-003` and re-evidenced **PASS** on `stage2-20260724-001`
-   (`3.5.0` / profile r4; see
-   `docs/superpowers/verification/2026-07-24-slice-1c-stage2-20260724-001-pass.md`).
-   Design 2 harness benchmark sealed on `stage2-20260723-008` and re-evidenced
-   **PASS** on `stage2-20260724-002` (`3.6.0` / r5; see
-   `docs/superpowers/verification/2026-07-24-design2-harness-benchmark-stage2-20260724-002-pass.md`).
-   Do not reuse those IDs.
+Finalist matrix and naming polish were completed. Stage 2 follow-on evidence and
+consumed run identifiers are preserved in the sibling archive; they are not
+part of the active product surface.

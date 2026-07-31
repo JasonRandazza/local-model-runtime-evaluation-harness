@@ -9,7 +9,8 @@ from urllib.parse import urlparse
 
 from .credentials import Credential
 from .matrix_config import Cell
-from .matrix_lifecycle import LifecycleError, ManagedProcess, port_is_free, run_stop_command, spawn_pinned, wait_port_free
+from .matrix_lifecycle import LifecycleError, ManagedProcess, port_is_free, run_stop_command, spawn_pinned
+from .omlx_catalog import OMLX_CATALOG_TOKEN
 from .transport import TransportError
 
 
@@ -19,13 +20,6 @@ class ServerError(RuntimeError):
 
 # Loopback-only key for matrix-owned oMLX serves. Not a shared secret.
 MATRIX_OMLX_API_KEY = "lmre-matrix-local"
-
-# Pathway C reclaim: stop foreign/wrong-model OptiQ so pinned serve can bind :8080.
-OPTIQ_RECLAIM_COMMAND = ("pkill", "-INT", "-f", "optiq serve")
-# Pathway C reclaim for oMLX: `omlX stop` does not reliably free CLI-started
-# `omlx-server` listeners; match the process name OptiQ reclaim style.
-OMLX_RECLAIM_COMMAND = ("pkill", "-INT", "-f", "omlx-server")
-
 
 class TransportProtocol(Protocol):
     def list_models(self, base_url: str, credential: object | None) -> tuple[str, ...]: ...
@@ -83,9 +77,10 @@ class SubprocessServerHandle:
                         self._owned = False
                         self._started = True
                         return
-                    # C: wrong/unknown resident model — reclaim then spawn pinned serve.
-                    self._stop_runner(OPTIQ_RECLAIM_COMMAND)
-                    wait_port_free(port, timeout_seconds=60)
+                    raise ServerError(
+                        "incompatible runtime is active; use the managed "
+                        "lmre command with an adopted operator policy"
+                    )
                 command = self._start_command()
                 self._process = self._spawner(command, self._log_path)
                 self._owned = True
@@ -97,9 +92,10 @@ class SubprocessServerHandle:
                         self._owned = False
                         self._started = True
                         return
-                    # C: busy/wrong/unknown — reclaim then spawn pinned serve.
-                    self._stop_runner(OMLX_RECLAIM_COMMAND)
-                    wait_port_free(port, timeout_seconds=60)
+                    raise ServerError(
+                        "incompatible runtime is active; use the managed "
+                        "lmre command with an adopted operator policy"
+                    )
                 command = self._start_command()
                 self._process = self._spawner(command, self._log_path)
                 self._owned = True
@@ -124,6 +120,10 @@ class SubprocessServerHandle:
         command = self._cell.start_command
         if self._cell.server != "omlx":
             return command
+        if OMLX_CATALOG_TOKEN in command:
+            raise ServerError(
+                "oMLX requires a temporary managed catalog; run through lmre"
+            )
         if "--api-key" in command:
             return command
         key = self._credential.api_key() if self._credential is not None else MATRIX_OMLX_API_KEY

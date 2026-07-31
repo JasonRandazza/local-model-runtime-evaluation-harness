@@ -1,8 +1,10 @@
 # Harness north-star vision (2026-07-24)
 
-**Status:** APPROVED direction (Jason, 2026-07-24) — vision only; does not authorize implementation  
-**Next bounded slice (agreed):** Discovery MVP — design `docs/superpowers/specs/2026-07-24-discovery-mvp-design.md`; Gate A plan `docs/superpowers/plans/2026-07-24-discovery-mvp-gate-a.md`; operator docs `docs/discovery.md`  
-**Not next:** free-form cell scheduling, cross-family free mixes, or UI shell
+**Status:** Durable product vision; operational route updated 2026-07-30.
+**Current references:** `docs/superpowers/specs/2026-07-30-managed-local-run-foundation-design.md`,
+`docs/managed-runs.md`, and `docs/status.md`.
+**Historical stepping stone:** Discovery MVP is implemented but is no longer
+the normal execution authority.
 
 ## North star
 
@@ -37,7 +39,7 @@ Deep Wiki reopen note (Tier 5, 2026-07-24).
 | Historical **3×3** (quant × server full grid) | **Lab history.** Full-grid passes are rare and often uninteresting; cross-server cells are weak evidence for “which serving stack to use.” |
 | Current **native diagonal** (Approach 1, three cells) | **Sealed baseline + regression kit.** Keep for fail-closed proofs and personal picks. Not the destination UX. |
 | Original **Approach 3** (free-form user-defined cells) | **One ingredient** of the north star (flexible binding), not the whole meal. |
-| **Discovery + guided connect** | **Next product slice.** Makes Approach 1 (and later freer schedules) usable without hand-maintained path JSON. |
+| **Discovery + guided connect** | **Implemented precursor.** The managed policy/plan/run layer is the current product slice. |
 | **Cross-model / cross-size mixes** | **Later.** Needs new scheduling, RAM, identity, and comparability rules before it is honest science. |
 | **UI** | **Later.** Browse sealed artifacts first; then drive runs. |
 
@@ -45,8 +47,8 @@ Jason’s judgment (2026-07-24): chasing a filled 3×3 as the *goal* is the wron
 
 ## Phased path (careful)
 
-1. **Discovery MVP** — detect Osaurus / oMLX / OptiQ reachability; scan known roots for artifacts; propose family/cell matches; still execute today’s native-triple campaigns (or an explicit subset). No free-form schedule yet.
-2. **Guided run UX (CLI first)** — one command path: discover → confirm → screen/finalist/preference/RAG with less JSON editing.
+1. **Discovery MVP (completed precursor)** — detect Osaurus / oMLX / OptiQ reachability; scan known roots for artifacts; propose family/cell matches; still execute today’s native-triple campaigns (or an explicit subset).
+2. **Guided run UX (current implementation)** — `lmre policy` → `lmre plan` → `lmre run|resume`, with one adopted policy governing the immutable plan.
 3. **Controlled expansion** — optional extra cells *within* a declared comparison class (e.g. two JANG builds), still fail-closed.
 4. **Approach 3–style free bind** — user-defined cells when discovery + policy can still refuse unsafe configs.
 5. **Open mix comparisons** — Qwen-27B vs 35B-A3B vs Nemotron-class mixes only after identity, RAM, and suite contracts are defined for heterogeneous sets.
@@ -59,7 +61,9 @@ Jason’s judgment (2026-07-24): chasing a filled 3×3 as the *goal* is the wron
 - Rewriting sealed Stage 0–2 or multi-family evidence
 - Plugin rebuild without explicit session approval
 
-## Definition of done for *this document*
+## Historical definition of done for this vision checkpoint
 
 - North star and phased path are written and linked from Deep Wiki + repo
-- Next implementation target is explicitly **Discovery MVP**, separately designed before code
+- The next implementation target at the time was **Discovery MVP**, separately
+  designed before code. Current implementation status is tracked in
+  `docs/status.md`.

@@ -6,10 +6,10 @@
   "model_id": "gemma-4-12B-it-qat-oQ4-fp16",
   "artifact_path": "/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
   "start_command": [
-    "omlX",
+    "omlx",
     "serve",
     "--model-dir",
-    "/Users/jrazz/Dev/active/local-model-runtime-evaluation-harness/config/matrix/omlx-roots/oq4_fp16",
+    "{LMRE_OMLX_CATALOG}",
     "--host",
     "127.0.0.1",
     "--port",

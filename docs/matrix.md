@@ -1,10 +1,17 @@
 # Multi-Family Native Control Triple
 
-Each family runs exactly **three cells** — one per quant on its only capable native server (Osaurus `1337`, oMLX `8100`, or OptiQ `8080`). Historical cross-server cell JSON may remain on disk but is not scheduled. Stage 0–2B machinery stays frozen — this path does not use Gate B, plugin tools, or Stage 2B inference authority. Do not run live campaigns without explicit operator authorization.
+> **Documentation role:** Low-level collector reference. For normal live
+> evaluation, follow [managed-runs.md](managed-runs.md). A direct user request
+> to execute plus an adopted policy authorizing the immutable plan is
+> sufficient; managed collectors do not require separate approval prompts.
+> Direct use of `lmre-matrix` is outside that managed plan and must itself be
+> explicitly requested.
+
+Each family runs exactly **three cells** — one per quant on its only capable native server (Osaurus `1337`, oMLX `8100`, or OptiQ `8080`). Historical cross-server cells and Stage 0–2B machinery are preserved only in the sibling archive.
 
 Campaigns are family-scoped. Each campaign JSON declares a `family_id` that loads an allowlist from `config/matrix/families/<family_id>.json`. Cells keep `quant__server` ids; Ornith and Qwen quants are prefixed so they do not collide with Gemma.
 
-Family quant entries require `"native_server"` (`osaurus`, `omlx`, or `optiq`). Optional `"role": "osaurus_native"` marks curated Osaurus library artifacts (JANG or MXFP); when set, `native_server` must be `"osaurus"`. `Cell.load` rejects cells whose server does not match the quant's `native_server`. Cross-server cell JSON may remain on disk for history but campaigns schedule only the native triple.
+Family quant entries require `"native_server"` (`osaurus`, `omlx`, or `optiq`). Optional `"role": "osaurus_native"` marks curated Osaurus library artifacts (JANG or MXFP); when set, `native_server` must be `"osaurus"`. `Cell.load` rejects cells whose server does not match the quant's `native_server`. Cross-server cell JSON is archived; campaigns schedule only the native triple.
 
 | Campaign | Family | Command |
 | --- | --- | --- |
@@ -17,12 +24,11 @@ Revision `4` sets **all** workload `max_tokens` to `2048` (including `strict-too
 previously `512`) so Osaurus-native builds that emit long `reasoning_content` preambles
 can still reach visible `content` (Ornith JANG consistently fills smaller budgets before
 answer tokens). Revisions `1`–`3` remain historical.
-Free-form Approach 3 cells and open cross-family mixes are **not** the near-term
-product goal. See the north-star vision:
-`docs/superpowers/specs/2026-07-24-harness-north-star-vision.md`
-(Deep Wiki: Tier 5 *North Star Vision - 2026-07-24*). Historical full **3×3**
-grids remain lab history; this campaign path schedules the **native diagonal**
-only. Next product slice (separately designed): **discovery MVP**.
+Free-form Approach 3 cells are an explicit optional surface, not the default
+matrix scheduler. Historical full **3×3** grids are preserved in the sibling
+archive; this campaign path schedules the **native diagonal** only. Discovery is
+a retained diagnostic entry point. The managed `lmre` workflow is the normal
+entry point and uses these curated triples underneath.
 
 **Multi-family quality (sealed):** preference, RAG, and native finalists — see
 [preference.md](preference.md), [rag.md](rag.md), and
@@ -58,7 +64,9 @@ Routing overhead procedure: [overhead.md](overhead.md).
 ```
 
   Model exposure (routing oMLX into Osaurus) is separate from auth — inventory can list models and still reject a bad key. Osaurus may list routed ids such as `omlx/...` that differ from direct native ids.
-- oMLX: campaign stops a busy managed `omlX` on `:8100` before spawning a cell-owned serve with a fixed loopback `--api-key` (`lmre-matrix-local`).
+- oMLX: the managed workflow creates a per-run temporary catalog and uses
+  exact attach/start/reclaim ownership. Direct `lmre-matrix` remains a
+  low-level surface and does not reclaim an incompatible listener.
 - OptiQ cells start with `--no-auth`. OptiQ inventory ids are the absolute `--model` paths; use the `:no-think` variant so streams put visible text in `delta.content` (default/`:think` stream into `delta.reasoning`, which the harness treats as empty).
 - Non-OptiQ-packaged artifacts may fail `optiq serve` weight load → expected N/A/FAIL until an OptiQ-packaged build exists.
 - `report.md` includes native-triple PASS/FAIL/N/A tables (one row per cell: quant, native server, result) plus Option A metric tables (median total, TTFT, exact decode tok/s, contract ratio) and Option B estimated decode tok/s (`completion_tokens / (total − TTFT)`, labeled `est.`). Quant rows follow campaign cell order.
@@ -96,7 +104,10 @@ Qwen:
 
 Dry-config JSON includes `family_id`, `cell_count`, cell ids, and `artifact_missing` (artifact paths referenced by the campaign that are not on disk). Resolve any listed paths before live screen.
 
-## Live screen (operator)
+## Direct low-level live screen
+
+These commands bypass the managed plan and evidence coordinator. Invoke them
+only when the user specifically asks to run the low-level matrix CLI.
 
 Run all three campaign cells in screen mode first. Gemma:
 
@@ -105,14 +116,14 @@ Run all three campaign cells in screen mode first. Gemma:
   --campaign config/matrix/gemma-4-12b-qat-campaign.json
 ```
 
-Ornith (after artifacts complete and explicit authorization):
+Ornith (after artifacts complete):
 
 ```bash
 ./bin/lmre-matrix --mode screen \
   --campaign config/matrix/ornith-35b-campaign.json
 ```
 
-Qwen (after artifacts complete and explicit authorization):
+Qwen (after artifacts complete):
 
 ```bash
 ./bin/lmre-matrix --mode screen \
@@ -180,5 +191,8 @@ Under `results/matrix/<campaign_id>-<mode>-<timestamp>/`:
 - Verify port free before the next cell; stop on RAM floor breach.
 - Attempt listed campaign cells; `on_cell_failure: continue` keeps going after `N/A` or `FAIL`.
   `osaurus_native` quants (JANG / MXFP) run only on Osaurus — not scheduled on oMLX/OptiQ.
-- Do not run live campaigns without explicit operator authorization.
-- Stage 2B sealed cohorts for this window remain historical evidence; this matrix path still does not use Gate B, plugin tools, or Stage 2B inference authority, and does not authorize a new Stage 2 run ID.
+- Direct low-level live campaigns require an explicit user request. A managed
+  run instead follows its adopted policy and does not pause for separate
+  per-collector approval.
+- Retired Stage 2B cohorts are historical evidence in the sibling archive and
+  provide no authority for an active-product run.

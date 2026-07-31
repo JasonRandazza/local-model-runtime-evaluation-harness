@@ -1,6 +1,12 @@
 # Multi-Family Osaurus Routing Overhead
 
-Family-first measurement of the **Osaurus router tax** for screen-winning oQ4 and OptiQ-4bit pairs. For each pair, compare **direct native** (`:8100` or `:8080`) vs **the same model via Osaurus** (`http://127.0.0.1:1337/v1`). Each family runs **four legs** (two pairs × direct/routed); there is no JANG/MXFP overhead pair. Separate from `lmre-matrix` native control triple and `lmre-preference`; Stage 0–2B machinery stays frozen.
+> **Documentation role:** Low-level routing collector reference. For normal
+> live evaluation, follow [managed-runs.md](managed-runs.md). Managed runs may
+> attach, start, or safely reclaim Osaurus under the adopted policy; provider
+> creation and reconnect remain UI-owned. Direct use of `lmre-overhead` must
+> itself be explicitly requested.
+
+Family-first measurement of the **Osaurus router tax** for screen-winning oQ4 and OptiQ-4bit pairs. For each pair, compare **direct native** (`:8100` or `:8080`) vs **the same model via Osaurus** (`http://127.0.0.1:1337/v1`). Each family runs **four legs** (two pairs × direct/routed); there is no JANG/MXFP overhead pair. Separate from `lmre-matrix` native control triple and `lmre-preference`; retired orchestration is preserved in the sibling archive.
 
 **Related:** matrix campaign — see [matrix.md](matrix.md); preference POC — see [preference.md](preference.md); RAG oracle — see [rag.md](rag.md).
 
@@ -53,22 +59,42 @@ Qwen recipe (two pairs from screen PASS non-Osaurus winners): `qwen_oq4`, `qwen_
 
 MXFP (`qwen_mxfp4__osaurus`) has no overhead pair (Osaurus-native). A third pair (`qwen_optiq_4bit__omlx`) is out of scope.
 
-### Pin routed model ids before live
+### Exact routed model ids
 
-Checked-in `routed_model_id` strings in `config/overhead/pairs/*.json` are structural placeholders on each family’s allowlist. Before any live run, confirm Osaurus inventory and **pin the exact live id** in the pair JSON (often `omlx/...` for oMLX; OptiQ provider ids as configured). Mismatch fails the routed leg early.
+Checked-in `routed_model_id` strings in `config/overhead/pairs/*.json` are exact
+allowlisted requirements, not placeholders to edit during a run. Managed
+execution verifies inventory before dispatch and seals a missing route as
+`PARTIAL_BLOCKED`. A direct low-level run requires the existing Osaurus
+inventory to expose the exact configured id; mismatch fails the routed leg
+early.
 
-## Hybrid lifecycle
+## Direct low-level hybrid lifecycle
 
-The harness **starts and stops only the native backend** for both legs. Jason owns Osaurus and provider configuration throughout:
+The `lmre-overhead` collector **starts and stops only the native backend** for
+both legs. Its caller owns Osaurus and provider configuration throughout:
 
-1. **Prep (operator)** — Osaurus listening on `:1337` with a provider exposing the target backend. Confirm the routed model id via inventory; pin that **exact** id in `config/overhead/pairs/*.json`.
+1. **Prep (operator or managed coordinator)** — Osaurus listening on `:1337`
+   with a provider exposing the exact routed model id already configured in
+   `config/overhead/pairs/*.json`.
 2. **Direct leg (harness)** — Start only the native backend; measure the screen suite on the direct port; stop backend; verify port free and RAM floor.
-3. **Routed leg (harness)** — Leave Osaurus up. Start the **same** backend again (provider needs it); measure the same suite against `http://127.0.0.1:1337/v1` with the configured routed `model_id`; stop **only** the backend. Never start, stop, or configure Osaurus.
+3. **Routed leg (harness)** — Leave Osaurus up. Start the **same** backend again
+   (provider needs it); measure the same suite against
+   `http://127.0.0.1:1337/v1` with the configured routed `model_id`; stop
+   **only** the backend. The collector does not lifecycle Osaurus.
 4. **Next pair** — After ports free and RAM OK.
 
-If `:8100` is already busy, the harness matches matrix behavior and runs `omlX stop` before owning the serve. OptiQ still requires `:8080` free (stop Lab/`optiq serve` yourself first).
+Current matrix-backed lifecycle uses bounded attach/reclaim behavior:
 
-The harness never starts, stops, signals, or configures Osaurus or its providers.
+- if a busy oMLX or OptiQ port exposes the exact requested model identity, the
+  harness attaches without claiming ownership;
+- if identity differs or cannot be proven, the configured reclaim path stops
+  the backend, waits for the port, and starts the pinned cell;
+- attached services are not stopped during cleanup;
+- the low-level collector never reclaims or configures Osaurus.
+
+The managed `lmre` coordinator may attach, start, or safely reclaim Osaurus
+before invoking the collector. Neither layer edits or reconnects providers;
+those actions remain UI-owned.
 
 ## Live prep checklist
 
@@ -76,11 +102,11 @@ Before `./bin/lmre-overhead run`:
 
 - [ ] Osaurus listening on `:1337` (`GET /health` or inventory probe succeeds).
 - [ ] Provider for oQ4 and/or OptiQ backend is connected and exposes the target model.
-- [ ] Routed model ids in the selected family’s pair JSON match live inventory **exactly** (re-pin from inventory before authorize).
+- [ ] Routed model ids in the selected family’s pair JSON match live inventory **exactly**.
 - [ ] Artifact paths in `config/matrix/cells/` exist; `optiq` on `PATH` for OptiQ pair.
 - [ ] Osaurus Keychain credential stored (see [matrix.md](matrix.md)).
 - [ ] Other heavy models unloaded; RAM above the campaign floor (`20%` free).
-- [ ] **Live run requires Jason's in-session authorization.** Do not run without explicit operator approval.
+- [ ] Confirm the user explicitly requested this direct low-level live run.
 
 ## Non-live check
 
@@ -120,7 +146,9 @@ Qwen two-pair recipe:
 
 Prints JSON with `ok: true`, `"family_id": "qwen36-35b-a3b"`, pair ids `qwen_oq4` and `qwen_optiq_4bit`.
 
-## Workflow
+## Direct low-level workflow
+
+These commands bypass the managed plan and evidence coordinator.
 
 ```bash
 ./bin/lmre-overhead run
@@ -128,13 +156,13 @@ Prints JSON with `ok: true`, `"family_id": "qwen36-35b-a3b"`, pair ids `qwen_oq4
 ./bin/lmre-overhead report --run results/overhead/overhead-<timestamp>
 ```
 
-Ornith live run (only after separate operator authorize and routed id pin):
+Ornith direct live run:
 
 ```bash
 ./bin/lmre-overhead run --family ornith-35b
 ```
 
-Qwen live run (only after separate operator authorize and routed id pin):
+Qwen direct live run:
 
 ```bash
 ./bin/lmre-overhead run --family qwen36-35b-a3b
@@ -179,8 +207,12 @@ Later expansion: report Δ median total, Δ median TTFT, and Δ estimated decode
 
 ## Safety
 
-- **Live run requires Jason's in-session authorization.** Do not run without explicit operator approval.
-- **Stage 2B sealed cohorts remain historical evidence.** These docs do not authorize a new Gate B, Stage 2B run ID, or plugin changes.
-- Pinned backend start argv only; harness lifecycle touches backend cells only.
+- Direct `lmre-overhead run` requires an explicit user request. A managed run
+  follows its adopted policy and immutable plan without separate overhead
+  approval.
+- Historical Stage 2B evidence is archived and does not authorize an
+  active-product run.
+- Pinned backend start argv only. The low-level collector touches backend cells
+  only; managed Osaurus lifecycle is governed by [managed-runs.md](managed-runs.md).
 - One pair at a time (direct then routed); verify port free and RAM floor between legs.
 - Osaurus not listening on `:1337` before the routed leg → fail that leg early.
