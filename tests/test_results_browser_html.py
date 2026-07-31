@@ -227,7 +227,7 @@ class RenderRunVerifiedTests(unittest.TestCase):
         run_dir = make_missing_plan(self.root)
         view = build_run_view(run_dir)
         html_text = render_run(view)
-        self.assertIn("summary not written", html_text.lower())
+        self.assertIn("summary is not written for this bundle", html_text.lower())
 
 
 class HostileStringEscapingTests(unittest.TestCase):
@@ -297,6 +297,33 @@ class WriteBrowserTests(unittest.TestCase):
         for page in result["pages"]:
             page_html = Path(page).read_text(encoding="utf-8")
             self.assertNotIn("<script", page_html)
+
+
+class ReviewRegressionTests(unittest.TestCase):
+    """Fixes validated during the results-browser review wave."""
+
+    def setUp(self) -> None:
+        self.temporary = TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def test_write_browser_refuses_output_inside_results_root(self) -> None:
+        run_dir = make_sealed_pass(self.root)
+        results_root = run_dir.parent
+        for target in (results_root, run_dir, run_dir / "browser"):
+            with self.assertRaises(ValueError):
+                write_browser(results_root, target)
+
+    def test_report_headings_nest_beneath_step_names(self) -> None:
+        run_dir = make_sealed_pass(self.root)
+        html_text = render_run(build_run_view(run_dir))
+        # Step names are h3; report "#" headings must start at h4 so the
+        # outline stays strictly nested.
+        self.assertIn("<h4>", html_text)
+        report_start = html_text.index("Step reports")
+        self.assertNotIn("<h3>Matrix campaign", html_text[report_start:])
 
 
 if __name__ == "__main__":

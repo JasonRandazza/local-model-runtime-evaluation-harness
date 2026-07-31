@@ -59,13 +59,22 @@ _REPORT_SUFFIXES = (".md", ".json")
 def _load_json(path: Path) -> dict | None:
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, ValueError):
+        # ValueError covers both JSONDecodeError and UnicodeDecodeError so a
+        # single bad byte degrades one row instead of aborting the index.
         return None
     return raw if isinstance(raw, dict) else None
 
 
 def classify_bundle(run_dir: Path) -> tuple[str, str]:
     """Return (health, detail). detail is '' for healthy, else 'code: message'."""
+    if run_dir.is_symlink():
+        # Never follow symlinks: a link named like a run could otherwise
+        # publish files from outside the results root.
+        return (
+            HEALTH_UNRECOGNIZED,
+            "unrecognized_run_dir: symlinked entries are not followed",
+        )
     if not run_dir.is_dir() or not SAFE_RUN_ID.fullmatch(run_dir.name):
         return (
             HEALTH_UNRECOGNIZED,
@@ -113,7 +122,9 @@ def _index_entry(run_dir: Path) -> dict:
         "run_status": None,
         "created_at": None,
     }
-    if health == HEALTH_UNRECOGNIZED:
+    if health in _DEGRADED_HEALTHS:
+        # Mirror build_run_view's fail-closed gate: no identity or status is
+        # shown for bundles the browser has refused to vet.
         return entry
     try:
         bundle = EvidenceBundle.load(run_dir)
@@ -269,8 +280,12 @@ def _lifecycle_summary(run_dir: Path) -> dict:
     path = run_dir / "lifecycle.jsonl"
     leases: dict[str, dict] = {}
     unparsed = 0
-    if path.is_file():
-        for line in path.read_text(encoding="utf-8").splitlines():
+    try:
+        text = path.read_text(encoding="utf-8") if path.is_file() else ""
+    except (OSError, UnicodeDecodeError):
+        return {"leases": [], "unparsed_lines": 1}
+    if text:
+        for line in text.splitlines():
             if not line.strip():
                 continue
             try:
@@ -342,7 +357,7 @@ def _step_reports(run_dir: Path, state: ManagedRunState) -> dict:
         if report_path.is_file():
             try:
                 reports[record.step.value] = report_path.read_text(encoding="utf-8")
-            except OSError:
+            except (OSError, UnicodeDecodeError):
                 continue
     return reports
 

@@ -345,5 +345,62 @@ class BuildRunViewTests(unittest.TestCase):
         )
 
 
+class ReviewRegressionTests(unittest.TestCase):
+    """Fixes validated during the results-browser review wave."""
+
+    def setUp(self) -> None:
+        self.temporary = TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def test_symlinked_run_dir_is_unrecognized_and_never_followed(self) -> None:
+        real_run = make_sealed_pass(self.root)
+        outside = self.root / "outside"
+        outside.mkdir()
+        link = real_run.parent / "run-20260731-000000-abcdef"
+        link.symlink_to(outside)
+
+        health, detail = classify_bundle(link)
+        self.assertEqual(health, HEALTH_UNRECOGNIZED)
+        self.assertIn("symlink", detail)
+
+        index = build_index(real_run.parent)
+        by_name = {e["run_dir_name"]: e for e in index["entries"]}
+        self.assertEqual(
+            by_name["run-20260731-000000-abcdef"]["health"], HEALTH_UNRECOGNIZED
+        )
+
+    def test_index_entry_fails_closed_for_unsupported_schema(self) -> None:
+        run_dir = make_unsupported_schema(self.root)
+        index = build_index(run_dir.parent)
+        entry = next(
+            e for e in index["entries"] if e["run_dir_name"] == run_dir.name
+        )
+        self.assertEqual(entry["health"], HEALTH_UNSUPPORTED_SCHEMA)
+        self.assertIsNone(entry["run_name"])
+        self.assertIsNone(entry["run_id"])
+        self.assertIsNone(entry["run_status"])
+        self.assertIsNone(entry["created_at"])
+
+    def test_bad_bytes_degrade_one_row_without_aborting_index(self) -> None:
+        good = make_sealed_pass(self.root)
+        bad = make_unsealed_running(self.root)
+        (bad / "plan.json").write_bytes(b"\xff\xfe\x00 not utf8")
+        lifecycle = good / "lifecycle.jsonl"
+        # Appending bad bytes to the sealed bundle's journal corrupts it, but
+        # the index must still render every row rather than raising.
+        with lifecycle.open("ab") as stream:
+            stream.write(b"\xff\xff\n")
+
+        index = build_index(good.parent)
+        by_name = {e["run_dir_name"]: e for e in index["entries"]}
+        self.assertEqual(by_name[bad.name]["health"], HEALTH_UNREADABLE)
+        self.assertIn(by_name[good.name]["health"], (HEALTH_SEALED_CORRUPT,))
+        view = build_run_view(good)
+        self.assertEqual(view["health"], HEALTH_SEALED_CORRUPT)
+
+
 if __name__ == "__main__":
     unittest.main()

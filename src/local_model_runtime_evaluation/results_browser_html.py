@@ -318,7 +318,9 @@ def _render_report(text: str) -> str:
         heading = _HEADING_RE.match(stripped)
         if heading is not None:
             flush()
-            level = len(heading.group(1)) + 2  # "#" -> h3, "##" -> h4, ...
+            # Reports render beneath an <h3> step name, so "#" -> h4 keeps
+            # the document outline strictly nested for screen readers.
+            level = min(len(heading.group(1)) + 3, 6)
             heading_text = html.escape(heading.group(2))
             out.append(f"<h{level}>{heading_text}</h{level}>")
             index += 1
@@ -370,7 +372,7 @@ def render_run(view: dict) -> str:
 
     parts.append("<h2>Summary</h2>")
     if view["summary"] is None:
-        parts.append("<p>summary not written</p>")
+        parts.append("<p>Summary is not written for this bundle.</p>")
     else:
         parts.append(_kv_table(view["summary"]))
 
@@ -407,6 +409,15 @@ def render_run(view: dict) -> str:
 
 def write_browser(results_root: Path, output_root: Path) -> dict:
     """Render the full browser to output_root. Never raises for bad bundles."""
+    resolved_output = output_root.resolve()
+    resolved_results = results_root.resolve()
+    if resolved_output == resolved_results or resolved_output.is_relative_to(
+        resolved_results
+    ):
+        raise ValueError(
+            "browser output must not be written inside the results root; "
+            "evidence bundles are read-only"
+        )
     index = build_index(results_root)
 
     output_root.mkdir(parents=True, exist_ok=True)
