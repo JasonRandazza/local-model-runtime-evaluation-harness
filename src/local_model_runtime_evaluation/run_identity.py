@@ -147,12 +147,48 @@ def _canonical_plan_hash(plan: ManagedRunPlan) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError as error:
+        raise RunIdentityError(
+            f"managed plan input is unreadable: {path}"
+        ) from error
+    return digest.hexdigest()
+
+
+def _hash_inputs(paths: set[Path]) -> tuple[tuple[str, str], ...]:
+    return tuple(
+        sorted(
+            (_repo_relative(path), _sha256(path))
+            for path in paths
+        )
+    )
+
+
 def verify_plan_hash(plan: ManagedRunPlan) -> None:
     if not plan.plan_hash or plan.plan_hash != _canonical_plan_hash(plan):
         raise RunIdentityError(
             "managed run plan hash mismatch",
             code="plan_hash_mismatch",
         )
+
+
+def verify_plan_inputs(
+    plan: ManagedRunPlan,
+    *,
+    repository_root: Path = REPOSITORY_ROOT,
+) -> None:
+    for relative, expected in plan.input_hashes:
+        path = repository_root / relative
+        if not path.is_file() or _sha256(path) != expected:
+            raise RunIdentityError(
+                f"managed plan input changed: {relative}",
+                code="plan_input_changed",
+            )
 
 
 def _repo_relative(path: Path) -> str:
@@ -286,6 +322,31 @@ def build_plan(
         raise RunIdentityError("managed suite is invalid") from error
     if campaign.memory_floor_percent != int(recipe["memory_floor_percent"]):
         raise RunIdentityError("recipe and campaign memory floors must agree")
+    input_paths = {
+        recipe_path,
+        campaign_path,
+        campaign.suite_path,
+        DEFAULT_PREFERENCE_SUITE,
+        DEFAULT_RAG_SUITE,
+        REPOSITORY_ROOT
+        / "config"
+        / "matrix"
+        / "families"
+        / f"{family_id}.json",
+        REPOSITORY_ROOT / "config" / "preference" / "family-cells.json",
+        REPOSITORY_ROOT / "config" / "rag" / "family-cells.json",
+        REPOSITORY_ROOT / "config" / "overhead" / "family-pairs.json",
+        *campaign.cell_paths,
+        *(
+            DEFAULT_PAIRS_ROOT / f"{pair_id}.json"
+            for pair_id in pair_ids
+        ),
+        *(
+            path
+            for path in DEFAULT_RAG_CORPUS.rglob("*")
+            if path.is_file()
+        ),
+    }
 
     recipe_id = str(recipe["recipe_id"])
     resolved_name = (
@@ -330,6 +391,7 @@ def build_plan(
         rag_corpus_path=_repo_relative(DEFAULT_RAG_CORPUS),
         cells_root=_repo_relative(DEFAULT_CELLS_ROOT),
         pairs_root=_repo_relative(DEFAULT_PAIRS_ROOT),
+        input_hashes=_hash_inputs(input_paths),
         endpoints=endpoints,
         runtimes=frozenset({"osaurus", "omlx", "optiq"}),
         request_count=_request_count(
@@ -346,5 +408,6 @@ def build_plan(
         plan_hash="",
     )
     resolved = replace(plan, plan_hash=_canonical_plan_hash(plan))
+    verify_plan_inputs(resolved)
     verify_plan_hash(resolved)
     return resolved

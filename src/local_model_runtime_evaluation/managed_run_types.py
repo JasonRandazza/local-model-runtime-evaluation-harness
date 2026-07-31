@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+import re
+from pathlib import PurePosixPath
 from typing import Any
 
 from .operator_policy import PolicyRequest
 
 
 MANAGED_PLAN_SCHEMA_VERSION = "1.0.0"
+SHA256_HEX = re.compile(r"[0-9a-f]{64}")
 
 
 class ManagedStep(StrEnum):
@@ -109,6 +112,7 @@ class ManagedRunPlan:
     rag_corpus_path: str
     cells_root: str
     pairs_root: str
+    input_hashes: tuple[tuple[str, str], ...]
     endpoints: tuple[str, ...]
     runtimes: frozenset[str]
     request_count: int
@@ -133,6 +137,7 @@ class ManagedRunPlan:
             "rag_corpus_path": self.rag_corpus_path,
             "cells_root": self.cells_root,
             "pairs_root": self.pairs_root,
+            "input_hashes": dict(self.input_hashes),
             "endpoints": list(self.endpoints),
             "runtimes": sorted(self.runtimes),
             "request_count": self.request_count,
@@ -161,6 +166,7 @@ class ManagedRunPlan:
             "rag_corpus_path",
             "cells_root",
             "pairs_root",
+            "input_hashes",
             "endpoints",
             "runtimes",
             "request_count",
@@ -174,6 +180,7 @@ class ManagedRunPlan:
             raise ValueError("managed run plan fields are invalid")
         identity = data["identity"]
         suite_paths = data["suite_paths"]
+        input_hashes = data["input_hashes"]
         sequence_fields = (
             "steps",
             "cell_ids",
@@ -181,7 +188,11 @@ class ManagedRunPlan:
             "endpoints",
             "runtimes",
         )
-        if not isinstance(identity, dict) or not isinstance(suite_paths, dict):
+        if (
+            not isinstance(identity, dict)
+            or not isinstance(suite_paths, dict)
+            or not isinstance(input_hashes, dict)
+        ):
             raise ValueError("managed run plan object field is invalid")
         if any(not isinstance(data[field], list) for field in sequence_fields):
             raise ValueError("managed run plan sequence field is invalid")
@@ -212,6 +223,16 @@ class ManagedRunPlan:
             for key, value in suite_paths.items()
         ):
             raise ValueError("managed run suite_paths is invalid")
+        if not input_hashes or not all(
+            isinstance(path, str)
+            and path
+            and not PurePosixPath(path).is_absolute()
+            and ".." not in PurePosixPath(path).parts
+            and isinstance(digest, str)
+            and SHA256_HEX.fullmatch(digest)
+            for path, digest in input_hashes.items()
+        ):
+            raise ValueError("managed run input_hashes is invalid")
         try:
             steps = tuple(ManagedStep(value) for value in data["steps"])
         except (TypeError, ValueError) as error:
@@ -236,6 +257,10 @@ class ManagedRunPlan:
             rag_corpus_path=data["rag_corpus_path"],
             cells_root=data["cells_root"],
             pairs_root=data["pairs_root"],
+            input_hashes=tuple(
+                (str(path), str(digest))
+                for path, digest in sorted(input_hashes.items())
+            ),
             endpoints=tuple(data["endpoints"]),
             runtimes=frozenset(data["runtimes"]),
             request_count=data["request_count"],

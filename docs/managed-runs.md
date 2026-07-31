@@ -41,6 +41,13 @@ Plan, inspect, and execute:
 The plan is non-live but writes an immutable run bundle under
 `results/runs/<run-id>/`. Execution runs preflight, matrix, preference, RAG
 oracle, RAG keyword, routing overhead, cleanup, and seal in that order.
+The plan binds SHA-256 hashes for its recipe, campaign, selected cells, suites,
+pair definitions, family mappings, and RAG corpus. If any bound input changes,
+create a new plan; execution and resume reject the stale plan before inference.
+
+Only one managed `run` or `resume` may hold `.lmre/active-run.lock` at a time.
+If a host crash leaves that file behind, first verify that its recorded PID is
+no longer active before removing the stale lock.
 
 If the native steps pass but Osaurus does not expose every exact routed model,
 the run seals as `PARTIAL_BLOCKED`. Reconnect the existing provider in the
@@ -55,6 +62,11 @@ Resume verifies the original checksums, plan hash, policy hash, terminal state,
 and exact routed IDs before creating only
 `steps/overhead/attempt-002/`. It never repeats or overwrites the completed
 native evidence.
+
+The route check starts or attaches the planned Osaurus runtime and holds that
+lease through overhead. Cleanup uses the fixed `osaurus stop` command only for
+a harness-owned or reclaimed Osaurus lease; a matching attached Osaurus
+process remains untouched.
 
 ## Runtime Ownership
 

@@ -17,6 +17,7 @@ from .credentials import (
 from .evidence_bundle import EvidenceBundle
 from .matrix_config import REPOSITORY_ROOT, Campaign, Cell, MatrixSuite, load_family
 from .matrix_runner import run_campaign
+from .matrix_servers import ServerHandle
 from .managed_run_types import (
     ManagedRunPlan,
     ManagedStep,
@@ -35,7 +36,7 @@ from .rag_collect import run_collect as run_rag_collect
 from .rag_config import RagCorpus, RagSuite
 from .rag_score import score_run
 from .resources import HostResourceProbe
-from .run_identity import verify_plan_hash
+from .run_identity import verify_plan_hash, verify_plan_inputs
 from .runtime_manager import RuntimeManager
 from .transport import LoopbackTransport
 
@@ -66,16 +67,17 @@ def default_collector_hooks(
 ) -> ManagedCollectorHooks:
     """Bind the retained collectors to one immutable managed plan."""
 
-    del bundle
     campaign = Campaign.load(_repo_path(plan.campaign_path))
     cells_root = _repo_path(plan.cells_root)
     pairs_root = _repo_path(plan.pairs_root)
     preference_path = _repo_path(plan.suite_path(ManagedStep.PREFERENCE))
     rag_path = _repo_path(plan.suite_path(ManagedStep.RAG_ORACLE))
     corpus_root = _repo_path(plan.rag_corpus_path)
+    route_handle: ServerHandle | None = None
 
     def preflight(candidate: ManagedRunPlan) -> dict[str, object]:
         verify_plan_hash(candidate)
+        verify_plan_inputs(candidate)
         loaded_campaign = Campaign.load(_repo_path(candidate.campaign_path))
         MatrixSuite.load(_repo_path(candidate.suite_path(ManagedStep.MATRIX)))
         PreferenceSuite.load(
@@ -202,12 +204,36 @@ def default_collector_hooks(
         return score_run(run_dir, suite)
 
     def routed_models(candidate: ManagedRunPlan) -> tuple[str, ...]:
-        del candidate
+        nonlocal route_handle
         base_url = "http://127.0.0.1:1337/v1"
         credential = KeychainCredentialProvider(
             service=OSAURUS_KEYCHAIN_SERVICE
         ).get()
-        return LoopbackTransport({base_url}).list_models(
+        transport = LoopbackTransport(set(candidate.endpoints))
+        if route_handle is None:
+            family = load_family(candidate.family_id)
+            osaurus_cell: Cell | None = None
+            for cell_id in candidate.cell_ids:
+                cell = Cell.load(
+                    _repo_path(candidate.cells_root) / f"{cell_id}.json",
+                    family=family,
+                )
+                if cell.server == "osaurus":
+                    osaurus_cell = cell
+                    break
+            if osaurus_cell is None:
+                raise RuntimeError(
+                    "managed route check requires one Osaurus native cell"
+                )
+            route_handle = runtime_manager.build_server(
+                osaurus_cell,
+                transport,
+                bundle.run_dir / "runtime-logs",
+                credential,
+            )
+            route_handle.start()
+            route_handle.wait_ready(osaurus_cell.model_id, 180.0)
+        return transport.list_models(
             base_url,
             credential,
         )
@@ -355,8 +381,10 @@ def execute_managed_run(
     missing_routes: tuple[str, ...] = ()
     try:
         verify_plan_hash(plan)
+        verify_plan_inputs(plan)
         if bundle.plan.plan_hash != plan.plan_hash:
             raise ValueError("evidence bundle plan does not match execution plan")
+        _verify_policy_snapshot(bundle, adopted_policy)
         authorize(adopted_policy.policy, plan.policy_request())
         bundle.append_event(
             "policy_authorized",
@@ -467,7 +495,7 @@ def execute_managed_run(
     return summary
 
 
-def _verify_resume_policy(
+def _verify_policy_snapshot(
     bundle: EvidenceBundle,
     adopted_policy: AdoptedPolicy,
 ) -> None:
@@ -480,9 +508,10 @@ def _verify_resume_policy(
         not isinstance(snapshot, dict)
         or snapshot.get("policy_hash") != adopted_policy.policy_hash
         or snapshot.get("policy") != adopted_policy.policy.to_dict()
+        or snapshot.get("adopted_at") != adopted_policy.adopted_at
     ):
         raise RuntimeError(
-            "current adopted policy does not match the sealed run"
+            "current adopted policy does not match the run policy snapshot"
         )
 
 
@@ -521,7 +550,8 @@ def resume_managed_run(
                 "only a sealed provider-blocked run may resume"
             )
         verify_plan_hash(bundle.plan)
-        _verify_resume_policy(bundle, adopted_policy)
+        verify_plan_inputs(bundle.plan)
+        _verify_policy_snapshot(bundle, adopted_policy)
         authorize(adopted_policy.policy, bundle.plan.policy_request())
 
         routed = frozenset(hooks.routed_models(bundle.plan))

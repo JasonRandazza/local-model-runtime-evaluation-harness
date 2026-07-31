@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import json
+import os
 import platform
 import re
 import sys
@@ -38,6 +40,7 @@ from .transport import LoopbackTransport
 
 DEFAULT_STATE_DIR = Path(".lmre")
 DEFAULT_RESULTS_DIR = Path("results/runs")
+ACTIVE_RUN_LOCK = "active-run.lock"
 _SECRET_VALUE = re.compile(
     r"(?i)(api[_-]?key|authorization|credential|password|secret|token)"
     r"(\s*[:=]\s*)([^\s,;]+)"
@@ -81,6 +84,36 @@ def _policy_payload(adopted: AdoptedPolicy) -> dict[str, object]:
 
 def _run_dir(results_dir: Path, run_id: str) -> Path:
     return results_dir / run_id
+
+
+@contextmanager
+def _active_run_lock(state_dir: Path, run_id: str):
+    state_dir.mkdir(parents=True, exist_ok=True)
+    path = state_dir / ACTIVE_RUN_LOCK
+    try:
+        descriptor = os.open(
+            path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o600,
+        )
+    except FileExistsError as error:
+        raise RuntimeError(
+            "another active managed run or resume holds the local run lock"
+        ) from error
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(
+                {
+                    "pid": os.getpid(),
+                    "run_id": run_id,
+                },
+                stream,
+                sort_keys=True,
+            )
+            stream.write("\n")
+        yield
+    finally:
+        path.unlink(missing_ok=True)
 
 
 def _build_runtime_manager(
@@ -158,28 +191,30 @@ def _command_plan(args: argparse.Namespace) -> dict[str, object]:
 def _command_run(args: argparse.Namespace) -> dict[str, object]:
     adopted = load_adopted_policy(args.state_dir)
     bundle = EvidenceBundle.load(_run_dir(args.results_dir, args.run_id))
-    state = bundle.state
-    if state.sealed or state.summary_state is not RunSummaryState.PENDING:
-        raise RuntimeError("managed run is not an unstarted plan")
-    manager = _build_runtime_manager(bundle.plan, adopted, bundle)
-    hooks = default_collector_hooks(bundle.plan, manager, bundle)
-    return execute_managed_run(
-        bundle.plan,
-        adopted,
-        bundle,
-        manager,
-        hooks,
-    )
+    with _active_run_lock(args.state_dir, args.run_id):
+        state = bundle.state
+        if state.sealed or state.summary_state is not RunSummaryState.PENDING:
+            raise RuntimeError("managed run is not an unstarted plan")
+        manager = _build_runtime_manager(bundle.plan, adopted, bundle)
+        hooks = default_collector_hooks(bundle.plan, manager, bundle)
+        return execute_managed_run(
+            bundle.plan,
+            adopted,
+            bundle,
+            manager,
+            hooks,
+        )
 
 
 def _command_resume(args: argparse.Namespace) -> dict[str, object]:
     adopted = load_adopted_policy(args.state_dir)
     run_dir = _run_dir(args.results_dir, args.run_id)
-    bundle = EvidenceBundle.load(run_dir)
-    bundle.verify()
-    manager = _build_runtime_manager(bundle.plan, adopted, bundle)
-    hooks = default_collector_hooks(bundle.plan, manager, bundle)
-    return resume_managed_run(run_dir, adopted, manager, hooks)
+    with _active_run_lock(args.state_dir, args.run_id):
+        bundle = EvidenceBundle.load(run_dir)
+        bundle.verify()
+        manager = _build_runtime_manager(bundle.plan, adopted, bundle)
+        hooks = default_collector_hooks(bundle.plan, manager, bundle)
+        return resume_managed_run(run_dir, adopted, manager, hooks)
 
 
 def _command_status(args: argparse.Namespace) -> dict[str, object]:

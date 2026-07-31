@@ -246,6 +246,26 @@ class RuntimeAdapterTests(unittest.TestCase):
         self.assertEqual(observation.reason, "listener_absent")
         transport.list_models.assert_not_called()
 
+    def test_owned_osaurus_release_uses_fixed_stop_command(self) -> None:
+        process = MagicMock()
+        process.pid = 222
+        stop_runner = MagicMock()
+        adapter = OsaurusAdapter(
+            inspector=FakeInspector(None),
+            spawner=MagicMock(return_value=process),
+            stop_runner=stop_runner,
+        )
+        requirement = adapter.requirement_from_cell(_osaurus())
+        lease = adapter.start(
+            requirement,
+            _context(FakeTransport(())),
+        )
+
+        adapter.release(lease, _context(FakeTransport(())))
+
+        stop_runner.assert_called_once_with(("osaurus", "stop"))
+        process.stop.assert_not_called()
+
     def test_omlx_in_memory_api_key_is_redacted_from_evidence_command(self) -> None:
         cell = _omlx()
         adapter = OmlxAdapter(

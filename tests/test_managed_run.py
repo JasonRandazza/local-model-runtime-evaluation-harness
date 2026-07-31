@@ -5,10 +5,13 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import MagicMock, patch
 
+from local_model_runtime_evaluation.credentials import Credential
 from local_model_runtime_evaluation.evidence_bundle import EvidenceBundle
 from local_model_runtime_evaluation.managed_run import (
     ManagedCollectorHooks,
+    default_collector_hooks,
     execute_managed_run,
     resume_managed_run,
 )
@@ -261,6 +264,56 @@ class ManagedRunTests(unittest.TestCase):
         self.assertTrue(manager.release_all_called)
         self.bundle.verify()
 
+    def test_initial_run_rejects_changed_policy_snapshot_before_preflight(
+        self,
+    ) -> None:
+        changed_body = self.adopted.policy.to_dict()
+        changed_body["max_run_minutes"] = 91
+        changed_policy = OperatorPolicy.from_dict(changed_body)
+        changed = AdoptedPolicy(
+            changed_policy,
+            canonical_hash(changed_policy.to_dict()),
+            self.adopted.adopted_at,
+        )
+        fake = FakeHooks(self.plan)
+
+        summary = execute_managed_run(
+            self.plan,
+            changed,
+            self.bundle,
+            FakeRuntimeManager(),
+            fake.hooks(),
+        )
+
+        self.assertEqual(summary["status"], "FAIL")
+        self.assertEqual(fake.calls, [])
+        persisted = json.loads(
+            (self.bundle.run_dir / "summary.json").read_text(encoding="utf-8")
+        )
+        self.assertIn(
+            "does not match the run policy snapshot",
+            persisted["error"]["error_message"],
+        )
+
+    def test_initial_run_rejects_readoption_after_planning(self) -> None:
+        readopted = AdoptedPolicy(
+            self.adopted.policy,
+            self.adopted.policy_hash,
+            "2026-07-30T19:00:00+00:00",
+        )
+        fake = FakeHooks(self.plan)
+
+        summary = execute_managed_run(
+            self.plan,
+            readopted,
+            self.bundle,
+            FakeRuntimeManager(),
+            fake.hooks(),
+        )
+
+        self.assertEqual(summary["status"], "FAIL")
+        self.assertEqual(fake.calls, [])
+
     def test_preflight_failure_starts_no_collector(self) -> None:
         fake = FakeHooks(self.plan, fail_at="preflight")
         summary = execute_managed_run(
@@ -366,6 +419,36 @@ class ManagedRunTests(unittest.TestCase):
         )
         self.assertFalse(fake.overhead_called)
         self.bundle.verify()
+
+    def test_default_route_check_starts_managed_osaurus_first(self) -> None:
+        handle = MagicMock()
+        manager = MagicMock()
+        manager.build_server.return_value = handle
+        required = _required_routes(self.plan.pair_ids)
+        with patch(
+            "local_model_runtime_evaluation.managed_run."
+            "KeychainCredentialProvider.get",
+            return_value=Credential("local-test-key"),
+        ), patch(
+            "local_model_runtime_evaluation.managed_run."
+            "LoopbackTransport.list_models",
+            return_value=required,
+        ):
+            hooks = default_collector_hooks(
+                self.plan,
+                manager,
+                self.bundle,
+            )
+            models = hooks.routed_models(self.plan)
+
+        self.assertEqual(models, required)
+        managed_cell = manager.build_server.call_args.args[0]
+        self.assertEqual(managed_cell.server, "osaurus")
+        handle.start.assert_called_once_with()
+        handle.wait_ready.assert_called_once_with(
+            managed_cell.model_id,
+            180.0,
+        )
 
     def test_resume_runs_only_overhead_and_preserves_attempt_one(self) -> None:
         execute_managed_run(

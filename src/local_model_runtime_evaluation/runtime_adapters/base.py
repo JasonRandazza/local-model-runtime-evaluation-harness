@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 from ..credentials import Credential
 from ..managed_run_types import Ownership
 from ..matrix_config import Cell
-from ..matrix_lifecycle import ManagedProcess, spawn_pinned
+from ..matrix_lifecycle import ManagedProcess, run_stop_command, spawn_pinned
 from ..operator_policy import OperatorPolicy, PolicyRequest
 from ..process_inspection import ProcessIdentity, ProcessInspector
 
@@ -37,6 +37,7 @@ Spawner = Callable[[tuple[str, ...], Path], ManagedProcess]
 NoticeSink = Callable[[str], None]
 Sleep = Callable[[float], None]
 Signaler = Callable[[int, signal.Signals], None]
+StopRunner = Callable[[tuple[str, ...]], None]
 
 
 def _no_lifecycle(
@@ -209,10 +210,14 @@ class LoopbackRuntimeAdapter:
         inspector: ProcessInspector,
         spawner: Spawner | None = None,
         signaler: Signaler | None = None,
+        stop_runner: StopRunner | None = None,
     ) -> None:
         self._inspector = inspector
         self._spawner = spawn_pinned if spawner is None else spawner
         self._signaler = os.kill if signaler is None else signaler
+        self._stop_runner = (
+            run_stop_command if stop_runner is None else stop_runner
+        )
 
     def requirement_from_cell(self, cell: Cell) -> RuntimeRequirement:
         if cell.server != self.runtime:
@@ -389,6 +394,9 @@ class LoopbackRuntimeAdapter:
                 "owned runtime lease has no managed process"
             )
         try:
-            lease.process.stop()
+            if lease.requirement.stop_command:
+                self._stop_runner(lease.requirement.stop_command)
+            else:
+                lease.process.stop()
         except Exception as error:
             raise RuntimeAdapterError(str(error)) from error

@@ -16,6 +16,7 @@ from local_model_runtime_evaluation.run_identity import (
     allocate_run_identity,
     build_plan,
     sanitize_run_name,
+    verify_plan_inputs,
     verify_plan_hash,
 )
 
@@ -131,6 +132,8 @@ class RunIdentityTests(unittest.TestCase):
         self.assertLessEqual(plan.request_count, 250)
         self.assertEqual(plan.memory_floor_percent, 20)
         self.assertEqual(plan.estimated_minutes, 90)
+        self.assertTrue(plan.input_hashes)
+        verify_plan_inputs(plan)
         verify_plan_hash(plan)
 
     def test_generated_name_and_lineage_are_persisted(self) -> None:
@@ -212,6 +215,30 @@ class RunIdentityTests(unittest.TestCase):
         with self.assertRaises(RunIdentityError) as context:
             verify_plan_hash(changed)
         self.assertEqual(context.exception.code, "plan_hash_mismatch")
+
+    def test_changed_planned_input_fails_verification(self) -> None:
+        with TemporaryDirectory() as tmp:
+            plan = build_plan(
+                RECIPE,
+                family_id="gemma-4-12b-qat",
+                run_name=None,
+                comparison_id=None,
+                parent_run_id=None,
+                results_root=Path(tmp),
+                now=_fixed_time(),
+                entropy="a1b2c3",
+            )
+        path, digest = plan.input_hashes[0]
+        self.assertNotEqual(digest, "0" * 64)
+        changed = dataclasses.replace(
+            plan,
+            input_hashes=((path, "0" * 64), *plan.input_hashes[1:]),
+        )
+
+        with self.assertRaises(RunIdentityError) as context:
+            verify_plan_inputs(changed)
+
+        self.assertEqual(context.exception.code, "plan_input_changed")
 
     def test_shared_state_values_match_evidence_contract(self) -> None:
         self.assertEqual(StepState.BLOCKED_PROVIDER_RECONNECT.value, "BLOCKED_PROVIDER_RECONNECT")

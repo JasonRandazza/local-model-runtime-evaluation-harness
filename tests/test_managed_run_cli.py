@@ -178,6 +178,30 @@ class ManagedRunCliTests(unittest.TestCase):
             "evidence_file_missing",
         )
 
+    def test_run_refuses_an_existing_global_active_run_lock(self) -> None:
+        self._adopt()
+        planned = self._plan()
+        self.state_root.mkdir(parents=True, exist_ok=True)
+        (self.state_root / "active-run.lock").write_text(
+            '{"run_id":"other-run"}\n',
+            encoding="utf-8",
+        )
+        with patch(
+            "local_model_runtime_evaluation.managed_run_cli."
+            "execute_managed_run",
+            return_value={"status": "PASS"},
+        ) as execute:
+            code, payload = _main_json(
+                self._global() + ["run", str(planned["run_id"])]
+            )
+
+        self.assertEqual(code, 1)
+        self.assertIn(
+            "active managed run",
+            payload["error"]["message"],  # type: ignore[index]
+        )
+        execute.assert_not_called()
+
     def test_help_names_ui_owned_provider_reconnect(self) -> None:
         output = StringIO()
         with self.assertRaises(SystemExit) as context, redirect_stdout(output):

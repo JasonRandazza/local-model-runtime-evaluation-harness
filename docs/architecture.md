@@ -10,13 +10,16 @@ adopted policy -> immutable plan -> runtime manager -> retained collectors
 Planning and preflight do not silently download, copy, relocate, or remap model
 weights. A family is executable only when its complete native triple passes
 artifact, policy, memory, configuration, and exact runtime checks.
+Run and resume also require unchanged hashes for every bound executable input,
+the exact adopted-policy record captured at planning time, and exclusive
+ownership of the local active-run lock.
 
 ## Active Components
 
 | Component | Responsibility |
 | --- | --- |
 | `operator_policy.py` | Standing local authority, exact limits, adoption record |
-| `run_identity.py` / `managed_run_types.py` | Immutable plan, name, ID, and state contracts |
+| `run_identity.py` / `managed_run_types.py` | Immutable plan, bound input hashes, name, ID, and state contracts |
 | `runtime_adapters/` / `runtime_manager.py` | Exact attach/start/reclaim/release ownership |
 | `managed_run.py` / `managed_run_cli.py` | Fixed collector order, blocking, resume, JSON CLI |
 | `evidence_bundle.py` | Atomic state, lifecycle journal, attempts, checksums, sealing |
