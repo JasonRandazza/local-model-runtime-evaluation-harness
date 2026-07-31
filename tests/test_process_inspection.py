@@ -38,6 +38,7 @@ def _outputs(
     *,
     listener: str = "p321\nn127.0.0.1:8100\n",
     executable: str = "n/Users/test/.venv/bin/python3.11\n",
+    comm: str = "/Users/test/.venv/bin/python3.11\n",
     ppid: str = "100\n",
     started: str = "Thu Jul 30 18:00:00 2026\n",
     command: str = "omlx-server --host 127.0.0.1 --port 8100\n",
@@ -59,6 +60,7 @@ def _outputs(
             "txt",
             "-Fn",
         ): executable,
+        ("/bin/ps", "-ww", "-p", "321", "-o", "comm="): comm,
         ("/bin/ps", "-p", "321", "-o", "ppid="): ppid,
         ("/bin/ps", "-p", "321", "-o", "lstart="): started,
         ("/bin/ps", "-p", "321", "-o", "command="): command,
@@ -83,6 +85,61 @@ class ProcessInspectionTests(unittest.TestCase):
         self.assertEqual(identity.argv[-2:], ("--port", "8100"))
         self.assertEqual(identity.listener_host, "127.0.0.1")
         self.assertEqual(identity.listener_port, 8100)
+
+    def test_mapped_text_files_do_not_make_executable_ambiguous(self) -> None:
+        runner = FakeRunner(
+            _outputs(
+                executable=(
+                    "n/Applications/osaurus.app/Contents/MacOS/osaurus\n"
+                    "n/Applications/osaurus.app/Contents/Frameworks/"
+                    "Sparkle.framework/Versions/B/Sparkle\n"
+                    "n/Users/test/model-00001-of-00010.safetensors\n"
+                ),
+                comm="/Applications/osaurus.app/Contents/MacOS/osaurus\n",
+                command="/Applications/osaurus.app/Contents/MacOS/osaurus\n",
+            )
+        )
+
+        identity = ProcessInspector(runner=runner).inspect_listener(
+            "127.0.0.1",
+            8100,
+        )
+
+        self.assertIsNotNone(identity)
+        assert identity is not None
+        self.assertEqual(
+            identity.executable,
+            "/Applications/osaurus.app/Contents/MacOS/osaurus",
+        )
+
+    def test_rewritten_process_title_uses_first_program_text_path(self) -> None:
+        runner = FakeRunner(
+            _outputs(
+                executable=(
+                    "n/Applications/oMLX.app/Contents/Resources/Python/"
+                    "cpython-3.11/bin/python3.11\n"
+                    "n/Applications/oMLX.app/Contents/Resources/Python/"
+                    "framework-mlx-base/lib/python3.11/site-packages/"
+                    "mlx/core.cpython-311-darwin.so\n"
+                ),
+                comm="omlx-server\n",
+            )
+        )
+
+        identity = ProcessInspector(runner=runner).inspect_listener(
+            "127.0.0.1",
+            8100,
+        )
+
+        self.assertIsNotNone(identity)
+        assert identity is not None
+        self.assertEqual(
+            identity.executable,
+            (
+                "/Applications/oMLX.app/Contents/Resources/Python/"
+                "cpython-3.11/bin/python3.11"
+            ),
+        )
 
     def test_no_listener_returns_none(self) -> None:
         command = (
@@ -129,7 +186,12 @@ class ProcessInspectionTests(unittest.TestCase):
         )
 
     def test_missing_absolute_executable_fails_closed(self) -> None:
-        runner = FakeRunner(_outputs(executable="nomlx-server\n"))
+        runner = FakeRunner(
+            _outputs(
+                executable="nomlx-server\n",
+                comm="omlx-server\n",
+            )
+        )
         with self.assertRaises(ProcessInspectionError):
             ProcessInspector(runner=runner).inspect_listener(
                 "127.0.0.1",

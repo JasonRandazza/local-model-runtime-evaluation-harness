@@ -158,6 +158,18 @@ class ProcessInspector:
         )
 
     def _executable(self, pid: int) -> str:
+        comm_command = (
+            "/bin/ps",
+            "-ww",
+            "-p",
+            str(pid),
+            "-o",
+            "comm=",
+        )
+        comm_result = self._run(comm_command)
+        comm = comm_result.stdout.strip()
+        if comm_result.returncode != 0 or not comm:
+            raise ProcessInspectionError("runtime executable lookup failed")
         command = (
             "/usr/sbin/lsof",
             "-a",
@@ -170,17 +182,28 @@ class ProcessInspector:
         result = self._run(command)
         if result.returncode != 0:
             raise ProcessInspectionError("runtime executable lookup failed")
-        paths = {
+        paths = [
             line[1:]
             for line in result.stdout.splitlines()
-            if line.startswith("n") and Path(line[1:]).is_absolute()
-        }
-        if len(paths) != 1:
+            if line.startswith("n")
+        ]
+        if not paths:
+            raise ProcessInspectionError(
+                "runtime executable lookup failed"
+            )
+        if Path(comm).is_absolute():
+            if comm not in paths:
+                raise ProcessInspectionError(
+                    "runtime executable path is ambiguous",
+                    code="runtime_process_ambiguous",
+                )
+            return comm
+        if not Path(paths[0]).is_absolute():
             raise ProcessInspectionError(
                 "runtime executable path is ambiguous",
                 code="runtime_process_ambiguous",
             )
-        return next(iter(paths))
+        return paths[0]
 
     def _integer_ps(self, pid: int, field: str) -> int:
         value = self._text_ps(pid, field)
