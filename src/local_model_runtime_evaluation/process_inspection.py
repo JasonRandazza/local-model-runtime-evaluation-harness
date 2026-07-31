@@ -193,10 +193,26 @@ class ProcessInspector:
             )
         if Path(comm).is_absolute():
             if comm not in paths:
-                raise ProcessInspectionError(
-                    "runtime executable path is ambiguous",
-                    code="runtime_process_ambiguous",
-                )
+                try:
+                    resolved_comm = Path(comm).resolve(strict=True)
+                except OSError as error:
+                    raise ProcessInspectionError(
+                        "runtime executable path is ambiguous",
+                        code="runtime_process_ambiguous",
+                    ) from error
+                resolved_matches = []
+                for path in paths:
+                    try:
+                        resolved_path = Path(path).resolve(strict=True)
+                    except OSError:
+                        continue
+                    if resolved_path == resolved_comm:
+                        resolved_matches.append(path)
+                if len(resolved_matches) != 1:
+                    raise ProcessInspectionError(
+                        "runtime executable path is ambiguous",
+                        code="runtime_process_ambiguous",
+                    )
             return comm
         if not Path(paths[0]).is_absolute():
             raise ProcessInspectionError(
