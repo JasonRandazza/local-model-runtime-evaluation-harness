@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import subprocess
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from local_model_runtime_evaluation.process_inspection import (
     ProcessIdentity,
@@ -140,6 +142,30 @@ class ProcessInspectionTests(unittest.TestCase):
                 "cpython-3.11/bin/python3.11"
             ),
         )
+
+    def test_symlinked_comm_matches_canonical_program_text_path(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "python3.12"
+            target.touch()
+            symlink = root / "python3"
+            symlink.symlink_to(target)
+            runner = FakeRunner(
+                _outputs(
+                    executable=f"n{target}\n",
+                    comm=f"{symlink}\n",
+                    command=f"{symlink} optiq serve --port 8100\n",
+                )
+            )
+
+            identity = ProcessInspector(runner=runner).inspect_listener(
+                "127.0.0.1",
+                8100,
+            )
+
+            self.assertIsNotNone(identity)
+            assert identity is not None
+            self.assertEqual(identity.executable, str(symlink))
 
     def test_no_listener_returns_none(self) -> None:
         command = (
