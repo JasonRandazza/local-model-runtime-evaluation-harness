@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/lmre/operator-policy.schema.json",
+  "title": "LMRE standing local operator policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "policy_id",
+    "authorization_mode",
+    "loopback_only",
+    "allowed_runtimes",
+    "allow_inference",
+    "allow_start",
+    "allow_exact_reclaim",
+    "reclaim_grace_seconds",
+    "allow_terminate_after_interrupt",
+    "allow_force_kill",
+    "allow_provider_edits",
+    "max_parallel_models",
+    "memory_floor_percent",
+    "max_run_minutes",
+    "max_requests_per_run",
+    "expires_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "policy_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "authorization_mode": {
+      "const": "standing_local"
+    },
+    "loopback_only": {
+      "const": true
+    },
+    "allowed_runtimes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "osaurus",
+          "omlx",
+          "optiq"
+        ]
+      }
+    },
+    "allow_inference": {
+      "type": "boolean"
+    },
+    "allow_start": {
+      "type": "boolean"
+    },
+    "allow_exact_reclaim": {
+      "type": "boolean"
+    },
+    "reclaim_grace_seconds": {
+      "const": 60
+    },
+    "allow_terminate_after_interrupt": {
+      "type": "boolean"
+    },
+    "allow_force_kill": {
+      "const": false
+    },
+    "allow_provider_edits": {
+      "const": false
+    },
+    "max_parallel_models": {
+      "const": 1
+    },
+    "memory_floor_percent": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "max_run_minutes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "max_requests_per_run": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "expires_at": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^(?:\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?)(?:Z|\\+00:00)$"
+        }
+      ]
+    }
+  }
+}

@@ -63,6 +63,7 @@ class DiscoveryCliTests(unittest.TestCase):
                 path_exists=lambda _p: True,
                 preference_recipes={"gemma-4-12b-qat": cells},
                 rag_recipes={"gemma-4-12b-qat": cells},
+                credential_for=lambda _server: None,
             )
             self.assertTrue(summary["ok"])
             self.assertIn("gemma-4-12b-qat", summary["executable_families"])

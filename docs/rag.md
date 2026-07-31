@@ -1,6 +1,12 @@
 # Multi-Family RAG Oracle and Keyword
 
-Family-first oracle-injected gold context or **keyword** term-overlap retrieval on matrix **PASS** cells. Automatic **fact-hit rate** scoring for all modes; keyword runs also score **recall@k** and **precision@k** against suite gold chunk ids. Separate from `lmre-preference` and `lmre-matrix`; Stage 0–2B machinery stays frozen.
+> **Documentation role:** Low-level collector reference. For normal live
+> evaluation, follow [managed-runs.md](managed-runs.md). A direct user request
+> to execute plus an adopted policy authorizing the immutable plan is
+> sufficient; managed RAG steps do not require separate approval prompts.
+> Direct use of `lmre-rag` must itself be explicitly requested.
+
+Family-first oracle-injected gold context or **keyword** term-overlap retrieval on matrix **PASS** cells. Automatic **fact-hit rate** scoring for all modes; keyword runs also score **recall@k** and **precision@k** against suite gold chunk ids. Separate from `lmre-preference` and `lmre-matrix`; retired orchestration is preserved in the sibling archive.
 
 Suite default: `suites/multi-family-rag-oracle-v1.json` (`max_tokens` 2048) so Osaurus-native thinking builds (notably Ornith JANG) can emit visible `content` after `reasoning_content`. Historical `suites/gemma-rag-oracle-v1.json` revision `2` remains loadable; its revision `1` (`256`) is evidence-only.
 
@@ -108,7 +114,9 @@ Keyword mode:
 ./bin/lmre-rag collect --mode keyword --dry-config
 ```
 
-## Workflow
+## Direct low-level workflow
+
+These commands bypass the managed plan and evidence coordinator.
 
 1. **Collect** — one cell at a time, six prompts per cell:
 
@@ -117,13 +125,13 @@ Keyword mode:
 ./bin/lmre-rag collect --mode keyword --top-k 2
 ```
 
-Ornith live collect (only after separate operator authorize):
+Ornith direct live collect:
 
 ```bash
 ./bin/lmre-rag collect --family ornith-35b
 ```
 
-Qwen live collect (only after separate operator authorize):
+Qwen direct live collect:
 
 ```bash
 ./bin/lmre-rag collect --family qwen36-35b-a3b
@@ -163,7 +171,7 @@ Not CI — manual operator verification only:
 **Oracle (Phase 1 regression):**
 
 - [ ] `./bin/lmre-rag collect --dry-config`
-- [ ] Obtain Jason's in-session authorization for live collect
+- [ ] Confirm the user explicitly requested this direct low-level live collect
 - [ ] `./bin/lmre-rag collect`
 - [ ] `./bin/lmre-rag score --run results/rag/gemma-4-12b-qat-rag-<timestamp>`
 - [ ] Confirm `report.md` ranks cells by mean hit rate
@@ -171,7 +179,7 @@ Not CI — manual operator verification only:
 **Keyword (Phase 2):**
 
 - [ ] `./bin/lmre-rag collect --mode keyword --dry-config`
-- [ ] Obtain Jason's in-session authorization for live keyword collect
+- [ ] Confirm the user explicitly requested this direct low-level keyword collect
 - [ ] `./bin/lmre-rag collect --mode keyword --top-k 2`
 - [ ] `./bin/lmre-rag score --run results/rag/gemma-4-12b-qat-rag-<timestamp>`
 - [ ] Confirm `report.md` includes retrieval and fact-hit rankings
@@ -190,8 +198,10 @@ Latency is metadata only; scoring uses case-sensitive required-fact substring hi
 
 ## Safety
 
-- **Live collect requires Jason's in-session authorization.** Do not run collect without explicit operator approval.
-- **Stage 2B sealed cohorts remain historical evidence.** These docs do not authorize a new Gate B, Stage 2B run ID, or plugin changes.
+- Direct `lmre-rag collect` requires an explicit user request. A managed run
+  follows its adopted policy and immutable plan without separate RAG approval.
+- Historical Stage 2B evidence is archived and does not authorize an
+  active-product run.
 - Pinned cell start argv only; harness starts and stops only what each cell defines.
 - One cell at a time; verify port free and RAM floor between cells.
 

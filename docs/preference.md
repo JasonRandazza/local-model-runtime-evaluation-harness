@@ -1,6 +1,12 @@
 # Multi-Family Preference Quality POC
 
-Family-first pairwise human preference on matrix **PASS** cells using a six-prompt pack. Separate from `lmre-matrix` performance reports; Stage 0–2B machinery stays frozen.
+> **Documentation role:** Low-level collector reference. For normal live
+> evaluation, follow [managed-runs.md](managed-runs.md). A direct user request
+> to execute plus an adopted policy authorizing the immutable plan is
+> sufficient; managed collection and judging do not require separate approval
+> prompts. Direct use of `lmre-preference` must itself be explicitly requested.
+
+Family-first pairwise human preference on matrix **PASS** cells using a six-prompt pack. Separate from `lmre-matrix` performance reports; retired orchestration is preserved in the sibling archive.
 
 Default suite: `suites/multi-family-preference-v1.json` (`max_tokens` 2048). Historical `suites/gemma-preference-v1.json` remains loadable for old run artifacts.
 
@@ -103,7 +109,9 @@ Judge dry-config (after review):
 
 Prints JSON with `ok: true`, default judge cell, run dir, and pair count. No network or server start.
 
-## Workflow
+## Direct low-level workflow
+
+These commands bypass the managed plan and evidence coordinator.
 
 1. **Collect** — one cell at a time; writes `answers/` under a timestamped run dir.
 2. **Review** — builds blind `review.md`, `pairs.json`, and an empty `judgments.json` stub.
@@ -121,13 +129,13 @@ Prints JSON with `ok: true`, default judge cell, run dir, and pair count. No net
 ./bin/lmre-preference tally --run results/preference/gemma-4-12b-qat-preference-<timestamp>
 ```
 
-Ornith live collect (only after separate operator authorize):
+Ornith direct live collect:
 
 ```bash
 ./bin/lmre-preference collect --family ornith-35b
 ```
 
-Qwen live collect (only after separate operator authorize):
+Qwen direct live collect:
 
 ```bash
 ./bin/lmre-preference collect --family qwen36-35b-a3b
@@ -189,9 +197,11 @@ Latency is not used for preference scoring.
 
 ## Safety
 
-- **Live collect requires Jason's in-session authorization.** Do not run collect without explicit operator approval.
-- **Live judge requires Jason's in-session authorization.** Do not run `judge` without explicit operator approval.
-- **Stage 2B sealed cohorts remain historical evidence.** These docs do not authorize a new Gate B, Stage 2B run ID, or plugin changes.
+- Direct low-level `collect` and `judge` require an explicit user request.
+  During a managed run, the adopted policy authorizes these collector calls
+  without additional per-step confirmation.
+- Historical Stage 2B evidence is archived and does not authorize an
+  active-product run.
 - Pinned cell start argv only; harness starts and stops only what each cell defines.
 - One cell at a time; verify port free and RAM floor between cells.
 

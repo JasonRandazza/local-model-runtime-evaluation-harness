@@ -1,9 +1,20 @@
-# Discovery MVP (Gate A)
+# Discovery
 
-Observe loopback servers and pinned native-triple artifacts, write an auditable proposal, and execute one ready family’s preference + RAG pipelines in-process. Gate A is fake-only; live propose/execute requires separate authorization after Gate A closes.
+> **Documentation role:** Retained low-level discovery and proposal reference.
+> For normal live evaluation, use [managed-runs.md](managed-runs.md). Direct
+> `propose` or `execute` use must be explicitly requested and does not inherit
+> the managed evidence coordinator.
+
+Observe loopback servers and pinned native-triple artifacts, write an auditable
+proposal, and execute one ready family’s preference and RAG pipelines
+in-process.
+
+Fake-only Gate A passed on 2026-07-24. A later separately authorized Gemma
+execution, `discovery-20260725-004`, sealed PASS across preference, RAG oracle,
+and RAG keyword. That consumed authorization does not grant future live access.
 
 Design: `docs/superpowers/specs/2026-07-24-discovery-mvp-design.md`  
-Gate A checklist: `docs/stage-discovery-gate-a.md`
+Historical accepted evidence: `docs/superpowers/verification/2026-07-24-discovery-20260725-004-pass.md`
 
 ## Flow: propose → show → execute
 
@@ -49,16 +60,23 @@ Discovery **never** silently copies, moves, or relocates model weights. Match ch
 
 ## Live authorization
 
-Gate A tests and docs do not authorize live loopback contact, Stage 2 run IDs, provider edits, or plugin changes. Live `propose` / `execute` against real servers requires Jason’s separate current-session authorization after Gate A acceptance.
+Dry-config is non-live. `propose` contacts configured loopback inventories and
+`execute` is retained as a low-level diagnostic surface. Use `./bin/lmre` for
+normal managed live execution. Policy adoption and initiating live execution
+each require an explicit user request; the adopted policy then governs exact
+matching plans. Historical PASS evidence is not reusable authority.
 
 ## OptiQ lifecycle on execute (A+C)
 
-During preference/RAG collect, OptiQ handling is:
+During low-level preference/RAG collection, OptiQ handling is:
 
 - **Attach (A):** if `:8080` is busy and inventory already lists the cell’s exact `model_id`, reuse that serve and do not kill it on cleanup.
-- **Reclaim + pinned restart (C):** if `:8080` is busy with a different/unknown model, send `pkill -INT -f 'optiq serve'`, wait for the port, then start the cell’s pinned `optiq serve --model …`.
+- **Incompatible listener:** fail closed and direct the operator to the managed
+  `lmre` path. Managed execution gives the 60-second notice, revalidates exact
+  process identity, and uses only exact `SIGINT` then bounded `SIGTERM`.
 
-`--allow-model-switch` (pathway B) is **not** used yet — see `docs/superpowers/notes/2026-07-24-optiq-osaurus-model-switch-investigation.md`.
+`--allow-model-switch` (pathway B) is not part of the active baseline. Its
+investigation record is preserved in the sibling archive.
 
 ## Deferred (not in Gate A)
 

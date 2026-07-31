@@ -1,61 +1,92 @@
 # Local Model Runtime Evaluation Harness
 
-This repository contains the executable source of truth for controlled local-model runtime evaluation across Osaurus, oMLX, and mlx-optiq.
+LMRE is a local-first evaluation toolkit for discovering and comparing model
+families across Osaurus, oMLX, and OptiQ on Apple Silicon.
 
-Stage 0 is deliberately non-inference. It validates manifests, typed operations, lifecycle cancellation, cleanup, and artifact integrity without loading a model, contacting an endpoint, or changing an Osaurus provider.
+The active product is managed-run led:
 
-Stage 1 completed two separately gated route-overhead runs for one approved VibeThinker oMLX profile. Their live authority is consumed. Post-Gate C hardening now separates total completion tokens, hidden reasoning tokens, and visible output tokens; independently qualifies TTFT, decode throughput, and token accounting; and reports paired direct-versus-routed deltas. Decode throughput remains null unless exact visible-token evidence and incremental content delivery are both present.
-
-Stage 2A revision `3` is a separately bounded, zero-generation OptiQ route-observation lane. It pins `mlx-optiq 0.3.3`, one VibeThinker OptiQ snapshot, its artifact hashes, and one API-only foreground launcher at `bin/lmre-stage2-operator-serve`. The operator starts that service, explicitly retries or reconnects the existing Osaurus `Optiq` provider, and later stops the foreground launcher with `Ctrl+C`. The harness observes the service and route only: it never starts, stops, signals, restarts, or configures OptiQ or Osaurus.
-
-The installed MLX-LM server returns only `status: ok` from `/health`; that response does not prove model residency. Its generation worker calls `load_default()` during startup even though OptiQ's banner describes a first-request load. The harness therefore binds the pinned model through the exact process command, immutable snapshot, and artifact hashes. Health must be available, optional model diagnostics may not conflict with that pinned identity, and optional activity counters must remain zero. Route discovery uses only `GET /health` and `GET /v1/models` and accepts the exact routed ID `optiq/mlx-community/VibeThinker-3B-OptiQ-4bit`. The worker reaches `awaiting_review` while the operator service remains running. Cleanup requires manual shutdown, verifies the recorded process is absent, observes port `8080` free twice, and reports `service_lifecycle_actions: 0`, including failed and cancelled cleanup paths.
-
-Run `stage2-20260715-002` exercised revision `3` and stopped safely because the worker accepted `status: ok` while Osaurus reports `status: healthy`. Gate B had not applied that same predicate. The worker now accepts both supported healthy forms, and Gate B uses the shared predicate so it cannot authorize a response the worker would reject. The run is cleaned and permanently consumed. A *new* Stage 2A observation cohort would still need Gate B and an unused run ID. Plugin `0.3.0` is unchanged.
-
-Run `stage2-20260715-003` is the accepted Stage 2A revision-3 baseline. It proved the exact operator-owned OptiQ service, provider-prefixed Osaurus route, GET-only observation sequence, manual shutdown gate, final checksum seal, and zero harness model-load, inference, POST, or lifecycle actions. The run is cleaned, independently bundle-validated, and permanently consumed. Stage 2A baseline is complete; later Stage 2B inference/benchmark lanes are separately evidenced below.
-
-Stage 2B-1 Gemma OptiQ inference-path acceptance is evidenced by cohort `stage2-20260721-005` (schema `3.3.0`, eight POSTs, sealed **PASS**). Stage 2B-2 Gemma OptiQ route benchmark is evidenced by cohort `stage2-20260721-006` (schema `3.4.0`, seventy-two POSTs, sealed **PASS**). Both IDs are consumed. Operator OptiQ `0.4.2` (profile revision `3`) smoke and benchmark are evidenced by `stage2-20260723-006` and `stage2-20260723-007` (also consumed). Plugin `0.3.0` is unchanged. See `docs/stage-2b1-gate-a.md` and `docs/stage-2b2-gate-a.md`.
-
-Gate B repeats direct safe-health validation after inventory. Preflight failures preserve bounded partial evidence for manager cleanup without touching operator OptiQ. Cleanup revalidates the exact routed ID, uses atomic checksum replacement, and retains the run lock until a cleaned bundle has been successfully resealed and validated; a post-transition sealing failure is retryable.
-
-The native `cleanup` operation validates the host-owned artifact bundle and returns a bounded evidence summary. Sandbox filesystem access is not part of the Stage 0 acceptance contract.
-
-Historical checksummed bundles are immutable. New aggregation behavior may be applied read-only for supplemental analysis, but it does not rewrite accepted artifacts.
-
-## Gemma 4 12B QAT 3×3 matrix
-
-Nine-cell direct screen (then finalist) across JANG_4M, oQ4-fp16, and OptiQ-4bit on Osaurus, oMLX, and OptiQ. Separate from Stage 2B; no Gate B or plugin involvement.
-
-```bash
-./bin/lmre-matrix --dry-config \
-  --campaign config/matrix/gemma-4-12b-qat-campaign.json
-
-./bin/lmre-matrix --mode screen \
-  --campaign config/matrix/gemma-4-12b-qat-campaign.json
+```text
+adopt reviewed local policy
+  -> create and inspect an immutable plan
+  -> manage exact local runtime leases
+  -> run the native quality sequence
+  -> seal or safely resume honest evidence
 ```
 
-See `docs/matrix.md` for artifact paths, finalist flow, and safety rules.
+The repository no longer carries the retired Stage 0–2 orchestration,
+Package 2 thinking experiments, personal-selection prototype, consumed
+manifests, or native plugin source. Those are preserved in the checksummed
+sibling archive:
 
-## Personal Model Selection (Phase A) — paused 2026-07-16
-
-A lean Osaurus-front-door screen compared Gemma 4 12B native JANG versus OptiQ-behind-Osaurus. Active work is paused; see `docs/personal-selection-temporary-closeout-2026-07-16.md` and the Deep Wiki temporary closeout record.
-
-```bash
-./bin/lmre-personal-select --mode screen \
-  --lane config/personal-selection/lanes/gemma-4-12b-native-osaurus.json
+```text
+/Users/jrazz/Dev/archive/local-model-runtime-evaluation-harness-history-2026-07-30
 ```
 
-## Tools / CLIs
+See [docs/history.md](docs/history.md) for the historical lane summary and
+[docs/status.md](docs/status.md) for the current state.
 
-- **`lmre-discover`** — Discovery MVP (Gate A / non-live): observe loopback + pinned artifacts, write proposal, execute one ready family’s preference + RAG in-process. See `docs/discovery.md` and `docs/stage-discovery-gate-a.md`. Live propose/execute requires separate authorization after Gate A.
-- **`lmre-approach3`** — Free-form cell recipes (Gate A): `dry-config` / `show` / `collect-preference` / `collect-rag`. Live collect requires `--i-understand-live` and remains UNTESTED until sealed. See `docs/superpowers/specs/2026-07-24-approach-3-free-form-cells-design.md` and `docs/superpowers/notes/2026-07-24-non-live-backlog.md`.
+## Active Commands
 
-## Verification
+| Command | Purpose |
+| --- | --- |
+| `./bin/lmre` | Normal managed policy, plan, run, resume, status, and report path |
+| `./bin/lmre-discover` | Discover ready native triples and execute one approved family |
+| `./bin/lmre-approach3` | Run explicit free-form recipes; live evidence remains unsealed |
+| `./bin/lmre-matrix` | Measure one family’s native control triple |
+| `./bin/lmre-preference` | Collect, review, judge, and tally pairwise preference |
+| `./bin/lmre-rag` | Run oracle or keyword RAG evaluation |
+| `./bin/lmre-overhead` | Compare direct and Osaurus-routed latency for native backends |
+
+For a complete managed run, start with:
+
+```bash
+./bin/lmre --help
+```
+
+The other CLIs are retained low-level diagnostic and dry-config surfaces. Use
+the managed `lmre` workflow for normal live evaluation.
+
+Operator documentation:
+
+- [Discovery](docs/discovery.md)
+- [Managed local runs](docs/managed-runs.md)
+- [Native matrix](docs/matrix.md)
+- [Preference](docs/preference.md)
+- [RAG](docs/rag.md)
+- [Routing overhead](docs/overhead.md)
+- [Architecture](docs/architecture.md)
+
+## Safety Boundary
+
+- Dry-config and unit tests are non-live.
+- Policy adoption and initiating live execution each require an explicit user
+  request. Once adopted, the standing policy authorizes matching plans without
+  a new per-request manifest or confirmation prompt.
+- Local runtime contact is loopback-only.
+- One model/server lane runs at a time under the configured memory floor.
+- Credentials remain in approved local stores and must not enter Git, prompts,
+  reports, or generated artifacts.
+- The managed harness may attach to an exact compatible process or start and
+  reclaim only fixed configured runtimes under the adopted policy. Reclaim
+  gives a 60-second notice and uses exact PID identity with `SIGINT`, then
+  bounded `SIGTERM`; broad kill and force kill are forbidden.
+- Osaurus provider edits and external plugin changes are outside this active
+  repository workflow.
+- Model-cache deletion is a separate explicitly authorized storage task.
+
+## Non-Live Verification
 
 ```bash
 PYTHONPATH=src python3 -m unittest discover -s tests -v
+
+./bin/lmre-discover dry-config
+./bin/lmre-approach3 dry-config \
+  config/approach3/gemma-freeform-native-triple-v1.json
+./bin/lmre-matrix --dry-config \
+  --campaign config/matrix/gemma-4-12b-qat-campaign.json
+./bin/lmre-preference collect --dry-config
+./bin/lmre-rag collect --dry-config
+./bin/lmre-overhead run --dry-config
 ```
 
-The native Osaurus plugin is built separately and is not installed by repository tests.
-
-See `docs/stage-1.md`, `docs/stage-2-gate-a.md`, `docs/stage-2b1-gate-a.md`, and `docs/stage-2b2-gate-a.md` for the separate approval boundaries.
+These checks must not contact Osaurus, oMLX, OptiQ, Keychain, or a real model.

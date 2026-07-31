@@ -166,6 +166,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--dry-config",
         action="store_true",
+        default=argparse.SUPPRESS,
         help="Validate pair, cell, and suite configs without network or server start",
     )
 

@@ -1,11 +1,14 @@
 # Native Control Triple + Four-Leg Overhead — Live Evidence (2026-07-23)
 
+> **Historical evidence only.** This seal preserves results and provenance but
+> grants no current execution authority. Current operation follows
+> `AGENTS.md` and `docs/managed-runs.md`.
+
 **Date:** 2026-07-23  
 **Decision:** live follow-on **CLOSED** for the native-triple redesign  
-**Spec:** `docs/superpowers/specs/2026-07-23-native-control-triple-overhead-design.md`  
-**Gate A:** `docs/superpowers/plans/2026-07-23-native-control-triple-overhead-gate-a.md` (merged on `main`)
+**Historical design and Gate A records:** sibling archive
 
-Authorized by Jason in-session. Suite `gemma-matrix-v1` revision `3` (freeform
+Historically authorized by Jason for that session. Suite `gemma-matrix-v1` revision `3` (freeform
 `max_tokens` 2048) landed after Ornith JANG exhausted smaller budgets with
 `reasoning_content`-only streams.
 

@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0.0",
+  "policy_id": "local-managed-v1",
+  "authorization_mode": "standing_local",
+  "loopback_only": true,
+  "allowed_runtimes": [
+    "osaurus",
+    "omlx",
+    "optiq"
+  ],
+  "allow_inference": true,
+  "allow_start": true,
+  "allow_exact_reclaim": true,
+  "reclaim_grace_seconds": 60,
+  "allow_terminate_after_interrupt": true,
+  "allow_force_kill": false,
+  "allow_provider_edits": false,
+  "max_parallel_models": 1,
+  "memory_floor_percent": 20,
+  "max_run_minutes": 90,
+  "max_requests_per_run": 250,
+  "expires_at": null
+}

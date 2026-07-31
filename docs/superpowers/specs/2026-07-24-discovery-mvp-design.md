@@ -1,9 +1,21 @@
 # Discovery MVP design (2026-07-24)
 
-**Status:** APPROVED (Jason, 2026-07-24)  
-**Parent vision:** `docs/superpowers/specs/2026-07-24-harness-north-star-vision.md`  
-**Architecture:** Approach 2 — in-process orchestration over existing preference/RAG library APIs  
+**Status:** HISTORICAL IMPLEMENTED DESIGN — not current execution authority
+
+**Historical decision:** APPROVED (Jason, 2026-07-24)
+
+**Superseded operationally by:** `docs/superpowers/specs/2026-07-30-managed-local-run-foundation-design.md`
+and `docs/managed-runs.md`
+
+**Parent vision:** `docs/superpowers/specs/2026-07-24-harness-north-star-vision.md`
+
+**Architecture:** Approach 2 — in-process orchestration over existing preference/RAG library APIs
+
 **Does not authorize:** live discovery against real servers, Stage 2 run IDs, provider edits, plugin rebuild, or silent model copies
+
+The gates and authorization language below record the July 24 MVP. Current
+live authority and lifecycle rules come from `AGENTS.md` and
+`docs/managed-runs.md`; this record grants no authority.
 
 ## 1. Goals
 
@@ -139,7 +151,10 @@ Discovery must **never** silently copy, move, or duplicate model weights.
 - Unit tests must not contact real loopback servers, Keychain, or live OptiQ/oMLX/Osaurus.
 - No Stage 2 manifests or run IDs.
 - Plugin `0.3.0` unchanged.
-- Live propose/execute against Jason’s machine requires separate current-session authorization after Gate A.
+- Historical Gate A rule: live propose/execute required separate
+  current-session authorization. Current managed execution instead requires an
+  explicit user request to adopt policy and initiate the run, after which the
+  adopted policy governs the immutable plan.
 
 ## 9. Deferred north-star tracks
 
