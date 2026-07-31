@@ -9,11 +9,15 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from local_model_runtime_evaluation.evidence_bundle import EvidenceBundle
-from local_model_runtime_evaluation.managed_run_cli import main
+from local_model_runtime_evaluation.managed_run_cli import (
+    _build_runtime_manager,
+    main,
+)
 from local_model_runtime_evaluation.managed_run_types import (
     ManagedStep,
     StepState,
 )
+from local_model_runtime_evaluation.operator_policy import load_adopted_policy
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -113,6 +117,39 @@ class ManagedRunCliTests(unittest.TestCase):
                 / str(planned["run_id"])
                 / "plan.json"
             ).is_file()
+        )
+
+    def test_runtime_catalog_root_is_attempt_specific(self) -> None:
+        self._adopt()
+        planned = self._plan()
+        bundle = EvidenceBundle.load(
+            self.results_root / str(planned["run_id"])
+        )
+        adopted = load_adopted_policy(self.state_root)
+
+        first = _build_runtime_manager(bundle.plan, adopted, bundle)
+        self.assertEqual(
+            first._context_template.catalog_root,
+            bundle.run_dir / "runtime-catalogs" / "attempt-001",
+        )
+
+        for record in bundle.state.steps:
+            if record.step is ManagedStep.OVERHEAD:
+                bundle.transition_step(record.step, StepState.RUNNING)
+                bundle.transition_step(
+                    record.step,
+                    StepState.BLOCKED_PROVIDER_RECONNECT,
+                )
+            else:
+                bundle.transition_step(record.step, StepState.STOPPED)
+        bundle.mark_cleanup_complete()
+        bundle.write_summary({"status": "PARTIAL_BLOCKED"})
+        bundle.seal()
+
+        second = _build_runtime_manager(bundle.plan, adopted, bundle)
+        self.assertEqual(
+            second._context_template.catalog_root,
+            bundle.run_dir / "runtime-catalogs" / "attempt-002",
         )
 
     def test_status_and_report_read_sealed_evidence(self) -> None:

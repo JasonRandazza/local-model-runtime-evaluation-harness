@@ -124,7 +124,13 @@ def _build_runtime_manager(
     inspector = ProcessInspector()
     transport = LoopbackTransport(set(plan.endpoints))
     log_dir = bundle.run_dir / "runtime-logs"
-    catalog_root = bundle.run_dir / "runtime-catalogs"
+    state = bundle.state
+    catalog_attempt = state.attempt + 1 if state.sealed else state.attempt
+    catalog_root = (
+        bundle.run_dir
+        / "runtime-catalogs"
+        / f"attempt-{catalog_attempt:03d}"
+    )
     context = RuntimeContext(
         log_dir=log_dir,
         credential=None,
@@ -284,12 +290,12 @@ def build_parser() -> argparse.ArgumentParser:
         "resume",
         help=(
             "After reconnecting the existing provider in the Osaurus UI, "
-            "resume only the blocked overhead step"
+            "retry only the blocked or failed overhead step"
         ),
         description=(
             "Provider reconnect is operator-owned. Reconnect the existing "
-            "provider in the Osaurus UI, then resume only the blocked "
-            "overhead step."
+            "provider in the Osaurus UI, then retry only the blocked or "
+            "failed overhead step."
         ),
     )
     resume.add_argument("run_id")
