@@ -34,6 +34,7 @@ ownership of the local active-run lock.
 | `credentials.py` | Bounded local credential retrieval without value disclosure |
 | `resources.py` | Host memory and resource-floor checks |
 | `measurement.py` / `token_counter.py` | Qualified timing and token evidence |
+| `results_browser.py` / `results_browser_html.py` | Read-only sealed-evidence interpretation and static HTML presentation |
 
 ## Native-Diagonal Contract
 
@@ -85,6 +86,12 @@ sealed attempt and runs only a new overhead attempt.
 
 Raw outputs do not automatically become durable decisions. Canonical current
 evidence is indexed in [status.md](status.md).
+
+The sealed-results browser ([results-browser.md](results-browser.md)) is
+read-only presentation over this boundary: it re-verifies sealed checksums
+through `evidence_bundle` before presenting a bundle as trusted, fails closed
+for unsealed, corrupt, unsupported, or unreadable bundles, and never contacts
+a runtime or mutates evidence.
 
 ## Source Precedence
 
