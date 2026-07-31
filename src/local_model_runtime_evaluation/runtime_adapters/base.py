@@ -199,6 +199,9 @@ class RuntimeAdapter(Protocol):
     ) -> None:
         raise NotImplementedError
 
+    def process_is_alive(self, identity: ProcessIdentity) -> bool:
+        raise NotImplementedError
+
 
 class LoopbackRuntimeAdapter:
     runtime = ""
@@ -310,6 +313,12 @@ class LoopbackRuntimeAdapter:
             compatible=True,
             reason="compatible",
         )
+
+    def process_is_alive(self, identity: ProcessIdentity) -> bool:
+        try:
+            return self._inspector.process_is_alive(identity)
+        except Exception as error:
+            raise RuntimeAdapterError(str(error)) from error
 
     def attach(
         self,

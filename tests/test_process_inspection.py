@@ -66,6 +66,7 @@ def _outputs(
         ("/bin/ps", "-p", "321", "-o", "ppid="): ppid,
         ("/bin/ps", "-p", "321", "-o", "lstart="): started,
         ("/bin/ps", "-p", "321", "-o", "command="): command,
+        ("/bin/ps", "-p", "321", "-o", "pid="): "321\n",
     }
 
 
@@ -259,6 +260,26 @@ class ProcessInspectionTests(unittest.TestCase):
                 expected
             )
         )
+
+    def test_process_is_alive_matches_identity_without_a_listener(self) -> None:
+        expected = ProcessIdentity(
+            pid=321,
+            ppid=100,
+            executable="/Users/test/.venv/bin/python3.11",
+            argv=(
+                "omlx-server",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "8100",
+            ),
+            started_at="Thu Jul 30 18:00:00 2026",
+            listener_host="127.0.0.1",
+            listener_port=8100,
+        )
+        inspector = ProcessInspector(runner=FakeRunner(_outputs()))
+
+        self.assertTrue(inspector.process_is_alive(expected))
 
     def test_rejects_non_loopback_request_before_command(self) -> None:
         runner = FakeRunner({})
