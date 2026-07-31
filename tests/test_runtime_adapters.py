@@ -232,6 +232,44 @@ class RuntimeAdapterTests(unittest.TestCase):
         self.assertFalse(missing.compatible)
         self.assertEqual(missing.reason, "required_model_missing")
 
+    def test_omlx_accepts_rewritten_server_process_title(self) -> None:
+        cell = _omlx()
+        identity = _identity(
+            argv=("omlx-server",),
+            port=8100,
+        )
+        adapter = OmlxAdapter(
+            inspector=FakeInspector(identity),
+            spawner=MagicMock(),
+        )
+
+        observation = adapter.inspect(
+            adapter.requirement_from_cell(cell),
+            _context(FakeTransport((cell.model_id,))),
+        )
+
+        self.assertTrue(observation.compatible)
+        self.assertEqual(observation.reason, "compatible")
+
+    def test_omlx_rejects_similar_rewritten_process_title(self) -> None:
+        cell = _omlx()
+        identity = _identity(
+            argv=("not-omlx-server",),
+            port=8100,
+        )
+        adapter = OmlxAdapter(
+            inspector=FakeInspector(identity),
+            spawner=MagicMock(),
+        )
+
+        observation = adapter.inspect(
+            adapter.requirement_from_cell(cell),
+            _context(FakeTransport((cell.model_id,))),
+        )
+
+        self.assertFalse(observation.compatible)
+        self.assertEqual(observation.reason, "runtime_identity_mismatch")
+
     def test_absent_listener_does_not_query_inventory(self) -> None:
         transport = MagicMock()
         adapter = OsaurusAdapter(
