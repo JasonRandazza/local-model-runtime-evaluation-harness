@@ -229,6 +229,31 @@ class EvidenceBundleTests(unittest.TestCase):
             "evidence_resume_not_allowed",
         )
 
+    def test_begin_attempt_allows_sealed_overhead_failure_retry(self) -> None:
+        for record in self.bundle.state.steps:
+            self.bundle.transition_step(record.step, StepState.RUNNING)
+            self.bundle.transition_step(
+                record.step,
+                (
+                    StepState.FAIL
+                    if record.step is ManagedStep.OVERHEAD
+                    else StepState.PASS
+                ),
+            )
+        self.bundle.mark_cleanup_complete()
+        self.bundle.write_summary({"status": "FAIL"})
+        self.bundle.seal()
+        self.bundle.verify()
+
+        self.assertEqual(self.bundle.begin_attempt(), 2)
+        overhead = next(
+            record
+            for record in self.bundle.state.steps
+            if record.step is ManagedStep.OVERHEAD
+        )
+        self.assertEqual(overhead.state, StepState.PENDING)
+        self.assertEqual(overhead.attempt, 2)
+
     def test_verify_rejects_manifest_path_traversal(self) -> None:
         self._seal_pass()
         manifest = self.bundle.run_dir / "checksums.sha256"

@@ -524,6 +524,27 @@ class ManagedRunTests(unittest.TestCase):
         self.assertEqual(summary["status"], "PASS")
         EvidenceBundle.load(self.bundle.run_dir).verify()
 
+    def test_resume_retries_sealed_overhead_failure(self) -> None:
+        failed = execute_managed_run(
+            self.plan,
+            self.adopted,
+            self.bundle,
+            FakeRuntimeManager(),
+            FakeHooks(self.plan, fail_at="overhead").hooks(),
+        )
+        self.assertEqual(failed["status"], "FAIL")
+
+        summary = resume_managed_run(
+            self.bundle.run_dir,
+            self.adopted,
+            FakeRuntimeManager(),
+            FakeHooks(self.plan).hooks(),
+        )
+
+        self.assertEqual(summary["status"], "PASS")
+        self.assertEqual(summary["attempt"], 2)
+        EvidenceBundle.load(self.bundle.run_dir).verify()
+
     def test_resume_rejects_missing_route_without_unsealing(self) -> None:
         execute_managed_run(
             self.plan,

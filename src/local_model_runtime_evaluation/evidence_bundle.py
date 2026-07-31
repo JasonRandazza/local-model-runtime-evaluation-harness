@@ -56,6 +56,33 @@ ALLOWED_STEP_TRANSITIONS = {
 }
 
 
+def resume_is_allowed(state: ManagedRunState) -> bool:
+    overhead = next(
+        (
+            record
+            for record in state.steps
+            if record.step is ManagedStep.OVERHEAD
+        ),
+        None,
+    )
+    if not state.sealed or not state.cleanup_complete or overhead is None:
+        return False
+    provider_blocked = (
+        state.summary_state is RunSummaryState.PARTIAL_BLOCKED
+        and overhead.state is StepState.BLOCKED_PROVIDER_RECONNECT
+    )
+    overhead_failed = (
+        state.summary_state is RunSummaryState.FAIL
+        and overhead.state is StepState.FAIL
+        and all(
+            record.state is StepState.PASS
+            for record in state.steps
+            if record.step is not ManagedStep.OVERHEAD
+        )
+    )
+    return provider_blocked or overhead_failed
+
+
 class EvidenceError(RuntimeError):
     code = "evidence_invalid"
 
@@ -357,22 +384,9 @@ class EvidenceBundle:
 
     def begin_attempt(self) -> int:
         state = self.state
-        overhead = next(
-            (
-                record
-                for record in state.steps
-                if record.step is ManagedStep.OVERHEAD
-            ),
-            None,
-        )
-        if (
-            not state.sealed
-            or overhead is None
-            or overhead.state is not StepState.BLOCKED_PROVIDER_RECONNECT
-            or state.summary_state is not RunSummaryState.PARTIAL_BLOCKED
-        ):
+        if not resume_is_allowed(state):
             raise EvidenceError(
-                "only a sealed provider-blocked run may resume",
+                "only a sealed overhead-only retry may resume",
                 code="evidence_resume_not_allowed",
             )
         attempts_dir = self.run_dir / "attempts"

@@ -14,7 +14,7 @@ from .credentials import (
     OSAURUS_KEYCHAIN_SERVICE,
     KeychainCredentialProvider,
 )
-from .evidence_bundle import EvidenceBundle
+from .evidence_bundle import EvidenceBundle, resume_is_allowed
 from .matrix_config import REPOSITORY_ROOT, Campaign, Cell, MatrixSuite, load_family
 from .matrix_runner import run_campaign
 from .matrix_servers import ServerHandle
@@ -537,17 +537,9 @@ def resume_managed_run(
         bundle = EvidenceBundle.load(run_dir)
         bundle.verify()
         state = bundle.state
-        overhead = next(
-            record
-            for record in state.steps
-            if record.step is ManagedStep.OVERHEAD
-        )
-        if (
-            state.summary_state is not RunSummaryState.PARTIAL_BLOCKED
-            or overhead.state is not StepState.BLOCKED_PROVIDER_RECONNECT
-        ):
+        if not resume_is_allowed(state):
             raise RuntimeError(
-                "only a sealed provider-blocked run may resume"
+                "only a sealed overhead-only retry may resume"
             )
         verify_plan_hash(bundle.plan)
         verify_plan_inputs(bundle.plan)
