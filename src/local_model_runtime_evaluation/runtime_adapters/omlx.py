@@ -73,6 +73,8 @@ class OmlxAdapter(LoopbackRuntimeAdapter):
         if not super().identity_matches(identity, requirement):
             return False
         lowered = tuple(part.lower() for part in identity.argv)
+        if lowered and Path(lowered[0]).name == "omlx-server":
+            return True
         identity_text = " ".join(
             (Path(identity.executable).name.lower(), *lowered)
         )
