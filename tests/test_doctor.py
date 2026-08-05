@@ -258,6 +258,29 @@ class DoctorTests(unittest.TestCase):
         )
         self.assertEqual(result["overall_readiness"], doctor.STATUS_ACTION_REQUIRED)
 
+    def test_wrong_kind_artifact_is_action_required(self) -> None:
+        profile_root = self.root / "machine"
+        profile = _write_real_machine_profile(profile_root)
+        roots = json.loads(profile.read_text())["artifact_roots"]
+        target = Path(roots["local_models"]) / "gemma-4-12B-it-qat-JANG_4M"
+        target.rmdir()
+        target.write_text("not a model directory")
+        state_root = self.root / "state"
+        _adopt_valid_policy(self.root, state_root, now=FIXED_NOW)
+
+        result = doctor.run_diagnostics(
+            machine_profile_path=profile,
+            state_root=state_root,
+            which=_fake_which(),
+            now=FIXED_NOW,
+        )
+        finding = next(
+            f for f in _all_findings(result)
+            if f["check"] == "artifacts.gemma-4-12b-qat.jang_4m"
+        )
+        self.assertEqual(finding["status"], doctor.STATUS_ACTION_REQUIRED)
+        self.assertIn("wrong kind", finding["summary"])
+
     def test_broken_symlink_artifact_is_action_required(self) -> None:
         # NOTE: artifact_profile.resolve_artifact_template calls Path.resolve()
         # on the templated path, which fully dereferences symlinks (verified:

@@ -113,10 +113,10 @@ internal failure through the existing sanitized error path (exit `1`).
    family/recipe closed and continues; business rules are not duplicated.
 5. **artifacts** — only when the profile is valid: resolve the active
    families/cells through the existing `.resolve(roots)` APIs and check each
-   exact resolved path: present / missing / broken symlink / unreadable.
-   No cache scan, no size calculation, no mutation. If the profile is
-   invalid, the section reports one `ACTION_REQUIRED` "skipped: profile
-   invalid" finding.
+   exact resolved path: present / missing / broken symlink / wrong-kind /
+   unreadable. Model artifacts must be directories. No cache scan, no size
+   calculation, no mutation. If the profile is invalid, the section reports
+   one `ACTION_REQUIRED` "skipped: profile invalid" finding.
 6. **policy** — `load_adopted_policy(state_root, now=now)`. Valid →
    `OFFLINE_READY` with `policy_id`, hash, `adopted_at`, expiry state;
    `PolicyError` codes (`missing`, `invalid`, `hash_mismatch`, `expired`) →

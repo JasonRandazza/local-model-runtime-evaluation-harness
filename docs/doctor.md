@@ -48,7 +48,8 @@ until a separately authorized live workflow observes them.
    rule. One broken family fails closed without hiding the others.
 5. **Artifacts** — the exact model artifact paths resolved from committed
    `{LMRE_ROOT:...}` templates and the validated profile: present, missing,
-   broken symlink, or unreadable. No cache scanning, no sizes, no mutation.
+   broken symlink, wrong-kind, or unreadable. Model artifacts must be
+   directories. No cache scanning, no sizes, no mutation.
 6. **Policy** — the adopted standing policy record, its hash, and its
    expiry through the existing policy APIs. An absent or invalid record is a
    manual action; the example policy is a source for review, never

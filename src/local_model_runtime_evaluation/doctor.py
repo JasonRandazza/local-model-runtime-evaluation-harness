@@ -358,6 +358,12 @@ def _artifact_path_status(path: Path) -> tuple[str, str, str | None]:
             f"artifact path is missing: {path}",
             "Place the model artifact at this path or correct the machine profile root.",
         )
+    if not path.is_dir():
+        return (
+            STATUS_ACTION_REQUIRED,
+            f"artifact path has the wrong kind (expected a directory): {path}",
+            "Replace the artifact file with the expected model directory, or correct the machine profile root.",
+        )
     if not os.access(path, os.R_OK):
         return (
             STATUS_ACTION_REQUIRED,
@@ -383,38 +389,55 @@ def _artifacts_section(
         return {"section": "artifacts", "findings": findings}, family_status
 
     for family_id in sorted(family_diags):
-        family = family_diags[family_id]["family"]
-        if family is None:
+        campaign = family_diags[family_id]["campaign"]
+        if campaign is None:
+            family = family_diags[family_id]["family"]
+            if family is not None:
+                _, family_error = _try(family.resolve, roots)
+                if family_error:
+                    findings.append(_finding(
+                        f"artifacts.{family_id}",
+                        STATUS_ACTION_REQUIRED,
+                        "family artifact template resolution failed",
+                        detail=family_error,
+                        remediation="Fix the artifact_path templates for this family; see docs/matrix.md.",
+                        doc="docs/matrix.md",
+                    ))
+                    family_status[family_id] = STATUS_ACTION_REQUIRED
+                    continue
             findings.append(_finding(
                 f"artifacts.{family_id}",
                 STATUS_ACTION_REQUIRED,
-                "artifacts not checked because family configuration is invalid",
-                detail=family_diags[family_id]["family_error"],
+                "artifacts not checked because campaign configuration is invalid",
+                detail=family_diags[family_id]["campaign_error"],
             ))
             family_status[family_id] = STATUS_ACTION_REQUIRED
             continue
 
-        resolved, error = _try(family.resolve, roots)
+        # Resolve the complete campaign, not only the family quant entries.
+        # Cell.resolve validates every cell's artifact path, model ID, and
+        # fixed start/stop command token set through the existing resolver.
+        resolved, error = _try(campaign.resolve, roots)
         if resolved is None:
             findings.append(_finding(
                 f"artifacts.{family_id}",
                 STATUS_ACTION_REQUIRED,
-                "artifact template resolution failed",
+                "family or cell artifact template resolution failed",
                 detail=error,
-                remediation="Fix the artifact_path templates for this family; see docs/matrix.md.",
+                remediation="Fix the artifact_path, model_id, or command templates for this family; see docs/matrix.md.",
                 doc="docs/matrix.md",
             ))
             family_status[family_id] = STATUS_ACTION_REQUIRED
             continue
 
         family_ok = True
-        for quant in sorted(resolved.quants):
-            path = Path(resolved.quants[quant].artifact_path)
+        for cell in sorted(resolved.cells, key=lambda value: value.cell_id):
+            path = Path(cell.artifact_path)
             status, summary, remediation = _artifact_path_status(path)
             if status != STATUS_OFFLINE_READY:
                 family_ok = False
             findings.append(_finding(
-                f"artifacts.{family_id}.{quant}",
+                f"artifacts.{family_id}.{cell.quant}",
                 status,
                 summary,
                 detail=str(path),
