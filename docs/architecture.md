@@ -24,6 +24,7 @@ ownership of the local active-run lock.
 | `run_identity.py` / `managed_run_types.py` | Immutable plan, bound input hashes, name, ID, and state contracts |
 | `comparison_class.py` | Checked-in same-family expansion declarations that preserve the native baseline |
 | `comparison_class_inspect.py` | Read-only class, candidate-cell, and approved-artifact readiness inspection |
+| `free_bind.py` | Immutable offline proposals, validation, and non-authorizing local adoption for ordered same-family cells |
 | `runtime_adapters/` / `runtime_manager.py` | Exact attach/start/reclaim/release ownership |
 | `managed_run.py` / `managed_run_cli.py` | Fixed collector order, blocking, resume, JSON CLI |
 | `evidence_bundle.py` | Atomic state, lifecycle journal, attempts, checksums, sealing |
@@ -65,6 +66,12 @@ class and approved machine roots to report its baseline/expansion shape,
 reviewed extra native cells, and static artifact availability. It does not scan
 arbitrary model directories, create configuration, inspect services, or grant
 live authority.
+
+`lmre binding propose|show|validate|adopt` provides a separate offline path for
+an operator-selected order of existing same-family native cells. Its create-only
+local records bind the family, cells, and fixed machine profile by hash and
+never grant live authority. The current managed planner does not consume these
+records; execution and sealing are a separate contract.
 
 Committed family, cell, and overhead configuration uses logical
 `{LMRE_ROOT:...}` and `{artifact_path}` templates. Resolution happens only at

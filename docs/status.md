@@ -47,6 +47,22 @@ every runtime, provider, credential, memory, and inference fact
   dry-config commands passed, and the real checked-in Gemma class inspection
   returned the truthful baseline-only result without live contact.
 
+## Managed Free-Bind Declarations (Non-Live, 2026-08-05)
+
+- `lmre binding propose|show|validate|adopt` creates and reviews immutable
+  local declarations for an ordered selection of checked-in same-family cells.
+- Bindings accept safe IDs only, require each quant's declared native server,
+  and bind the family, selected cells, and fixed machine profile by SHA-256.
+- Missing artifacts produce `ACTION_REQUIRED`, changed inputs produce
+  `STALE_INPUTS`, and only a current `READY_FOR_ADOPTION` proposal can be
+  explicitly adopted.
+- Proposal and adoption records are create-only, gitignored, and explicitly
+  carry `live_authority: false` and `NOT_CHECKED_LIVE`. The managed planner does
+  not consume them in this slice.
+- Verification: 512 retained non-live tests passed, all six dry-config
+  commands passed, and focused tripwires confirmed that the binding module
+  imports no live runtime, transport, process, resource, or credential code.
+
 ## Managed Live Acceptance (2026-07-31)
 
 The managed path was accepted with a sealed local run:
@@ -97,6 +113,9 @@ and is intentionally not committed.
   ([controlled-expansion contract](superpowers/specs/2026-08-05-controlled-expansion-comparison-class.md))
 - offline comparison-class readiness inspection
   ([inspection contract](superpowers/specs/2026-08-05-comparison-class-offline-inspection.md))
+- offline managed free-bind declaration, validation, and non-authorizing
+  adoption
+  ([free-bind contract](superpowers/specs/2026-08-05-managed-free-bind-declarations.md))
 
 ## Open Risks
 
@@ -114,6 +133,9 @@ and is intentionally not committed.
 - The controlled-expansion mechanism is shipped, but the only checked-in
   class currently declares the existing Gemma native baseline. No additional
   model build is claimed available or validated yet.
+- Adopted free-bind declarations are not executable yet. Managed-plan binding,
+  policy calculation, collector execution, and sealed evidence are the next
+  separately reviewed live-capable slice.
 
 ## Machine State
 

@@ -8,6 +8,7 @@ The active product is managed-run led:
 ```text
 adopt reviewed local policy
   -> inspect checked-in comparison-class and artifact readiness
+  -> optionally propose, validate, and adopt an offline free binding
   -> create and inspect an immutable plan
   -> optionally bind a checked-in same-family comparison class
   -> manage exact local runtime leases
@@ -40,6 +41,7 @@ See [docs/history.md](docs/history.md) for the historical lane summary and
 | `./bin/lmre-overhead` | Compare direct and Osaurus-routed latency for native backends |
 | `./bin/lmre browse` | Generate the read-only static HTML browser for sealed evidence |
 | `./bin/lmre doctor` | Report offline readiness of local config, artifacts, and policy |
+| `./bin/lmre binding` | Propose, inspect, validate, and adopt a non-live same-family cell declaration |
 
 For a complete managed run, start with:
 
@@ -78,6 +80,7 @@ Operator documentation:
 - [Managed local runs](docs/managed-runs.md)
 - [Controlled expansion](docs/superpowers/specs/2026-08-05-controlled-expansion-comparison-class.md)
 - [Offline comparison-class inspection](docs/superpowers/specs/2026-08-05-comparison-class-offline-inspection.md)
+- [Managed free-bind declarations](docs/superpowers/specs/2026-08-05-managed-free-bind-declarations.md)
 - [Native matrix](docs/matrix.md)
 - [Preference](docs/preference.md)
 - [RAG](docs/rag.md)

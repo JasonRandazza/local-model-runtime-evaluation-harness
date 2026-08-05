@@ -10,6 +10,7 @@ state from commit `ea600e0`.
 The active project contains:
 
 - managed policy/plan/run/resume/status/report
+- offline managed free-bind proposal/show/validate/adopt
 - Discovery proposal/show/execute
 - Approach 3 explicit recipes
 - native-diagonal matrix measurement

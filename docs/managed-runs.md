@@ -101,6 +101,37 @@ creates a plan, reads credentials, contacts a runtime, or infers live
 readiness. The current Gemma class honestly reports `BASELINE_ONLY` with no
 reviewed candidates on this repository state.
 
+### Managed free-bind declarations
+
+When a reviewed selection should not be forced to preserve the native
+comparison-class baseline, create an offline binding proposal from existing
+checked-in cells:
+
+```bash
+./bin/lmre binding propose \
+  --id gemma-curated-native-v1 \
+  --family gemma-4-12b-qat \
+  --cell jang_4m__osaurus \
+  --cell oq4_fp16__omlx \
+  --cell optiq_4bit__optiq
+./bin/lmre binding show gemma-curated-native-v1
+./bin/lmre binding validate gemma-curated-native-v1
+./bin/lmre binding adopt gemma-curated-native-v1
+```
+
+This workflow is non-live and cannot yet create a managed plan. It accepts
+only safe IDs for two to nine existing same-family cells, preserves their
+declared order, requires each quant's native server, and resolves artifacts
+only through the fixed machine profile. The immutable local proposal binds the
+family, cells, and profile by hash. Missing artifacts block adoption; changed
+inputs make the proposal stale and require a new versioned ID.
+
+Adoption records review intent with `live_authority: false`; they do not adopt
+an operator policy or authorize inference. Binding an adopted declaration into
+the managed execution and sealed-evidence path is intentionally deferred to
+the next slice. See the
+[managed free-bind declaration contract](superpowers/specs/2026-08-05-managed-free-bind-declarations.md).
+
 Only one managed `run` or `resume` may hold `.lmre/active-run.lock` at a time.
 If a host crash leaves that file behind, first verify that its recorded PID is
 no longer active before removing the stale lock.
