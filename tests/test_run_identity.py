@@ -12,6 +12,7 @@ from local_model_runtime_evaluation.managed_run_types import (
     StepState,
 )
 from local_model_runtime_evaluation.run_identity import (
+    MACHINE_PROFILE_INPUT,
     RunIdentityError,
     allocate_run_identity,
     build_plan,
@@ -19,6 +20,7 @@ from local_model_runtime_evaluation.run_identity import (
     verify_plan_inputs,
     verify_plan_hash,
 )
+from tests.artifact_profile_fixtures import write_machine_profile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -97,6 +99,7 @@ class RunIdentityTests(unittest.TestCase):
 
     def test_complete_recipe_has_fixed_order_and_bounded_requests(self) -> None:
         with TemporaryDirectory() as tmp:
+            profile = write_machine_profile(Path(tmp) / "machine")
             plan = build_plan(
                 RECIPE,
                 family_id="gemma-4-12b-qat",
@@ -106,7 +109,9 @@ class RunIdentityTests(unittest.TestCase):
                 results_root=Path(tmp),
                 now=_fixed_time(),
                 entropy="a1b2c3",
+                machine_profile_path=profile,
             )
+            verify_plan_inputs(plan, machine_profile_path=profile)
         self.assertEqual(
             plan.steps,
             (
@@ -133,11 +138,12 @@ class RunIdentityTests(unittest.TestCase):
         self.assertEqual(plan.memory_floor_percent, 20)
         self.assertEqual(plan.estimated_minutes, 90)
         self.assertTrue(plan.input_hashes)
-        verify_plan_inputs(plan)
         verify_plan_hash(plan)
+        self.assertIn(MACHINE_PROFILE_INPUT, dict(plan.input_hashes))
 
     def test_generated_name_and_lineage_are_persisted(self) -> None:
         with TemporaryDirectory() as tmp:
+            profile = write_machine_profile(Path(tmp) / "machine")
             plan = build_plan(
                 RECIPE,
                 family_id="ornith-35b",
@@ -147,6 +153,7 @@ class RunIdentityTests(unittest.TestCase):
                 results_root=Path(tmp),
                 now=_fixed_time(),
                 entropy="a1b2c3",
+                machine_profile_path=profile,
             )
         self.assertEqual(
             plan.identity.run_name,
@@ -168,6 +175,7 @@ class RunIdentityTests(unittest.TestCase):
             "qwen36-35b-a3b",
         )
         with TemporaryDirectory() as tmp:
+            profile = write_machine_profile(Path(tmp) / "machine")
             for index, family_id in enumerate(families):
                 with self.subTest(family_id=family_id):
                     plan = build_plan(
@@ -179,6 +187,7 @@ class RunIdentityTests(unittest.TestCase):
                         results_root=Path(tmp),
                         now=_fixed_time(),
                         entropy=f"{index + 1:06x}",
+                        machine_profile_path=profile,
                     )
                     self.assertEqual(len(plan.cell_ids), 3)
                     self.assertEqual(len(plan.pair_ids), 2)
@@ -187,6 +196,7 @@ class RunIdentityTests(unittest.TestCase):
 
     def test_unknown_family_is_rejected(self) -> None:
         with TemporaryDirectory() as tmp:
+            profile = write_machine_profile(Path(tmp) / "machine")
             with self.assertRaises(RunIdentityError):
                 build_plan(
                     RECIPE,
@@ -197,10 +207,12 @@ class RunIdentityTests(unittest.TestCase):
                     results_root=Path(tmp),
                     now=_fixed_time(),
                     entropy="a1b2c3",
+                    machine_profile_path=profile,
                 )
 
     def test_changed_plan_content_fails_hash_verification(self) -> None:
         with TemporaryDirectory() as tmp:
+            profile = write_machine_profile(Path(tmp) / "machine")
             plan = build_plan(
                 RECIPE,
                 family_id="gemma-4-12b-qat",
@@ -210,6 +222,7 @@ class RunIdentityTests(unittest.TestCase):
                 results_root=Path(tmp),
                 now=_fixed_time(),
                 entropy="a1b2c3",
+                machine_profile_path=profile,
             )
         changed = dataclasses.replace(plan, request_count=plan.request_count + 1)
         with self.assertRaises(RunIdentityError) as context:
@@ -218,6 +231,7 @@ class RunIdentityTests(unittest.TestCase):
 
     def test_changed_planned_input_fails_verification(self) -> None:
         with TemporaryDirectory() as tmp:
+            profile = write_machine_profile(Path(tmp) / "machine")
             plan = build_plan(
                 RECIPE,
                 family_id="gemma-4-12b-qat",
@@ -227,18 +241,43 @@ class RunIdentityTests(unittest.TestCase):
                 results_root=Path(tmp),
                 now=_fixed_time(),
                 entropy="a1b2c3",
+                machine_profile_path=profile,
             )
-        path, digest = plan.input_hashes[0]
-        self.assertNotEqual(digest, "0" * 64)
-        changed = dataclasses.replace(
-            plan,
-            input_hashes=((path, "0" * 64), *plan.input_hashes[1:]),
-        )
+            hashes = dict(plan.input_hashes)
+            self.assertNotEqual(hashes[MACHINE_PROFILE_INPUT], "0" * 64)
+            hashes[MACHINE_PROFILE_INPUT] = "0" * 64
+            changed = dataclasses.replace(
+                plan,
+                input_hashes=tuple(sorted(hashes.items())),
+            )
 
-        with self.assertRaises(RunIdentityError) as context:
-            verify_plan_inputs(changed)
+            with self.assertRaises(RunIdentityError) as context:
+                verify_plan_inputs(changed, machine_profile_path=profile)
 
         self.assertEqual(context.exception.code, "plan_input_changed")
+
+    def test_legacy_plan_without_machine_profile_hash_remains_verifiable(self) -> None:
+        with TemporaryDirectory() as tmp:
+            profile = write_machine_profile(Path(tmp) / "machine")
+            plan = build_plan(
+                RECIPE,
+                family_id="gemma-4-12b-qat",
+                run_name=None,
+                comparison_id=None,
+                parent_run_id=None,
+                results_root=Path(tmp),
+                now=_fixed_time(),
+                entropy="a1b2c3",
+                machine_profile_path=profile,
+            )
+            legacy = dataclasses.replace(
+                plan,
+                input_hashes=tuple(
+                    item for item in plan.input_hashes
+                    if item[0] != MACHINE_PROFILE_INPUT
+                ),
+            )
+            verify_plan_inputs(legacy, machine_profile_path=Path("/missing"))
 
     def test_shared_state_values_match_evidence_contract(self) -> None:
         self.assertEqual(StepState.BLOCKED_PROVIDER_RECONNECT.value, "BLOCKED_PROVIDER_RECONNECT")

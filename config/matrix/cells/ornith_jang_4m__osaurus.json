@@ -4,7 +4,7 @@
   "server": "osaurus",
   "base_url": "http://127.0.0.1:1337/v1",
   "model_id": "ornith-1.0-35b-jang_4m",
-  "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/Ornith-1.0-35B-JANG_4M",
+  "artifact_path": "{LMRE_ROOT:local_models}/Ornith-1.0-35B-JANG_4M",
   "start_command": [
     "osaurus",
     "serve",

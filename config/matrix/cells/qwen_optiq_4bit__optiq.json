@@ -3,10 +3,10 @@
   "quant": "qwen_optiq_4bit",
   "server": "optiq",
   "base_url": "http://127.0.0.1:8080/v1",
-  "model_id": "/Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit:no-think",
-  "artifact_path": "/Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+  "model_id": "{artifact_path}:no-think",
+  "artifact_path": "{LMRE_ROOT:huggingface_hub}/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
   "start_command": [
-    "optiq", "serve", "--model", "/Users/jrazz/.cache/huggingface/hub/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+    "optiq", "serve", "--model", "{artifact_path}",
     "--host", "127.0.0.1", "--port", "8080",
     "--no-anthropic", "--no-responses", "--no-auth"
   ],

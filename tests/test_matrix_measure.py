@@ -88,7 +88,7 @@ def _osaurus_cell(**overrides: object) -> Cell:
         server="osaurus",
         base_url=OSAURUS_BASE,
         model_id="gemma-4-12b-it-qat-jang_4m",
-        artifact_path="/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
+        artifact_path="/synthetic/local-models/gemma-4-12B-it-qat-JANG_4M",
         start_command=("osaurus", "serve", "--port", "1337", "--yes"),
         stop_command=("osaurus", "stop"),
         health_path="/health",

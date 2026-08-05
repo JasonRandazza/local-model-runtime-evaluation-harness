@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 from typing import Sequence
 
+from .artifact_profile import DEFAULT_MACHINE_PROFILE_PATH
 from .evidence_bundle import EvidenceBundle
 from .managed_run import (
     default_collector_hooks,
@@ -164,7 +165,10 @@ def _command_policy(args: argparse.Namespace) -> dict[str, object]:
     return _policy_payload(adopted)
 
 
-def _command_plan(args: argparse.Namespace) -> dict[str, object]:
+def _command_plan(
+    args: argparse.Namespace,
+    machine_profile_path: Path,
+) -> dict[str, object]:
     adopted = load_adopted_policy(args.state_dir)
     plan = build_plan(
         args.recipe,
@@ -173,6 +177,7 @@ def _command_plan(args: argparse.Namespace) -> dict[str, object]:
         comparison_id=args.comparison,
         parent_run_id=args.parent,
         results_root=args.results_dir,
+        machine_profile_path=machine_profile_path,
     )
     authorize(adopted.policy, plan.policy_request())
     EvidenceBundle.create(
@@ -195,7 +200,10 @@ def _command_plan(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
-def _command_run(args: argparse.Namespace) -> dict[str, object]:
+def _command_run(
+    args: argparse.Namespace,
+    machine_profile_path: Path,
+) -> dict[str, object]:
     adopted = load_adopted_policy(args.state_dir)
     bundle = EvidenceBundle.load(_run_dir(args.results_dir, args.run_id))
     with _active_run_lock(args.state_dir, args.run_id):
@@ -203,25 +211,45 @@ def _command_run(args: argparse.Namespace) -> dict[str, object]:
         if state.sealed or state.summary_state is not RunSummaryState.PENDING:
             raise RuntimeError("managed run is not an unstarted plan")
         manager = _build_runtime_manager(bundle.plan, adopted, bundle)
-        hooks = default_collector_hooks(bundle.plan, manager, bundle)
+        hooks = default_collector_hooks(
+            bundle.plan,
+            manager,
+            bundle,
+            machine_profile_path=machine_profile_path,
+        )
         return execute_managed_run(
             bundle.plan,
             adopted,
             bundle,
             manager,
             hooks,
+            machine_profile_path=machine_profile_path,
         )
 
 
-def _command_resume(args: argparse.Namespace) -> dict[str, object]:
+def _command_resume(
+    args: argparse.Namespace,
+    machine_profile_path: Path,
+) -> dict[str, object]:
     adopted = load_adopted_policy(args.state_dir)
     run_dir = _run_dir(args.results_dir, args.run_id)
     with _active_run_lock(args.state_dir, args.run_id):
         bundle = EvidenceBundle.load(run_dir)
         bundle.verify()
         manager = _build_runtime_manager(bundle.plan, adopted, bundle)
-        hooks = default_collector_hooks(bundle.plan, manager, bundle)
-        return resume_managed_run(run_dir, adopted, manager, hooks)
+        hooks = default_collector_hooks(
+            bundle.plan,
+            manager,
+            bundle,
+            machine_profile_path=machine_profile_path,
+        )
+        return resume_managed_run(
+            run_dir,
+            adopted,
+            manager,
+            hooks,
+            machine_profile_path=machine_profile_path,
+        )
 
 
 def _command_status(args: argparse.Namespace) -> dict[str, object]:
@@ -336,17 +364,21 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    machine_profile_path: Path = DEFAULT_MACHINE_PROFILE_PATH,
+) -> int:
     args = build_parser().parse_args(argv)
     try:
         if args.command == "policy":
             body = _command_policy(args)
         elif args.command == "plan":
-            body = _command_plan(args)
+            body = _command_plan(args, machine_profile_path)
         elif args.command == "run":
-            body = _command_run(args)
+            body = _command_run(args, machine_profile_path)
         elif args.command == "resume":
-            body = _command_resume(args)
+            body = _command_resume(args, machine_profile_path)
         elif args.command == "status":
             body = _command_status(args)
         elif args.command == "browse":

@@ -4,7 +4,7 @@
   "server": "omlx",
   "base_url": "http://127.0.0.1:8100/v1",
   "model_id": "Qwen3.6-35B-A3B-oQ4-mtp",
-  "artifact_path": "/Users/jrazz/.cache/huggingface/hub/Jundot/Qwen3.6-35B-A3B-oQ4-mtp",
+  "artifact_path": "{LMRE_ROOT:huggingface_hub}/Jundot/Qwen3.6-35B-A3B-oQ4-mtp",
   "start_command": [
     "omlx", "serve",
     "--model-dir", "{LMRE_OMLX_CATALOG}",

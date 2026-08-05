@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
 
+from .artifact_profile import ArtifactRoots
 from .matrix_config import REPOSITORY_ROOT, Cell, MatrixError, ModelFamily, load_family
 
 DEFAULT_APPROACH3_ROOT = REPOSITORY_ROOT / "config" / "approach3"
@@ -115,6 +116,7 @@ def load_recipe_cells(
     *,
     cells_root: Path | None = None,
     family: ModelFamily | None = None,
+    artifact_roots: ArtifactRoots | None = None,
 ) -> tuple[Cell, ...]:
     cells_root = cells_root or DEFAULT_CELLS_ROOT
     loaded_family = family or load_family(recipe.family_id)
@@ -138,7 +140,16 @@ def load_recipe_cells(
                 f"cell invalid ({cell_id}): {error}",
                 code="cell_invalid",
             ) from error
-    return tuple(cells)
+    if artifact_roots is None:
+        return tuple(cells)
+    resolved_family = loaded_family.resolve(artifact_roots)
+    resolved_cells = tuple(cell.resolve(artifact_roots) for cell in cells)
+    for cell in resolved_cells:
+        cell.validate_for_family(
+            resolved_family,
+            require_native_server=recipe.require_native_server,
+        )
+    return resolved_cells
 
 
 def dry_config(
@@ -146,10 +157,15 @@ def dry_config(
     *,
     approach3_root: Path | None = None,
     cells_root: Path | None = None,
+    artifact_roots: ArtifactRoots | None = None,
 ) -> dict[str, object]:
     path = resolve_recipe_path(recipe_ref, root=approach3_root)
     recipe = FreeFormRecipe.load(path)
-    cells = load_recipe_cells(recipe, cells_root=cells_root)
+    cells = load_recipe_cells(
+        recipe,
+        cells_root=cells_root,
+        artifact_roots=artifact_roots,
+    )
     return {
         "ok": True,
         "status": "DRY_CONFIG_OK",

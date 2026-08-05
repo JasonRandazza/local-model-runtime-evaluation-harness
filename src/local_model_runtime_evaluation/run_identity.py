@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .artifact_profile import DEFAULT_MACHINE_PROFILE_PATH, load_artifact_roots
 from .managed_run_types import (
     MANAGED_PLAN_SCHEMA_VERSION,
     ManagedRunPlan,
@@ -69,6 +70,7 @@ DEFAULT_RAG_SUITE = (
 )
 DEFAULT_RAG_CORPUS = REPOSITORY_ROOT / "corpora" / "rag-oracle-v1"
 DEFAULT_CELLS_ROOT = REPOSITORY_ROOT / "config" / "matrix" / "cells"
+MACHINE_PROFILE_INPUT = ".lmre/machine-profile.json"
 
 
 class RunIdentityError(RuntimeError):
@@ -181,9 +183,13 @@ def verify_plan_inputs(
     plan: ManagedRunPlan,
     *,
     repository_root: Path = REPOSITORY_ROOT,
+    machine_profile_path: Path | None = None,
 ) -> None:
     for relative, expected in plan.input_hashes:
-        path = repository_root / relative
+        if relative == MACHINE_PROFILE_INPUT:
+            path = machine_profile_path or repository_root / MACHINE_PROFILE_INPUT
+        else:
+            path = repository_root / relative
         if not path.is_file() or _sha256(path) != expected:
             raise RunIdentityError(
                 f"managed plan input changed: {relative}",
@@ -309,8 +315,10 @@ def build_plan(
     results_root: Path,
     now: datetime | None = None,
     entropy: str | None = None,
+    machine_profile_path: Path = DEFAULT_MACHINE_PROFILE_PATH,
 ) -> ManagedRunPlan:
     current = _utc_now(now)
+    load_artifact_roots(machine_profile_path)
     recipe = _load_recipe(recipe_path)
     campaign_path, campaign = _campaign_for_family(family_id)
     cell_ids, pair_ids = _native_recipes(family_id, campaign)
@@ -391,7 +399,10 @@ def build_plan(
         rag_corpus_path=_repo_relative(DEFAULT_RAG_CORPUS),
         cells_root=_repo_relative(DEFAULT_CELLS_ROOT),
         pairs_root=_repo_relative(DEFAULT_PAIRS_ROOT),
-        input_hashes=_hash_inputs(input_paths),
+        input_hashes=tuple(sorted((
+            *_hash_inputs(input_paths),
+            (MACHINE_PROFILE_INPUT, _sha256(machine_profile_path)),
+        ))),
         endpoints=endpoints,
         runtimes=frozenset({"osaurus", "omlx", "optiq"}),
         request_count=_request_count(
@@ -408,6 +419,9 @@ def build_plan(
         plan_hash="",
     )
     resolved = replace(plan, plan_hash=_canonical_plan_hash(plan))
-    verify_plan_inputs(resolved)
+    verify_plan_inputs(
+        resolved,
+        machine_profile_path=machine_profile_path,
+    )
     verify_plan_hash(resolved)
     return resolved

@@ -4,33 +4,33 @@
     "ornith_jang_4m": {
       "role": "osaurus_native",
       "native_server": "osaurus",
-      "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/Ornith-1.0-35B-JANG_4M",
+      "artifact_path": "{LMRE_ROOT:local_models}/Ornith-1.0-35B-JANG_4M",
       "model_ids": [
         "ornith-1.0-35b-jang_4m",
-        "/Users/jrazz/MLXModels/OsaurusAI/Ornith-1.0-35B-JANG_4M"
+        "{artifact_path}"
       ]
     },
     "ornith_oq4": {
       "native_server": "omlx",
-      "artifact_path": "/Users/jrazz/.cache/huggingface/hub/georgeis55/Ornith-1.0-35B-MLX-oQ4",
+      "artifact_path": "{LMRE_ROOT:huggingface_hub}/georgeis55/Ornith-1.0-35B-MLX-oQ4",
       "model_ids": [
         "Ornith-1.0-35B-MLX-oQ4",
         "omlx/Ornith-1.0-35B-MLX-oQ4",
-        "/Users/jrazz/.cache/huggingface/hub/georgeis55/Ornith-1.0-35B-MLX-oQ4"
+        "{artifact_path}"
       ]
     },
     "ornith_optiq_4bit": {
       "native_server": "optiq",
-      "artifact_path": "/Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit",
+      "artifact_path": "{LMRE_ROOT:huggingface_hub}/mlx-community/Ornith-1.0-35B-OptiQ-4bit",
       "model_ids": [
         "mlx-community/Ornith-1.0-35B-OptiQ-4bit",
         "mlx-community__Ornith-1.0-35B-OptiQ-4bit",
         "omlx/Ornith-1.0-35B-OptiQ-4bit",
-        "/Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit",
-        "/Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit:no-think",
-        "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit",
-        "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit:no-think",
-        "optiq//Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit:think"
+        "{artifact_path}",
+        "{artifact_path}:no-think",
+        "optiq/{artifact_path}",
+        "optiq/{artifact_path}:no-think",
+        "optiq/{artifact_path}:think"
       ]
     }
   }

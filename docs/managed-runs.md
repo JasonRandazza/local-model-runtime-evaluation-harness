@@ -15,6 +15,19 @@ omlx stop
 # Stop any foreground `optiq serve` with Ctrl+C.
 ```
 
+Create the fixed local artifact-root profile once if it is not already
+present:
+
+```bash
+mkdir -p .lmre
+cp config/machine-profile.example.json .lmre/machine-profile.json
+```
+
+Edit `.lmre/machine-profile.json` so `local_models` and `huggingface_hub`
+contain absolute paths to existing directories on this machine. The profile is
+gitignored and has no CLI override. LMRE does not download, discover, copy, or
+move weights while resolving it.
+
 Adopt the reviewed standing-local policy once:
 
 ```bash
@@ -42,8 +55,11 @@ The plan is non-live but writes an immutable run bundle under
 `results/runs/<run-id>/`. Execution runs preflight, matrix, preference, RAG
 oracle, RAG keyword, routing overhead, cleanup, and seal in that order.
 The plan binds SHA-256 hashes for its recipe, campaign, selected cells, suites,
-pair definitions, family mappings, and RAG corpus. If any bound input changes,
-create a new plan; execution and resume reject the stale plan before inference.
+pair definitions, family mappings, RAG corpus, and the exact bytes of the fixed
+`.lmre/machine-profile.json`. If any bound input or root mapping changes, create
+a new plan; execution and resume reject the stale plan before inference.
+Existing sealed plans that predate the profile hash remain readable, while a
+new run still requires the current local profile to resolve artifacts.
 
 Only one managed `run` or `resume` may hold `.lmre/active-run.lock` at a time.
 If a host crash leaves that file behind, first verify that its recorded PID is

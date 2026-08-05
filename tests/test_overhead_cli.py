@@ -7,10 +7,16 @@ import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
-from local_model_runtime_evaluation.overhead_cli import main
+from local_model_runtime_evaluation.overhead_cli import main as _main
 from local_model_runtime_evaluation.overhead_config import DEFAULT_PAIR_IDS
+from tests.artifact_profile_fixtures import synthetic_artifact_roots
 
 ROOT = __import__("pathlib").Path(__file__).resolve().parents[1]
+ROOTS = synthetic_artifact_roots()
+
+
+def main(argv: list[str]) -> int:
+    return _main(argv, artifact_roots=ROOTS)
 
 
 class OverheadCliTests(unittest.TestCase):

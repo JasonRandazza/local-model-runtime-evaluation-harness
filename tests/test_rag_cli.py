@@ -5,8 +5,15 @@ import json
 import unittest
 from contextlib import redirect_stdout
 
-from local_model_runtime_evaluation.rag_cli import main
+from local_model_runtime_evaluation.rag_cli import main as _main
 from local_model_runtime_evaluation.rag_config import DEFAULT_RAG_CELLS
+from tests.artifact_profile_fixtures import synthetic_artifact_roots
+
+ROOTS = synthetic_artifact_roots()
+
+
+def main(argv: list[str]) -> int:
+    return _main(argv, artifact_roots=ROOTS)
 
 
 class RagCliTests(unittest.TestCase):

@@ -11,9 +11,9 @@ from local_model_runtime_evaluation.credentials import Credential
 from local_model_runtime_evaluation.evidence_bundle import EvidenceBundle
 from local_model_runtime_evaluation.managed_run import (
     ManagedCollectorHooks,
-    default_collector_hooks,
-    execute_managed_run,
-    resume_managed_run,
+    default_collector_hooks as _default_collector_hooks,
+    execute_managed_run as _execute_managed_run,
+    resume_managed_run as _resume_managed_run,
 )
 from local_model_runtime_evaluation.managed_run_types import (
     ManagedStep,
@@ -29,7 +29,12 @@ from local_model_runtime_evaluation.overhead_config import (
     DEFAULT_PAIRS_ROOT,
     OverheadPair,
 )
-from local_model_runtime_evaluation.run_identity import build_plan
+from local_model_runtime_evaluation.artifact_profile import (
+    ArtifactRoots,
+    load_artifact_roots,
+)
+from local_model_runtime_evaluation.run_identity import build_plan as _build_plan
+from tests.artifact_profile_fixtures import write_machine_profile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,13 +45,63 @@ POLICY = (
     / "operator-policies"
     / "local-managed-v1.example.json"
 )
+_PROFILE_BY_PLAN: dict[str, Path] = {}
+_CURRENT_ROOTS: ArtifactRoots | None = None
+
+
+def build_plan(*args, **kwargs):
+    global _CURRENT_ROOTS
+    profile = write_machine_profile(
+        Path(kwargs["results_root"]).parent / "machine-profile"
+    )
+    plan = _build_plan(*args, **kwargs, machine_profile_path=profile)
+    _PROFILE_BY_PLAN[plan.plan_hash] = profile
+    _CURRENT_ROOTS = load_artifact_roots(profile)
+    return plan
+
+
+def execute_managed_run(plan, adopted, bundle, manager, hooks):
+    return _execute_managed_run(
+        plan,
+        adopted,
+        bundle,
+        manager,
+        hooks,
+        machine_profile_path=_PROFILE_BY_PLAN[plan.plan_hash],
+    )
+
+
+def default_collector_hooks(plan, manager, bundle):
+    return _default_collector_hooks(
+        plan,
+        manager,
+        bundle,
+        machine_profile_path=_PROFILE_BY_PLAN[plan.plan_hash],
+    )
+
+
+def resume_managed_run(run_dir, adopted, manager, hooks):
+    plan = EvidenceBundle.load(run_dir).plan
+    return _resume_managed_run(
+        run_dir,
+        adopted,
+        manager,
+        hooks,
+        machine_profile_path=_PROFILE_BY_PLAN[plan.plan_hash],
+    )
 
 
 def _required_routes(pair_ids: tuple[str, ...]) -> tuple[str, ...]:
-    return tuple(
-        OverheadPair.load(DEFAULT_PAIRS_ROOT / f"{pair_id}.json").routed_model_id
-        for pair_id in pair_ids
-    )
+    assert _CURRENT_ROOTS is not None
+    routes: list[str] = []
+    for pair_id in pair_ids:
+        pair = OverheadPair.load(DEFAULT_PAIRS_ROOT / f"{pair_id}.json")
+        artifact_path = str(
+            _CURRENT_ROOTS.huggingface_hub
+            / "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit"
+        )
+        routes.append(pair.resolve(artifact_path).routed_model_id)
+    return tuple(routes)
 
 
 class FakeRuntimeManager:
@@ -444,6 +499,14 @@ class ManagedRunTests(unittest.TestCase):
         self.assertEqual(models, required)
         managed_cell = manager.build_server.call_args.args[0]
         self.assertEqual(managed_cell.server, "osaurus")
+        assert _CURRENT_ROOTS is not None
+        self.assertEqual(
+            managed_cell.artifact_path,
+            str(
+                _CURRENT_ROOTS.local_models
+                / "gemma-4-12B-it-qat-JANG_4M"
+            ),
+        )
         handle.start.assert_called_once_with()
         handle.wait_ready.assert_called_once_with(
             managed_cell.model_id,

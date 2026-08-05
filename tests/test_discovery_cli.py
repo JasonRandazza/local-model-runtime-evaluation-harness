@@ -11,16 +11,23 @@ from local_model_runtime_evaluation.discovery_cli import (
     _cmd_execute,
     _cmd_propose,
     _cmd_show,
-    main,
+    main as _main,
 )
 from local_model_runtime_evaluation.discovery_execute import DiscoverySuiteHooks
 from local_model_runtime_evaluation.discovery_types import DiscoveryError, load_proposal
 from local_model_runtime_evaluation.matrix_config import load_family
+from tests.artifact_profile_fixtures import synthetic_artifact_roots
+
+ROOTS = synthetic_artifact_roots()
+
+
+def main(argv: list[str]) -> int:
+    return _main(argv, artifact_roots=ROOTS)
 
 
 class FakeTransport:
     def __init__(self) -> None:
-        family = load_family("gemma-4-12b-qat")
+        family = load_family("gemma-4-12b-qat").resolve(ROOTS)
         self.urls = {
             "osaurus": "http://127.0.0.1:1337/v1",
             "omlx": "http://127.0.0.1:8100/v1",
@@ -64,6 +71,7 @@ class DiscoveryCliTests(unittest.TestCase):
                 preference_recipes={"gemma-4-12b-qat": cells},
                 rag_recipes={"gemma-4-12b-qat": cells},
                 credential_for=lambda _server: None,
+                artifact_roots=ROOTS,
             )
             self.assertTrue(summary["ok"])
             self.assertIn("gemma-4-12b-qat", summary["executable_families"])

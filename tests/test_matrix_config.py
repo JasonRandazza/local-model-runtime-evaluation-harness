@@ -108,7 +108,7 @@ class MatrixConfigTests(unittest.TestCase):
             "server": "osaurus",
             "base_url": "http://127.0.0.1:1337/v1",
             "model_id": "ornith-1.0-35b-jang_4m",
-            "artifact_path": "/Users/jrazz/MLXModels/OsaurusAI/Ornith-1.0-35B-JANG_4M",
+            "artifact_path": "/synthetic/local-models/Ornith-1.0-35B-JANG_4M",
             "start_command": ["osaurus", "serve"],
             "stop_command": ["osaurus", "stop"],
             "health_path": "/health",
@@ -138,7 +138,7 @@ class MatrixConfigTests(unittest.TestCase):
                 cell_id="jang_4m__osaurus", quant="jang_4m", server="osaurus",
                 base_url="http://127.0.0.1:8080/v1",
                 model_id="gemma-4-12b-it-qat-jang_4m",
-                artifact_path="/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
+                artifact_path="/synthetic/local-models/gemma-4-12B-it-qat-JANG_4M",
                 start_command=("osaurus", "serve"), stop_command=(), health_path="/health", notes="",
             )
 
@@ -241,7 +241,7 @@ class MatrixConfigTests(unittest.TestCase):
         self.assertEqual(jang.quant, "jang_4m")
         self.assertEqual(
             jang.artifact_path,
-            "/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
+            "{LMRE_ROOT:local_models}/gemma-4-12B-it-qat-JANG_4M",
         )
         self.assertIn("gemma-4-12b-it-qat-jang_4m", jang.model_ids)
         self.assertEqual(jang.role, "osaurus_native")
@@ -250,7 +250,7 @@ class MatrixConfigTests(unittest.TestCase):
         oq4 = load_family("gemma-4-12b-qat").quants["oq4_fp16"]
         self.assertEqual(
             oq4.artifact_path,
-            "/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
+            "{LMRE_ROOT:huggingface_hub}/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
         )
         self.assertIn("gemma-4-12B-it-qat-oQ4-fp16", oq4.model_ids)
         self.assertIsNone(oq4.role)
@@ -259,7 +259,7 @@ class MatrixConfigTests(unittest.TestCase):
         optiq = load_family("gemma-4-12b-qat").quants["optiq_4bit"]
         self.assertEqual(
             optiq.artifact_path,
-            "/Users/jrazz/.cache/huggingface/hub/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+            "{LMRE_ROOT:huggingface_hub}/mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
         )
         self.assertIn("mlx-community/gemma-4-12B-it-qat-OptiQ-4bit", optiq.model_ids)
 
@@ -316,7 +316,7 @@ class MatrixConfigTests(unittest.TestCase):
         jang = load_family("ornith-35b").quants["ornith_jang_4m"]
         self.assertEqual(
             jang.artifact_path,
-            "/Users/jrazz/MLXModels/OsaurusAI/Ornith-1.0-35B-JANG_4M",
+            "{LMRE_ROOT:local_models}/Ornith-1.0-35B-JANG_4M",
         )
         self.assertIn("ornith-1.0-35b-jang_4m", jang.model_ids)
         self.assertEqual(jang.role, "osaurus_native")
@@ -325,7 +325,7 @@ class MatrixConfigTests(unittest.TestCase):
         oq4 = load_family("ornith-35b").quants["ornith_oq4"]
         self.assertEqual(
             oq4.artifact_path,
-            "/Users/jrazz/.cache/huggingface/hub/georgeis55/Ornith-1.0-35B-MLX-oQ4",
+            "{LMRE_ROOT:huggingface_hub}/georgeis55/Ornith-1.0-35B-MLX-oQ4",
         )
         self.assertIn("Ornith-1.0-35B-MLX-oQ4", oq4.model_ids)
 
@@ -333,7 +333,7 @@ class MatrixConfigTests(unittest.TestCase):
         optiq = load_family("ornith-35b").quants["ornith_optiq_4bit"]
         self.assertEqual(
             optiq.artifact_path,
-            "/Users/jrazz/.cache/huggingface/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit",
+            "{LMRE_ROOT:huggingface_hub}/mlx-community/Ornith-1.0-35B-OptiQ-4bit",
         )
         self.assertIn("mlx-community/Ornith-1.0-35B-OptiQ-4bit", optiq.model_ids)
 
@@ -460,7 +460,7 @@ class MatrixConfigTests(unittest.TestCase):
         mxfp = load_family("qwen36-35b-a3b").quants["qwen_mxfp4"]
         self.assertEqual(
             mxfp.artifact_path,
-            "/Users/jrazz/MLXModels/OsaurusAI/Qwen3.6-35B-A3B-MXFP4-MTP",
+            "{LMRE_ROOT:local_models}/Qwen3.6-35B-A3B-MXFP4-MTP",
         )
         self.assertIn("qwen3.6-35b-a3b-mxfp4-mtp", mxfp.model_ids)
 

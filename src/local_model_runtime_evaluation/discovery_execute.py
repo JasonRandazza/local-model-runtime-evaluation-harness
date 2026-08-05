@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from local_model_runtime_evaluation.artifact_profile import ArtifactRoots
 from local_model_runtime_evaluation.discovery_types import (
     DiscoveryError,
     load_proposal,
@@ -31,6 +32,7 @@ def default_suite_hooks(
     cells_root: Path,
     preference_results: Path,
     rag_results: Path,
+    artifact_roots: ArtifactRoots,
 ) -> DiscoverySuiteHooks:
     def run_preference(
         family_id: str,
@@ -49,6 +51,7 @@ def default_suite_hooks(
             cells_root,
             preference_results,
             family_id=family_id,
+            artifact_roots=artifact_roots,
         )
         suite = PreferenceSuite.load(preference_suite)
         run_review(run_dir, seed=0, cell_ids=cell_ids, suite=suite)
@@ -58,6 +61,7 @@ def default_suite_hooks(
             cells_root=cells_root,
             suite=suite,
             family_id=family_id,
+            artifact_roots=artifact_roots,
         )
         run_tally(run_dir)
         return run_dir
@@ -75,6 +79,7 @@ def default_suite_hooks(
                 cells_root,
                 rag_results,
                 family_id=family_id,
+                artifact_roots=artifact_roots,
                 mode=mode,
             )
             score_run(run_dir, RagSuite.load(rag_suite))

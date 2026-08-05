@@ -39,7 +39,13 @@ Routing overhead procedure: [overhead.md](overhead.md).
 
 ## Prerequisites
 
-- Artifact paths in `config/matrix/cells/` must exist on disk before live runs. Osaurus-native builds (JANG or MXFP) live under `MLXModels/OsaurusAI/`; oQ4 and OptiQ-4bit live under the Hugging Face cache (flat hub paths or operator symlinks).
+- Create `.lmre/machine-profile.json` from
+  `config/machine-profile.example.json`, then set its `local_models` and
+  `huggingface_hub` values to absolute existing directories. Checked-in cells
+  contain logical roots; resolved artifact paths must exist before live runs.
+  Osaurus-native builds (JANG or MXFP) belong below `local_models`; oQ4 and
+  OptiQ-4bit belong below `huggingface_hub` (flat hub paths or operator
+  symlinks).
 - **Ornith / Qwen prep:** download and complete HF snapshots before live screen. Hub dirs may be refs-only (no `snapshots/`) until `huggingface-cli download` finishes; flat paths may need a local symlink. Dry-config lists missing paths in `artifact_missing`; live cells with missing weights become `N/A`.
 - Restore `optiq` on `PATH` before OptiQ cells (`which optiq`).
 - Unload other heavy models; keep RAM above the campaign floor (`20%` free).
@@ -102,7 +108,10 @@ Qwen:
   --campaign config/matrix/qwen36-35b-a3b-campaign.json
 ```
 
-Dry-config JSON includes `family_id`, `cell_count`, cell ids, and `artifact_missing` (artifact paths referenced by the campaign that are not on disk). Resolve any listed paths before live screen.
+Dry-config JSON includes `family_id`, `cell_count`, cell ids, and
+`artifact_missing` (fully resolved artifact paths referenced by the campaign
+that are not on disk). Correct the local profile or artifact placement before
+live screen; do not edit committed cells to add a machine-specific path.
 
 ## Direct low-level live screen
 

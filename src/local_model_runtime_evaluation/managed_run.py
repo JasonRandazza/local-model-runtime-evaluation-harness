@@ -10,6 +10,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+from .artifact_profile import (
+    DEFAULT_MACHINE_PROFILE_PATH,
+    ArtifactRoots,
+    load_artifact_roots,
+)
 from .credentials import (
     OSAURUS_KEYCHAIN_SERVICE,
     KeychainCredentialProvider,
@@ -64,10 +69,13 @@ def default_collector_hooks(
     plan: ManagedRunPlan,
     runtime_manager: RuntimeManager,
     bundle: EvidenceBundle,
+    *,
+    machine_profile_path: Path = DEFAULT_MACHINE_PROFILE_PATH,
 ) -> ManagedCollectorHooks:
     """Bind the retained collectors to one immutable managed plan."""
 
-    campaign = Campaign.load(_repo_path(plan.campaign_path))
+    artifact_roots = load_artifact_roots(machine_profile_path)
+    campaign = Campaign.load(_repo_path(plan.campaign_path)).resolve(artifact_roots)
     cells_root = _repo_path(plan.cells_root)
     pairs_root = _repo_path(plan.pairs_root)
     preference_path = _repo_path(plan.suite_path(ManagedStep.PREFERENCE))
@@ -77,8 +85,13 @@ def default_collector_hooks(
 
     def preflight(candidate: ManagedRunPlan) -> dict[str, object]:
         verify_plan_hash(candidate)
-        verify_plan_inputs(candidate)
-        loaded_campaign = Campaign.load(_repo_path(candidate.campaign_path))
+        verify_plan_inputs(
+            candidate,
+            machine_profile_path=machine_profile_path,
+        )
+        loaded_campaign = Campaign.load(
+            _repo_path(candidate.campaign_path)
+        ).resolve(artifact_roots)
         MatrixSuite.load(_repo_path(candidate.suite_path(ManagedStep.MATRIX)))
         PreferenceSuite.load(
             _repo_path(candidate.suite_path(ManagedStep.PREFERENCE))
@@ -87,15 +100,17 @@ def default_collector_hooks(
             _repo_path(candidate.suite_path(ManagedStep.RAG_ORACLE))
         )
         RagCorpus.load(_repo_path(candidate.rag_corpus_path))
-        family = load_family(candidate.family_id)
+        family_template = load_family(candidate.family_id)
+        family = family_template.resolve(artifact_roots)
         missing_artifacts: list[str] = []
         missing_executables: list[str] = []
         for cell_id in candidate.cell_ids:
             cell = Cell.load(
                 _repo_path(candidate.cells_root) / f"{cell_id}.json",
-                family=family,
-            )
-            artifact = Path(cell.artifact_path).expanduser()
+                family=family_template,
+            ).resolve(artifact_roots)
+            cell.validate_for_family(family)
+            artifact = Path(cell.artifact_path)
             if not artifact.exists():
                 missing_artifacts.append(cell.cell_id)
             executable = cell.start_command[0]
@@ -108,9 +123,15 @@ def default_collector_hooks(
             ):
                 missing_executables.append(executable)
         for pair_id in candidate.pair_ids:
-            OverheadPair.load(
+            pair_template = OverheadPair.load(
                 _repo_path(candidate.pairs_root) / f"{pair_id}.json"
             )
+            backend = Cell.load(
+                _repo_path(candidate.cells_root)
+                / f"{pair_template.backend_cell_id}.json",
+                family=family_template,
+            ).resolve(artifact_roots)
+            pair_template.resolve(backend.artifact_path)
         if missing_artifacts:
             raise RuntimeError(
                 "managed artifacts are missing for cells: "
@@ -159,6 +180,7 @@ def default_collector_hooks(
             cells_root,
             output_root,
             family_id=candidate.family_id,
+            artifact_roots=artifact_roots,
             build_server=build_server,
             memory_floor_percent=candidate.memory_floor_percent,
         )
@@ -179,6 +201,7 @@ def default_collector_hooks(
             cells_root=cells_root,
             suite=suite,
             family_id=candidate.family_id,
+            artifact_roots=artifact_roots,
             build_server=build_server,
         )
         return run_tally(run_dir)
@@ -197,6 +220,7 @@ def default_collector_hooks(
             cells_root,
             output_root,
             family_id=candidate.family_id,
+            artifact_roots=artifact_roots,
             build_server=build_server,
             memory_floor_percent=candidate.memory_floor_percent,
             mode=mode,
@@ -211,13 +235,15 @@ def default_collector_hooks(
         ).get()
         transport = LoopbackTransport(set(candidate.endpoints))
         if route_handle is None:
-            family = load_family(candidate.family_id)
+            family_template = load_family(candidate.family_id)
+            family = family_template.resolve(artifact_roots)
             osaurus_cell: Cell | None = None
             for cell_id in candidate.cell_ids:
                 cell = Cell.load(
                     _repo_path(candidate.cells_root) / f"{cell_id}.json",
-                    family=family,
-                )
+                    family=family_template,
+                ).resolve(artifact_roots)
+                cell.validate_for_family(family)
                 if cell.server == "osaurus":
                     osaurus_cell = cell
                     break
@@ -250,6 +276,7 @@ def default_collector_hooks(
             _repo_path(candidate.suite_path(ManagedStep.OVERHEAD)),
             output_root,
             family_id=candidate.family_id,
+            artifact_roots=artifact_roots,
             mode=candidate.matrix_mode,
             build_server=build_server,
             memory_floor_percent=candidate.memory_floor_percent,
@@ -293,14 +320,23 @@ def _error_detail(error: BaseException) -> dict[str, object]:
     }
 
 
-def _required_routes(plan: ManagedRunPlan) -> tuple[str, ...]:
+def _required_routes(
+    plan: ManagedRunPlan,
+    artifact_roots: ArtifactRoots,
+) -> tuple[str, ...]:
     root = Path(plan.pairs_root)
     if not root.is_absolute():
         root = REPOSITORY_ROOT / root
-    return tuple(
-        OverheadPair.load(root / f"{pair_id}.json").routed_model_id
-        for pair_id in plan.pair_ids
-    )
+    family_template = load_family(plan.family_id)
+    routes: list[str] = []
+    for pair_id in plan.pair_ids:
+        pair = OverheadPair.load(root / f"{pair_id}.json")
+        backend = Cell.load(
+            _repo_path(plan.cells_root) / f"{pair.backend_cell_id}.json",
+            family=family_template,
+        ).resolve(artifact_roots)
+        routes.append(pair.resolve(backend.artifact_path).routed_model_id)
+    return tuple(routes)
 
 
 def _run_relative(bundle: EvidenceBundle, output: Path) -> str:
@@ -372,6 +408,8 @@ def execute_managed_run(
     bundle: EvidenceBundle,
     runtime_manager: RuntimeManager,
     hooks: ManagedCollectorHooks,
+    *,
+    machine_profile_path: Path = DEFAULT_MACHINE_PROFILE_PATH,
 ) -> dict[str, object]:
     """Execute an immutable managed plan and seal all terminal evidence."""
 
@@ -381,7 +419,8 @@ def execute_managed_run(
     missing_routes: tuple[str, ...] = ()
     try:
         verify_plan_hash(plan)
-        verify_plan_inputs(plan)
+        verify_plan_inputs(plan, machine_profile_path=machine_profile_path)
+        artifact_roots = load_artifact_roots(machine_profile_path)
         if bundle.plan.plan_hash != plan.plan_hash:
             raise ValueError("evidence bundle plan does not match execution plan")
         _verify_policy_snapshot(bundle, adopted_policy)
@@ -423,7 +462,9 @@ def execute_managed_run(
         bundle.transition_step(current, StepState.RUNNING)
         routed = frozenset(hooks.routed_models(plan))
         missing_routes = tuple(
-            route for route in _required_routes(plan) if route not in routed
+            route
+            for route in _required_routes(plan, artifact_roots)
+            if route not in routed
         )
         if missing_routes:
             bundle.transition_step(
@@ -520,6 +561,8 @@ def resume_managed_run(
     adopted_policy: AdoptedPolicy,
     runtime_manager: RuntimeManager,
     hooks: ManagedCollectorHooks,
+    *,
+    machine_profile_path: Path = DEFAULT_MACHINE_PROFILE_PATH,
 ) -> dict[str, object]:
     """Resume only overhead after an operator reconnects an existing provider."""
 
@@ -542,7 +585,11 @@ def resume_managed_run(
                 "only a sealed overhead-only retry may resume"
             )
         verify_plan_hash(bundle.plan)
-        verify_plan_inputs(bundle.plan)
+        verify_plan_inputs(
+            bundle.plan,
+            machine_profile_path=machine_profile_path,
+        )
+        artifact_roots = load_artifact_roots(machine_profile_path)
         _verify_policy_snapshot(bundle, adopted_policy)
         authorize(adopted_policy.policy, bundle.plan.policy_request())
 
@@ -584,7 +631,7 @@ def resume_managed_run(
             raise
         missing = tuple(
             route
-            for route in _required_routes(bundle.plan)
+            for route in _required_routes(bundle.plan, artifact_roots)
             if route not in routed
         )
         if missing:

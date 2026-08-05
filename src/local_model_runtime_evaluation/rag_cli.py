@@ -7,6 +7,11 @@ import json
 from pathlib import Path
 from typing import Sequence
 
+from .artifact_profile import (
+    DEFAULT_MACHINE_PROFILE_PATH,
+    ArtifactRoots,
+    load_artifact_roots,
+)
 from .matrix_config import Cell, MatrixError, REPOSITORY_ROOT, load_family
 from .rag_collect import run_collect
 from .rag_config import (
@@ -52,16 +57,22 @@ def _load_cells(
     cell_ids: tuple[str, ...],
     cells_root: Path,
     family_id: str,
+    artifact_roots: ArtifactRoots,
 ) -> None:
-    family = load_family(family_id)
+    family_template = load_family(family_id)
+    family = family_template.resolve(artifact_roots)
     for cell_id in cell_ids:
         try:
-            Cell.load(cells_root / f"{cell_id}.json", family=family)
+            cell = Cell.load(
+                cells_root / f"{cell_id}.json",
+                family=family_template,
+            ).resolve(artifact_roots)
+            cell.validate_for_family(family)
         except MatrixError as error:
             raise RagError(str(error)) from error
 
 
-def _cmd_collect(args: argparse.Namespace) -> int:
+def _cmd_collect(args: argparse.Namespace, artifact_roots: ArtifactRoots) -> int:
     suite_path = _resolve_repo_path(args.suite)
     corpus_root = _resolve_repo_path(args.corpus_root)
     cells_root = _resolve_repo_path(args.cells_root)
@@ -74,7 +85,7 @@ def _cmd_collect(args: argparse.Namespace) -> int:
             f"corpus id mismatch: suite expects {suite.corpus_id!r}, "
             f"corpus has {corpus.corpus_id!r}"
         )
-    _load_cells(selection.cells, cells_root, selection.family_id)
+    _load_cells(selection.cells, cells_root, selection.family_id, artifact_roots)
 
     if args.dry_config:
         print(json.dumps({
@@ -96,6 +107,7 @@ def _cmd_collect(args: argparse.Namespace) -> int:
         cells_root,
         results_root,
         family_id=selection.family_id,
+        artifact_roots=artifact_roots,
         mode=args.mode,
         top_k=args.top_k,
     )
@@ -189,11 +201,16 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    artifact_roots: ArtifactRoots | None = None,
+) -> int:
     args = _parser().parse_args(argv)
     try:
         if args.command == "collect":
-            return _cmd_collect(args)
+            roots = artifact_roots or load_artifact_roots(DEFAULT_MACHINE_PROFILE_PATH)
+            return _cmd_collect(args, roots)
         if args.command == "score":
             return _cmd_score(args)
         raise RagError(f"unknown command {args.command!r}")

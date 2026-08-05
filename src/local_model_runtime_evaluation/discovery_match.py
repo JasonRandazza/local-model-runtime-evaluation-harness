@@ -4,6 +4,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Protocol
 
+from local_model_runtime_evaluation.artifact_profile import ArtifactRoots
 from local_model_runtime_evaluation.discovery_types import (
     CONFIRM_POLICY_EXPLICIT,
     DISCOVERY_SCHEMA_VERSION,
@@ -79,16 +80,22 @@ def match_family(
     cells_root: Path,
     transport: DiscoveryTransport,
     server_probe: dict[str, dict[str, object]],
+    artifact_roots: ArtifactRoots,
     credential_for: Callable[[str], object | None] | None = None,
     path_exists: Callable[[str], bool] | None = None,
 ) -> dict[str, object]:
     exists = path_exists if path_exists is not None else (lambda path: Path(path).exists())
-    family = load_family(family_id)
+    family_template = load_family(family_id)
+    family = family_template.resolve(artifact_roots)
     cells: dict[str, dict[str, object]] = {}
     all_ready = True
 
     for cell_id in cell_ids:
-        cell = Cell.load(cells_root / f"{cell_id}.json", family=family)
+        cell = Cell.load(
+            cells_root / f"{cell_id}.json",
+            family=family_template,
+        ).resolve(artifact_roots)
+        cell.validate_for_family(family)
         artifact_ok = exists(cell.artifact_path)
         entry = server_probe[cell.server]
         reachable = bool(entry.get("reachable"))
@@ -136,6 +143,7 @@ def build_proposal(
     rag_recipes: dict[str, tuple[str, ...]],
     cells_root: Path,
     transport: DiscoveryTransport,
+    artifact_roots: ArtifactRoots,
     credential_for: Callable[[str], object | None] | None = None,
     path_exists: Callable[[str], bool] | None = None,
 ) -> dict[str, object]:
@@ -152,6 +160,7 @@ def build_proposal(
             cells_root=cells_root,
             transport=transport,
             server_probe=servers,
+            artifact_roots=artifact_roots,
             credential_for=credential_for,
             path_exists=path_exists,
         )
