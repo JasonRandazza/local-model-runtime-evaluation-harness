@@ -15,11 +15,15 @@ import re
 from pathlib import Path
 
 from .evidence_bundle import EvidenceBundle, EvidenceError
-from .managed_run_types import MANAGED_PLAN_SCHEMA_VERSION, ManagedRunPlan, ManagedRunState
+from .managed_run_types import (
+    SUPPORTED_MANAGED_PLAN_SCHEMA_VERSIONS,
+    ManagedRunPlan,
+    ManagedRunState,
+)
 from .run_identity import SAFE_RUN_ID
 
 
-SUPPORTED_PLAN_SCHEMA_VERSION = MANAGED_PLAN_SCHEMA_VERSION
+SUPPORTED_PLAN_SCHEMA_VERSIONS = SUPPORTED_MANAGED_PLAN_SCHEMA_VERSIONS
 
 HEALTH_SEALED_VERIFIED = "SEALED_VERIFIED"
 HEALTH_SEALED_CORRUPT = "SEALED_CORRUPT"
@@ -71,6 +75,7 @@ _COMPARISON_DIMENSIONS = (
     "schema_version",
     "family_id",
     "recipe_id",
+    "comparison_class_id",
     "matrix_mode",
     "steps",
     "cell_ids",
@@ -110,11 +115,12 @@ def classify_bundle(run_dir: Path) -> tuple[str, str]:
     if raw_plan is None:
         return HEALTH_UNREADABLE, "evidence_plan_invalid: managed run plan is invalid"
     schema_version = raw_plan.get("schema_version")
-    if schema_version != SUPPORTED_PLAN_SCHEMA_VERSION:
+    if schema_version not in SUPPORTED_PLAN_SCHEMA_VERSIONS:
+        expected_versions = ", ".join(sorted(SUPPORTED_PLAN_SCHEMA_VERSIONS))
         return (
             HEALTH_UNSUPPORTED_SCHEMA,
-            "plan_schema_unsupported: expected "
-            f"{SUPPORTED_PLAN_SCHEMA_VERSION}, found {schema_version!r}",
+            "plan_schema_unsupported: expected one of "
+            f"{expected_versions}, found {schema_version!r}",
         )
     try:
         bundle = EvidenceBundle.load(run_dir)
@@ -141,6 +147,7 @@ def _index_entry(run_dir: Path) -> dict:
         "comparison_id": None,
         "family_id": None,
         "recipe_id": None,
+        "comparison_class_id": None,
         "attempt": None,
         "run_status": None,
         "created_at": None,
@@ -160,6 +167,7 @@ def _index_entry(run_dir: Path) -> dict:
         comparison_id=plan.identity.comparison_id,
         family_id=plan.family_id,
         recipe_id=plan.recipe_id,
+        comparison_class_id=plan.comparison_class_id,
         created_at=plan.created_at,
     )
     try:
@@ -200,6 +208,7 @@ def _identity_dict(plan: ManagedRunPlan) -> dict:
         "attempt": plan.identity.attempt,
         "family_id": plan.family_id,
         "recipe_id": plan.recipe_id,
+        "comparison_class_id": plan.comparison_class_id,
         "matrix_mode": plan.matrix_mode,
         "schema_version": plan.schema_version,
         "plan_hash": plan.plan_hash,
@@ -434,6 +443,7 @@ def _plan_dimensions(plan: ManagedRunPlan) -> dict:
         "schema_version": plan.schema_version,
         "family_id": plan.family_id,
         "recipe_id": plan.recipe_id,
+        "comparison_class_id": plan.comparison_class_id,
         "matrix_mode": plan.matrix_mode,
         "steps": [step.value for step in plan.steps],
         "cell_ids": list(plan.cell_ids),

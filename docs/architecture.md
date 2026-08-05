@@ -22,6 +22,7 @@ ownership of the local active-run lock.
 | `artifact_profile.py` | Strict logical-root resolution from the fixed ignored machine profile |
 | `operator_policy.py` | Standing local authority, exact limits, adoption record |
 | `run_identity.py` / `managed_run_types.py` | Immutable plan, bound input hashes, name, ID, and state contracts |
+| `comparison_class.py` | Checked-in same-family expansion declarations that preserve the native baseline |
 | `runtime_adapters/` / `runtime_manager.py` | Exact attach/start/reclaim/release ownership |
 | `managed_run.py` / `managed_run_cli.py` | Fixed collector order, blocking, resume, JSON CLI |
 | `evidence_bundle.py` | Atomic state, lifecycle journal, attempts, checksums, sealing |
@@ -51,6 +52,12 @@ OptiQ quant          -> OptiQ
 
 Historical cross-server cells are archived. Discovery, matrix, preference, and
 RAG share the same family and cell identities so incompatible mixes fail closed.
+
+Controlled comparison classes may append reviewed same-family native cells to
+that baseline. They cannot replace or reorder baseline cells, accept arbitrary
+paths, select cross-family cells, relax native-server validation, or create new
+overhead routes. The complete class definition and selected cells are bound by
+the managed plan's input hashes; execution still holds one model lane at a time.
 
 Committed family, cell, and overhead configuration uses logical
 `{LMRE_ROOT:...}` and `{artifact_path}` templates. Resolution happens only at

@@ -11,8 +11,13 @@ from typing import Any
 from .operator_policy import PolicyRequest
 
 
-MANAGED_PLAN_SCHEMA_VERSION = "1.0.0"
+LEGACY_MANAGED_PLAN_SCHEMA_VERSION = "1.0.0"
+MANAGED_PLAN_SCHEMA_VERSION = "1.1.0"
+SUPPORTED_MANAGED_PLAN_SCHEMA_VERSIONS = frozenset(
+    {LEGACY_MANAGED_PLAN_SCHEMA_VERSION, MANAGED_PLAN_SCHEMA_VERSION}
+)
 SHA256_HEX = re.compile(r"[0-9a-f]{64}")
+SAFE_COMPARISON_CLASS_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 
 
 class ManagedStep(StrEnum):
@@ -103,6 +108,9 @@ class ManagedRunPlan:
     identity: RunIdentity
     recipe_id: str
     family_id: str
+    comparison_class_id: str | None
+    comparison_class_path: str | None
+    baseline_cell_ids: tuple[str, ...]
     steps: tuple[ManagedStep, ...]
     cell_ids: tuple[str, ...]
     pair_ids: tuple[str, ...]
@@ -146,13 +154,19 @@ class ManagedRunPlan:
             "max_parallel_models": self.max_parallel_models,
             "created_at": self.created_at,
         }
+        if self.schema_version != LEGACY_MANAGED_PLAN_SCHEMA_VERSION:
+            body.update(
+                comparison_class_id=self.comparison_class_id,
+                comparison_class_path=self.comparison_class_path,
+                baseline_cell_ids=list(self.baseline_cell_ids),
+            )
         if include_hash:
             body["plan_hash"] = self.plan_hash
         return body
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ManagedRunPlan:
-        expected = {
+        legacy_expected = {
             "schema_version",
             "identity",
             "recipe_id",
@@ -176,6 +190,19 @@ class ManagedRunPlan:
             "created_at",
             "plan_hash",
         }
+        current_expected = legacy_expected | {
+            "comparison_class_id",
+            "comparison_class_path",
+            "baseline_cell_ids",
+        }
+        schema_version = data.get("schema_version")
+        if schema_version not in SUPPORTED_MANAGED_PLAN_SCHEMA_VERSIONS:
+            raise ValueError("managed run plan schema_version is invalid")
+        expected = (
+            legacy_expected
+            if schema_version == LEGACY_MANAGED_PLAN_SCHEMA_VERSION
+            else current_expected
+        )
         if set(data) != expected:
             raise ValueError("managed run plan fields are invalid")
         identity = data["identity"]
@@ -188,6 +215,8 @@ class ManagedRunPlan:
             "endpoints",
             "runtimes",
         )
+        if schema_version != LEGACY_MANAGED_PLAN_SCHEMA_VERSION:
+            sequence_fields = sequence_fields + ("baseline_cell_ids",)
         if (
             not isinstance(identity, dict)
             or not isinstance(suite_paths, dict)
@@ -240,11 +269,56 @@ class ManagedRunPlan:
         for field in ("cell_ids", "pair_ids", "endpoints", "runtimes"):
             if not all(isinstance(value, str) for value in data[field]):
                 raise ValueError(f"managed run plan {field} is invalid")
+        if schema_version == LEGACY_MANAGED_PLAN_SCHEMA_VERSION:
+            comparison_class_id = None
+            comparison_class_path = None
+            baseline_cell_ids = tuple(data["cell_ids"])
+        else:
+            comparison_class_id = data["comparison_class_id"]
+            comparison_class_path = data["comparison_class_path"]
+            if (comparison_class_id is None) != (comparison_class_path is None):
+                raise ValueError("managed run comparison class fields are invalid")
+            if comparison_class_id is not None and (
+                not isinstance(comparison_class_id, str)
+                or not isinstance(comparison_class_path, str)
+                or not comparison_class_id
+                or not comparison_class_path
+                or len(comparison_class_id) > 80
+                or not SAFE_COMPARISON_CLASS_ID.fullmatch(comparison_class_id)
+                or PurePosixPath(comparison_class_path).is_absolute()
+                or ".." in PurePosixPath(comparison_class_path).parts
+                or comparison_class_path
+                != f"config/comparison-classes/{comparison_class_id}.json"
+            ):
+                raise ValueError("managed run comparison class fields are invalid")
+            baseline_cell_ids = tuple(data["baseline_cell_ids"])
+            if (
+                len(baseline_cell_ids) != 3
+                or len(set(baseline_cell_ids)) != 3
+                or not all(
+                    isinstance(value, str) and value
+                    for value in baseline_cell_ids
+                )
+            ):
+                raise ValueError("managed run baseline_cell_ids is invalid")
+            if (
+                tuple(data["cell_ids"][: len(baseline_cell_ids)])
+                != baseline_cell_ids
+            ):
+                raise ValueError("managed run baseline cells must be preserved in order")
+            if (
+                comparison_class_id is None
+                and tuple(data["cell_ids"]) != baseline_cell_ids
+            ):
+                raise ValueError("managed run undeclared cells are invalid")
         return cls(
             schema_version=data["schema_version"],
             identity=RunIdentity.from_dict(identity),
             recipe_id=data["recipe_id"],
             family_id=data["family_id"],
+            comparison_class_id=comparison_class_id,
+            comparison_class_path=comparison_class_path,
+            baseline_cell_ids=baseline_cell_ids,
             steps=steps,
             cell_ids=tuple(data["cell_ids"]),
             pair_ids=tuple(data["pair_ids"]),

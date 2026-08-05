@@ -122,6 +122,37 @@ class ManagedRunCliTests(unittest.TestCase):
             ).is_file()
         )
 
+    def test_plan_binds_checked_in_comparison_class_without_live_activity(self) -> None:
+        self._adopt()
+        with patch(
+            "local_model_runtime_evaluation.managed_run_cli.execute_managed_run",
+            side_effect=AssertionError("planning must not execute"),
+        ):
+            code, payload = _main_json(
+                self._global()
+                + [
+                    "plan",
+                    "--family",
+                    "gemma-4-12b-qat",
+                    "--recipe",
+                    str(RECIPE),
+                    "--comparison-class",
+                    "gemma-native-baseline-v1",
+                ]
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            payload["comparison_class_id"],
+            "gemma-native-baseline-v1",
+        )
+        bundle = EvidenceBundle.load(
+            self.results_root / str(payload["run_id"])
+        )
+        self.assertEqual(
+            bundle.plan.comparison_class_id,
+            "gemma-native-baseline-v1",
+        )
+
     def test_runtime_catalog_root_is_attempt_specific(self) -> None:
         self._adopt()
         planned = self._plan()

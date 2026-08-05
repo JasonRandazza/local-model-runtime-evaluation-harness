@@ -61,6 +61,32 @@ a new plan; execution and resume reject the stale plan before inference.
 Existing sealed plans that predate the profile hash remain readable, while a
 new run still requires the current local profile to resolve artifacts.
 
+### Controlled comparison classes
+
+An optional checked-in comparison class can append reviewed native cells while
+preserving the family's native triple:
+
+```bash
+./bin/lmre plan \
+  --family gemma-4-12b-qat \
+  --recipe config/managed-runs/complete-native-quality-v1.json \
+  --comparison-class gemma-native-baseline-v1 \
+  --name gemma-declared-native-baseline
+```
+
+The CLI accepts a class ID only. Definitions are loaded from
+`config/comparison-classes/`; there is no arbitrary cell, path, endpoint,
+suite, or pair override. Every class preserves the three baseline cells in
+order, permits only same-family cells on their declared native server, and
+keeps overhead on the existing baseline pairs. Plan schema `1.1.0` binds the
+class and selected cells by hash. Legacy `1.0.0` plans remain readable without
+changing their original serialized shape or hash.
+
+The checked-in `gemma-native-baseline-v1` class intentionally has no extra
+cells. It validates the product boundary without claiming that an additional
+artifact is installed or comparable. See the
+[controlled-expansion contract](superpowers/specs/2026-08-05-controlled-expansion-comparison-class.md).
+
 Only one managed `run` or `resume` may hold `.lmre/active-run.lock` at a time.
 If a host crash leaves that file behind, first verify that its recorded PID is
 no longer active before removing the stale lock.

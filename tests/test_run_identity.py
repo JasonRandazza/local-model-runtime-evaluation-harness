@@ -7,6 +7,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from local_model_runtime_evaluation.managed_run_types import (
+    LEGACY_MANAGED_PLAN_SCHEMA_VERSION,
+    ManagedRunPlan,
     ManagedStep,
     RunSummaryState,
     StepState,
@@ -14,6 +16,8 @@ from local_model_runtime_evaluation.managed_run_types import (
 from local_model_runtime_evaluation.run_identity import (
     MACHINE_PROFILE_INPUT,
     RunIdentityError,
+    _canonical_plan_hash,
+    _scaled_estimated_minutes,
     allocate_run_identity,
     build_plan,
     sanitize_run_name,
@@ -32,6 +36,10 @@ def _fixed_time() -> datetime:
 
 
 class RunIdentityTests(unittest.TestCase):
+    def test_expansion_estimate_scales_up_with_request_count(self) -> None:
+        self.assertEqual(_scaled_estimated_minutes(90, 93, 93), 90)
+        self.assertEqual(_scaled_estimated_minutes(90, 93, 132), 128)
+
     def test_name_and_id_are_separate_and_collision_safe(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -167,6 +175,64 @@ class RunIdentityTests(unittest.TestCase):
             plan.identity.parent_run_id,
             "run-20260729-180000-abcdef",
         )
+
+    def test_declared_comparison_class_is_bound_into_plan(self) -> None:
+        with TemporaryDirectory() as tmp:
+            profile = write_machine_profile(Path(tmp) / "machine")
+            plan = build_plan(
+                RECIPE,
+                family_id="gemma-4-12b-qat",
+                run_name=None,
+                comparison_id=None,
+                parent_run_id=None,
+                results_root=Path(tmp),
+                comparison_class_id="gemma-native-baseline-v1",
+                now=_fixed_time(),
+                entropy="a1b2c3",
+                machine_profile_path=profile,
+            )
+        self.assertEqual(plan.comparison_class_id, "gemma-native-baseline-v1")
+        self.assertEqual(plan.baseline_cell_ids, plan.cell_ids)
+        self.assertIn(
+            "config/comparison-classes/gemma-native-baseline-v1.json",
+            dict(plan.input_hashes),
+        )
+        self.assertEqual(
+            plan.identity.run_name,
+            "gemma-4-12b-qat-gemma-native-baseline-v1",
+        )
+
+    def test_legacy_plan_shape_remains_hash_verifiable(self) -> None:
+        with TemporaryDirectory() as tmp:
+            profile = write_machine_profile(Path(tmp) / "machine")
+            current = build_plan(
+                RECIPE,
+                family_id="gemma-4-12b-qat",
+                run_name=None,
+                comparison_id=None,
+                parent_run_id=None,
+                results_root=Path(tmp),
+                now=_fixed_time(),
+                entropy="a1b2c3",
+                machine_profile_path=profile,
+            )
+        legacy = dataclasses.replace(
+            current,
+            schema_version=LEGACY_MANAGED_PLAN_SCHEMA_VERSION,
+            comparison_class_id=None,
+            comparison_class_path=None,
+            baseline_cell_ids=current.cell_ids,
+            plan_hash="",
+        )
+        legacy = dataclasses.replace(
+            legacy,
+            plan_hash=_canonical_plan_hash(legacy),
+        )
+        payload = legacy.to_dict()
+        self.assertNotIn("comparison_class_id", payload)
+        loaded = ManagedRunPlan.from_dict(payload)
+        verify_plan_hash(loaded)
+        self.assertEqual(loaded.baseline_cell_ids, loaded.cell_ids)
 
     def test_all_retained_families_build_valid_plans(self) -> None:
         families = (

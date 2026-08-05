@@ -12,6 +12,11 @@ from pathlib import Path
 from typing import Any
 
 from .artifact_profile import DEFAULT_MACHINE_PROFILE_PATH, load_artifact_roots
+from .comparison_class import (
+    DEFAULT_COMPARISON_CLASSES_ROOT,
+    ComparisonClassError,
+    load_comparison_class,
+)
 from .managed_run_types import (
     MANAGED_PLAN_SCHEMA_VERSION,
     ManagedRunPlan,
@@ -305,6 +310,16 @@ def _request_count(
     )
 
 
+def _scaled_estimated_minutes(
+    baseline_minutes: int,
+    baseline_requests: int,
+    selected_requests: int,
+) -> int:
+    return (
+        baseline_minutes * selected_requests + baseline_requests - 1
+    ) // baseline_requests
+
+
 def build_plan(
     recipe_path: Path,
     *,
@@ -313,15 +328,38 @@ def build_plan(
     comparison_id: str | None,
     parent_run_id: str | None,
     results_root: Path,
+    comparison_class_id: str | None = None,
     now: datetime | None = None,
     entropy: str | None = None,
     machine_profile_path: Path = DEFAULT_MACHINE_PROFILE_PATH,
+    comparison_classes_root: Path = DEFAULT_COMPARISON_CLASSES_ROOT,
 ) -> ManagedRunPlan:
     current = _utc_now(now)
     load_artifact_roots(machine_profile_path)
     recipe = _load_recipe(recipe_path)
     campaign_path, campaign = _campaign_for_family(family_id)
-    cell_ids, pair_ids = _native_recipes(family_id, campaign)
+    baseline_cell_ids, pair_ids = _native_recipes(family_id, campaign)
+    comparison_class = None
+    if comparison_class_id is not None:
+        try:
+            comparison_class = load_comparison_class(
+                comparison_class_id,
+                root=comparison_classes_root,
+            )
+        except ComparisonClassError as error:
+            raise RunIdentityError(
+                str(error),
+                code=error.code,
+            ) from error
+        if comparison_class.family_id != family_id:
+            raise RunIdentityError("managed comparison class family mismatch")
+        if comparison_class.baseline_campaign_path != campaign_path.resolve():
+            raise RunIdentityError("managed comparison class campaign mismatch")
+        if comparison_class.baseline_cell_ids != baseline_cell_ids:
+            raise RunIdentityError("managed comparison class baseline mismatch")
+        cell_ids = comparison_class.cell_ids
+    else:
+        cell_ids = baseline_cell_ids
     try:
         matrix_suite = MatrixSuite.load(campaign.suite_path)
         preference_suite = PreferenceSuite.load(DEFAULT_PREFERENCE_SUITE)
@@ -330,6 +368,34 @@ def build_plan(
         raise RunIdentityError("managed suite is invalid") from error
     if campaign.memory_floor_percent != int(recipe["memory_floor_percent"]):
         raise RunIdentityError("recipe and campaign memory floors must agree")
+    baseline_request_count = _request_count(
+        cell_count=len(baseline_cell_ids),
+        pair_count=len(pair_ids),
+        matrix_suite=matrix_suite,
+        preference_suite=preference_suite,
+        rag_suite=rag_suite,
+    )
+    request_count = _request_count(
+        cell_count=len(cell_ids),
+        pair_count=len(pair_ids),
+        matrix_suite=matrix_suite,
+        preference_suite=preference_suite,
+        rag_suite=rag_suite,
+    )
+    baseline_minutes = int(recipe["estimated_minutes"])
+    estimated_minutes = baseline_minutes
+    if comparison_class is not None:
+        minimum_minutes = _scaled_estimated_minutes(
+            baseline_minutes,
+            baseline_request_count,
+            request_count,
+        )
+        if comparison_class.estimated_minutes < minimum_minutes:
+            raise RunIdentityError(
+                "managed comparison class estimated_minutes is below "
+                "the request-scaled minimum"
+            )
+        estimated_minutes = comparison_class.estimated_minutes
     input_paths = {
         recipe_path,
         campaign_path,
@@ -355,10 +421,17 @@ def build_plan(
             if path.is_file()
         ),
     }
+    if comparison_class is not None:
+        input_paths.add(comparison_class.path)
+        input_paths.update(comparison_class.cell_paths)
 
     recipe_id = str(recipe["recipe_id"])
     resolved_name = (
-        f"{family_id}-{recipe_id.removesuffix('-v1')}"
+        (
+            f"{family_id}-{comparison_class.comparison_class_id}"
+            if comparison_class is not None
+            else f"{family_id}-{recipe_id.removesuffix('-v1')}"
+        )
         if run_name is None
         else run_name
     )
@@ -381,6 +454,17 @@ def build_plan(
         identity=identity,
         recipe_id=recipe_id,
         family_id=family_id,
+        comparison_class_id=(
+            comparison_class.comparison_class_id
+            if comparison_class is not None
+            else None
+        ),
+        comparison_class_path=(
+            _repo_relative(comparison_class.path)
+            if comparison_class is not None
+            else None
+        ),
+        baseline_cell_ids=baseline_cell_ids,
         steps=steps,
         cell_ids=cell_ids,
         pair_ids=pair_ids,
@@ -405,14 +489,8 @@ def build_plan(
         ))),
         endpoints=endpoints,
         runtimes=frozenset({"osaurus", "omlx", "optiq"}),
-        request_count=_request_count(
-            cell_count=len(cell_ids),
-            pair_count=len(pair_ids),
-            matrix_suite=matrix_suite,
-            preference_suite=preference_suite,
-            rag_suite=rag_suite,
-        ),
-        estimated_minutes=int(recipe["estimated_minutes"]),
+        request_count=request_count,
+        estimated_minutes=estimated_minutes,
         memory_floor_percent=int(recipe["memory_floor_percent"]),
         max_parallel_models=1,
         created_at=current.isoformat(),

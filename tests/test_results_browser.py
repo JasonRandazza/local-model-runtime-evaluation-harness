@@ -67,6 +67,8 @@ class ClassifyBundleTests(unittest.TestCase):
         run_dir = make_unsupported_schema(self.root)
         health, detail = classify_bundle(run_dir)
         self.assertEqual(health, HEALTH_UNSUPPORTED_SCHEMA)
+        self.assertIn("1.0.0", detail)
+        self.assertIn("1.1.0", detail)
         self.assertIn("9.9.9", detail)
 
     def test_unrecognized_name_does_not_open_files(self) -> None:
@@ -159,13 +161,14 @@ class BuildRunViewTests(unittest.TestCase):
         self.assertIsNotNone(identity)
         self.assertEqual(identity["run_name"], "fixture-sealed-pass")
         self.assertEqual(identity["family_id"], "gemma-4-12b-qat")
-        self.assertEqual(identity["schema_version"], "1.0.0")
+        self.assertEqual(identity["schema_version"], "1.1.0")
         for key in (
             "run_id",
             "comparison_id",
             "parent_run_id",
             "attempt",
             "recipe_id",
+            "comparison_class_id",
             "matrix_mode",
             "plan_hash",
             "created_at",
