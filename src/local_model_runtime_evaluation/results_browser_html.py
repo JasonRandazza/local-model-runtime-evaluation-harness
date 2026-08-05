@@ -23,6 +23,9 @@ from .results_browser import (
     HEALTH_UNREADABLE,
     HEALTH_UNSEALED,
     HEALTH_UNSUPPORTED_SCHEMA,
+    VERDICT_COMPARABLE,
+    VERDICT_INCOMPARABLE,
+    build_comparisons,
     build_index,
     build_run_view,
 )
@@ -133,6 +136,11 @@ def render_index(index: dict) -> str:
     if index["missing_root"]:
         body.append(f"<p>Results root does not exist: {root_text}.</p>")
         return _page("Results Browser", "\n".join(body))
+
+    body.append(
+        '<p><a href="comparisons/index.html">Cross-run comparisons</a> '
+        "(sealed verified evidence only)</p>"
+    )
 
     entries = index["entries"]
     if not entries:
@@ -407,6 +415,120 @@ def render_run(view: dict) -> str:
     return _page(title, "\n".join(parts))
 
 
+_MEMBER_COLUMNS = (
+    ("run_name", "Run name"),
+    ("run_id", "Run ID"),
+    ("attempt", "Attempt"),
+    ("created_at", "Created"),
+    ("run_status", "Run status"),
+    ("health", "Health"),
+    ("exclusion_reason", "Comparison standing"),
+)
+
+
+def _verdict_text(group: dict) -> str:
+    reason = group["verdict_reason"]
+    verdict = group["verdict"]
+    return f"{verdict} ({reason})" if reason else verdict
+
+
+def render_comparisons_index(comparisons: dict) -> str:
+    root_text = html.escape(str(comparisons["results_root"]))
+    body = [
+        "<h1>Cross-Run Comparisons</h1>",
+        '<p><a href="../index.html">Back to index</a></p>',
+        "<p>Groups are formed only by persisted comparison IDs. Only "
+        "sealed verified bundles contribute accepted comparison data; all "
+        "other members are listed as excluded.</p>",
+    ]
+    if comparisons["missing_root"]:
+        body.append(f"<p>Results root does not exist: {root_text}.</p>")
+        return _page("Cross-Run Comparisons", "\n".join(body))
+    groups = comparisons["groups"]
+    if not groups:
+        body.append(
+            f"<p>Results root: {root_text}. "
+            "No comparison groups were found beneath this results root.</p>"
+        )
+        return _page("Cross-Run Comparisons", "\n".join(body))
+    header = "".join(
+        f'<th scope="col">{html.escape(label)}</th>'
+        for label in ("Comparison ID", "Members", "Accepted", "Excluded", "Verdict")
+    )
+    rows = []
+    for group in groups:
+        link = f'{html.escape(group["comparison_id"])}.html'
+        rows.append(
+            "<tr>"
+            f'<td><a href="{link}">{_cell(group["comparison_id"])}</a></td>'
+            f"<td>{_cell(len(group['members']))}</td>"
+            f"<td>{_cell(group['accepted_count'])}</td>"
+            f"<td>{_cell(group['excluded_count'])}</td>"
+            f"<td>{_cell(_verdict_text(group))}</td>"
+            "</tr>"
+        )
+    caption = f"Results root: {root_text} — {len(groups)} comparison group(s)."
+    body.append(
+        f"<table><caption>{caption}</caption><tr>{header}</tr>"
+        + "".join(rows)
+        + "</table>"
+    )
+    return _page("Cross-Run Comparisons", "\n".join(body))
+
+
+def render_comparison_group(group: dict) -> str:
+    title = f"Comparison: {group['comparison_id']}"
+    parts = [
+        f"<h1>{html.escape(title)}</h1>",
+        '<p><a href="index.html">Back to comparisons</a></p>',
+        f"<p><strong>Verdict: {_cell(_verdict_text(group))}</strong></p>",
+    ]
+    if group["verdict"] == VERDICT_INCOMPARABLE:
+        parts.append(
+            "<p>Accepted members disagree on required plan dimensions. "
+            "No metrics are aggregated, ranked, or compared for this "
+            "group; individual run pages remain available below.</p>"
+        )
+    elif group["verdict"] != VERDICT_COMPARABLE:
+        parts.append(
+            "<p>Fewer than two sealed verified members: there is nothing "
+            "to compare. Individual run pages remain available below.</p>"
+        )
+
+    parts.append("<h2>Shared plan dimensions</h2>")
+    if group["dimensions"] is None:
+        parts.append(
+            "<p>Shared dimensions are shown only for comparable groups.</p>"
+        )
+    else:
+        parts.append(_kv_table(group["dimensions"]))
+
+    parts.append("<h2>Members</h2>")
+    header = "".join(
+        f'<th scope="col">{html.escape(label)}</th>'
+        for _key, label in _MEMBER_COLUMNS
+    )
+    rows = []
+    for member in group["members"]:
+        link = f'../runs/{html.escape(str(member["run_dir_name"]))}.html'
+        cells = []
+        for key, _label in _MEMBER_COLUMNS:
+            if key == "run_id":
+                cells.append(
+                    f'<td><a href="{link}">{_cell(member[key])}</a></td>'
+                )
+            elif key == "exclusion_reason":
+                standing = (
+                    "accepted" if member["accepted"] else member[key]
+                )
+                cells.append(f"<td>{_cell(standing)}</td>")
+            else:
+                cells.append(f"<td>{_cell(member[key])}</td>")
+        rows.append(f"<tr>{''.join(cells)}</tr>")
+    parts.append(f"<table><tr>{header}</tr>" + "".join(rows) + "</table>")
+    return _page(title, "\n".join(parts))
+
+
 def write_browser(results_root: Path, output_root: Path) -> dict:
     """Render the full browser to output_root. Never raises for bad bundles."""
     resolved_output = output_root.resolve()
@@ -435,8 +557,23 @@ def write_browser(results_root: Path, output_root: Path) -> dict:
         page_path.write_text(render_run(view), encoding="utf-8")
         pages.append(str(page_path))
 
+    comparisons = build_comparisons(results_root)
+    comparisons_dir = output_root / "comparisons"
+    comparisons_dir.mkdir(parents=True, exist_ok=True)
+    comparison_index_path = comparisons_dir / "index.html"
+    comparison_index_path.write_text(
+        render_comparisons_index(comparisons), encoding="utf-8"
+    )
+    for group in comparisons["groups"]:
+        # comparison_id is pre-validated against SAFE_COMPARISON_ID in
+        # build_comparisons, so it is always a safe flat filename.
+        group_path = comparisons_dir / f"{group['comparison_id']}.html"
+        group_path.write_text(render_comparison_group(group), encoding="utf-8")
+
     return {
         "index": str(index_path),
         "runs": len(index["entries"]),
         "pages": pages,
+        "comparison_index": str(comparison_index_path),
+        "comparisons": len(comparisons["groups"]),
     }

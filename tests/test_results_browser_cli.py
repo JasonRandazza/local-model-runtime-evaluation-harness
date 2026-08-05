@@ -60,6 +60,13 @@ class BrowseCliTests(unittest.TestCase):
         self.assertEqual(payload["output"], str(output_root))
         self.assertTrue(Path(payload["index"]).is_file())
         self.assertEqual(Path(payload["index"]), output_root / "index.html")
+        # Additive comparison keys; the pre-comparison keys stay unchanged.
+        self.assertTrue(Path(payload["comparison_index"]).is_file())
+        self.assertEqual(
+            Path(payload["comparison_index"]),
+            output_root / "comparisons" / "index.html",
+        )
+        self.assertIsInstance(payload["comparisons"], int)
 
     def test_missing_results_root_still_reports_ok_with_zero_runs(self) -> None:
         results_root = self.root / "does-not-exist"

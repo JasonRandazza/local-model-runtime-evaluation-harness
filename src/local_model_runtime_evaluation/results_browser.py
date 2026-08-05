@@ -55,6 +55,29 @@ _POLICY_ALLOWLIST = (
 _ATTEMPT_FILENAME = re.compile(r"attempt-(\d+)\.json")
 _REPORT_SUFFIXES = (".md", ".json")
 
+# The shape sanitize_run_name guarantees at plan build. Re-validated here so
+# a tampered or legacy comparison_id can never become an unsafe filename or
+# invent a group.
+SAFE_COMPARISON_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,79}")
+
+VERDICT_COMPARABLE = "COMPARABLE"
+VERDICT_INCOMPARABLE = "INCOMPARABLE"
+VERDICT_NOT_APPLICABLE = "N/A"
+
+# Portable immutable plan dimensions, in the fixed order used for mismatch
+# reasons. Machine paths (campaign_path, suite_paths, *_root, rag_corpus_path)
+# are deliberately absent: input_hashes is the portable content identity.
+_COMPARISON_DIMENSIONS = (
+    "schema_version",
+    "family_id",
+    "recipe_id",
+    "matrix_mode",
+    "steps",
+    "cell_ids",
+    "pair_ids",
+    "input_hashes",
+)
+
 
 def _load_json(path: Path) -> dict | None:
     try:
@@ -404,3 +427,136 @@ def build_run_view(run_dir: Path) -> dict:
         view["step_reports"] = _step_reports(run_dir, state)
 
     return view
+
+
+def _plan_dimensions(plan: ManagedRunPlan) -> dict:
+    return {
+        "schema_version": plan.schema_version,
+        "family_id": plan.family_id,
+        "recipe_id": plan.recipe_id,
+        "matrix_mode": plan.matrix_mode,
+        "steps": [step.value for step in plan.steps],
+        "cell_ids": list(plan.cell_ids),
+        "pair_ids": list(plan.pair_ids),
+        "input_hashes": dict(plan.input_hashes),
+    }
+
+
+_EXCLUSION_REASONS = {
+    HEALTH_SEALED_CORRUPT: (
+        "excluded: sealed but failed checksum verification"
+    ),
+    HEALTH_UNSEALED: "excluded: bundle is not sealed",
+}
+
+
+def _comparison_member(run_dir: Path) -> tuple[str, dict, dict | None] | None:
+    """Return (comparison_id, member, dimensions) or None when the bundle
+    cannot declare a trustworthy comparison identity.
+
+    UNREADABLE/UNRECOGNIZED/UNSUPPORTED_SCHEMA bundles have no vetted
+    identity, so they cannot be attributed to any group (fail closed); they
+    stay visible in the run index as before.
+    """
+    health, detail = classify_bundle(run_dir)
+    if health in _DEGRADED_HEALTHS:
+        return None
+    try:
+        bundle = EvidenceBundle.load(run_dir)
+    except EvidenceError:
+        return None
+    plan = bundle.plan
+    comparison_id = plan.identity.comparison_id
+    if not isinstance(comparison_id, str) or not SAFE_COMPARISON_ID.fullmatch(
+        comparison_id
+    ):
+        return None
+    accepted = health == HEALTH_SEALED_VERIFIED
+    member: dict = {
+        "run_dir_name": run_dir.name,
+        "run_id": plan.identity.run_id,
+        "run_name": plan.identity.run_name,
+        "attempt": plan.identity.attempt,
+        "created_at": plan.created_at,
+        "run_status": None,
+        "health": health,
+        "health_detail": detail,
+        "accepted": accepted,
+        "exclusion_reason": None if accepted else _EXCLUSION_REASONS[health],
+    }
+    try:
+        member["run_status"] = bundle.state.summary_state.value
+    except EvidenceError:
+        pass
+    return comparison_id, member, _plan_dimensions(plan) if accepted else None
+
+
+def build_comparisons(results_root: Path) -> dict:
+    """{"results_root", "missing_root", "groups": [...]}. Never raises.
+
+    Groups bundles by persisted comparison_id. Only SEALED_VERIFIED members
+    are accepted; comparability is judged over accepted members only, on the
+    portable plan dimensions in _COMPARISON_DIMENSIONS. Ordering is
+    deterministic and independent of filesystem iteration order.
+    """
+    if not results_root.is_dir():
+        return {
+            "results_root": str(results_root),
+            "missing_root": True,
+            "groups": [],
+        }
+    grouped: dict[str, list[tuple[dict, dict | None]]] = {}
+    for child in results_root.iterdir():
+        result = _comparison_member(child)
+        if result is None:
+            continue
+        comparison_id, member, dimensions = result
+        grouped.setdefault(comparison_id, []).append((member, dimensions))
+
+    groups = []
+    for comparison_id in sorted(grouped):
+        pairs = grouped[comparison_id]
+        pairs.sort(
+            key=lambda pair: (
+                pair[0]["created_at"],
+                pair[0]["run_id"],
+                pair[0]["run_dir_name"],
+            )
+        )
+        members = [member for member, _dims in pairs]
+        accepted_dims = [dims for _member, dims in pairs if dims is not None]
+        if len(accepted_dims) < 2:
+            verdict = VERDICT_NOT_APPLICABLE
+            reason = "fewer than two accepted members"
+            dimensions = None
+        else:
+            baseline = accepted_dims[0]
+            mismatched = [
+                dim
+                for dim in _COMPARISON_DIMENSIONS
+                if any(dims[dim] != baseline[dim] for dims in accepted_dims[1:])
+            ]
+            if mismatched:
+                verdict = VERDICT_INCOMPARABLE
+                reason = "plan_dimension_mismatch: " + ", ".join(mismatched)
+                dimensions = None
+            else:
+                verdict = VERDICT_COMPARABLE
+                reason = ""
+                dimensions = baseline
+        groups.append(
+            {
+                "comparison_id": comparison_id,
+                "verdict": verdict,
+                "verdict_reason": reason,
+                "accepted_count": sum(1 for m in members if m["accepted"]),
+                "excluded_count": sum(1 for m in members if not m["accepted"]),
+                "dimensions": dimensions,
+                "members": members,
+            }
+        )
+    return {
+        "results_root": str(results_root),
+        "missing_root": False,
+        "groups": groups,
+    }

@@ -52,10 +52,46 @@ A malformed bundle never hides other valid runs.
   recomputed, or replaced. Missing reports render as unavailable, not as
   success.
 
+## Cross-Run Comparisons
+
+The browser also writes `comparisons/index.html` and one
+`comparisons/<comparison-id>.html` page per group, linked from the main
+index. The contract (frozen in
+`docs/superpowers/specs/2026-08-05-sealed-cross-run-comparison.md`):
+
+- Groups form only from a persisted, non-empty `identity.comparison_id`
+  matching the safe shape `[a-z0-9][a-z0-9-]{0,79}`. Missing or malformed
+  identity never invents a group; `UNREADABLE`, `UNRECOGNIZED`, and
+  `UNSUPPORTED_SCHEMA` bundles have no vetted identity and join no group
+  (they stay visible in the run index).
+- Only `SEALED_VERIFIED` members contribute accepted comparison data.
+  `UNSEALED` and `SEALED_CORRUPT` members are listed with the group as
+  excluded, with a deterministic reason, and never leak withheld report
+  content.
+- A shared comparison ID is necessary but not sufficient. Accepted members
+  must agree on the portable immutable plan dimensions (schema version,
+  family, recipe, matrix mode, steps, cell IDs, pair IDs, and the
+  `input_hashes` content identity). Machine paths are never compared as
+  identities.
+- Group verdicts: `COMPARABLE` (two or more accepted members, all
+  dimensions agree), `INCOMPARABLE` with a stable
+  `plan_dimension_mismatch: ...` reason (no metrics are aggregated or
+  ranked), or `N/A (fewer than two accepted members)`. A mismatch never
+  hides individual run pages.
+- Ordering is deterministic: groups by comparison ID; members by created
+  timestamp, then run ID, then directory name.
+- Comparison pages show plan-identity metadata and recorded run statuses
+  only, verbatim. No winner, delta, confidence value, ranking, or new
+  score is derived; richer metric comparison and open-mix comparison
+  remain deferred.
+
+The `browse` JSON output adds `comparison_index` and `comparisons`
+alongside the existing keys.
+
 ## Boundaries
 
 The browser is read-only presentation. It does not run, resume, or plan
 evaluations; it does not contact Osaurus, oMLX, OptiQ, or any other service;
 it binds no port; it never edits bundles, policies, providers, credentials,
-or model weights. Cross-run comparison views and raw model-response viewing
+or model weights. Raw model-response viewing and derived metric comparison
 are deliberately out of scope.
