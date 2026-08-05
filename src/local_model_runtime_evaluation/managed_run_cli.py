@@ -279,6 +279,8 @@ def _command_browse(args: argparse.Namespace) -> dict[str, object]:
         "runs": result["runs"],
         "results_root": str(args.results_root),
         "output": str(args.output),
+        "comparison_index": result["comparison_index"],
+        "comparisons": result["comparisons"],
     }
 
 

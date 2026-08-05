@@ -50,15 +50,17 @@ def _make_bundle(
     run_name: str,
     entropy: str,
     now: datetime,
+    comparison_id: str | None = None,
+    family_id: str = FAMILY_ID,
 ) -> EvidenceBundle:
     results_root = root / "results"
     state_root = root / ".lmre"
     adopted = adopt_policy(POLICY, state_root, now=now)
     plan = build_plan(
         RECIPE,
-        family_id=FAMILY_ID,
+        family_id=family_id,
         run_name=run_name,
-        comparison_id=None,
+        comparison_id=comparison_id,
         parent_run_id=None,
         results_root=results_root,
         now=now,
@@ -118,8 +120,17 @@ def _build_full_pass(
     run_name: str,
     entropy: str,
     now: datetime,
+    comparison_id: str | None = None,
+    family_id: str = FAMILY_ID,
 ) -> EvidenceBundle:
-    bundle = _make_bundle(root, run_name=run_name, entropy=entropy, now=now)
+    bundle = _make_bundle(
+        root,
+        run_name=run_name,
+        entropy=entropy,
+        now=now,
+        comparison_id=comparison_id,
+        family_id=family_id,
+    )
     for step in bundle.plan.steps:
         bundle.transition_step(step, StepState.RUNNING)
         output_path = None
@@ -144,12 +155,22 @@ def _build_full_pass(
     return bundle
 
 
-def make_sealed_pass(root: Path) -> Path:
+def make_sealed_pass(
+    root: Path,
+    *,
+    run_name: str = "fixture-sealed-pass",
+    entropy: str = "aaaaaa",
+    now: datetime | None = None,
+    comparison_id: str | None = None,
+    family_id: str = FAMILY_ID,
+) -> Path:
     bundle = _build_full_pass(
         root,
-        run_name="fixture-sealed-pass",
-        entropy="aaaaaa",
-        now=datetime(2026, 7, 31, 4, 0, tzinfo=timezone.utc),
+        run_name=run_name,
+        entropy=entropy,
+        now=now or datetime(2026, 7, 31, 4, 0, tzinfo=timezone.utc),
+        comparison_id=comparison_id,
+        family_id=family_id,
     )
     return bundle.run_dir
 
@@ -216,12 +237,15 @@ def make_partial_blocked_with_attempts(root: Path) -> Path:
     return bundle.run_dir
 
 
-def make_unsealed_running(root: Path) -> Path:
+def make_unsealed_running(
+    root: Path, *, comparison_id: str | None = None
+) -> Path:
     bundle = _make_bundle(
         root,
         run_name="fixture-unsealed-running",
         entropy="cccccc",
         now=datetime(2026, 7, 31, 2, 0, tzinfo=timezone.utc),
+        comparison_id=comparison_id,
     )
     bundle.transition_step(ManagedStep.PREFLIGHT, StepState.RUNNING)
     bundle.transition_step(ManagedStep.PREFLIGHT, StepState.PASS)
@@ -229,7 +253,7 @@ def make_unsealed_running(root: Path) -> Path:
     return bundle.run_dir
 
 
-def make_corrupt(root: Path) -> Path:
+def make_corrupt(root: Path, *, comparison_id: str | None = None) -> Path:
     # ponytail: reuse the shared full-pass builder (own entropy so this can
     # coexist with make_sealed_pass in the same root) rather than
     # duplicating the transition flow, then tamper bytes directly
@@ -240,6 +264,7 @@ def make_corrupt(root: Path) -> Path:
         run_name="fixture-corrupt",
         entropy="dddddd",
         now=datetime(2026, 7, 31, 0, 30, tzinfo=timezone.utc),
+        comparison_id=comparison_id,
     )
     summary_path = bundle.run_dir / "summary.json"
     summary_path.write_text('{"status":"FAIL"}\n', encoding="utf-8")
