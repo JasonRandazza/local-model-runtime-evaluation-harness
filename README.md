@@ -7,6 +7,7 @@ The active product is managed-run led:
 
 ```text
 adopt reviewed local policy
+  -> inspect checked-in comparison-class and artifact readiness
   -> create and inspect an immutable plan
   -> optionally bind a checked-in same-family comparison class
   -> manage exact local runtime leases
@@ -76,6 +77,7 @@ Operator documentation:
 - [Discovery](docs/discovery.md)
 - [Managed local runs](docs/managed-runs.md)
 - [Controlled expansion](docs/superpowers/specs/2026-08-05-controlled-expansion-comparison-class.md)
+- [Offline comparison-class inspection](docs/superpowers/specs/2026-08-05-comparison-class-offline-inspection.md)
 - [Native matrix](docs/matrix.md)
 - [Preference](docs/preference.md)
 - [RAG](docs/rag.md)

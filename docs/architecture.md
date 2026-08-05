@@ -23,6 +23,7 @@ ownership of the local active-run lock.
 | `operator_policy.py` | Standing local authority, exact limits, adoption record |
 | `run_identity.py` / `managed_run_types.py` | Immutable plan, bound input hashes, name, ID, and state contracts |
 | `comparison_class.py` | Checked-in same-family expansion declarations that preserve the native baseline |
+| `comparison_class_inspect.py` | Read-only class, candidate-cell, and approved-artifact readiness inspection |
 | `runtime_adapters/` / `runtime_manager.py` | Exact attach/start/reclaim/release ownership |
 | `managed_run.py` / `managed_run_cli.py` | Fixed collector order, blocking, resume, JSON CLI |
 | `evidence_bundle.py` | Atomic state, lifecycle journal, attempts, checksums, sealing |
@@ -58,6 +59,12 @@ that baseline. They cannot replace or reorder baseline cells, accept arbitrary
 paths, select cross-family cells, relax native-server validation, or create new
 overhead routes. The complete class definition and selected cells are bound by
 the managed plan's input hashes; execution still holds one model lane at a time.
+
+Before planning, `lmre comparison-class inspect <id>` can read the checked-in
+class and approved machine roots to report its baseline/expansion shape,
+reviewed extra native cells, and static artifact availability. It does not scan
+arbitrary model directories, create configuration, inspect services, or grant
+live authority.
 
 Committed family, cell, and overhead configuration uses logical
 `{LMRE_ROOT:...}` and `{artifact_path}` templates. Resolution happens only at

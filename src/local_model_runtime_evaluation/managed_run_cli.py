@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .artifact_profile import DEFAULT_MACHINE_PROFILE_PATH
+from .comparison_class_inspect import inspect_comparison_class
 from .evidence_bundle import EvidenceBundle
 from .managed_run import (
     default_collector_hooks,
@@ -302,6 +303,19 @@ def _command_doctor(
     return {"ok": True, "diagnostic": result}
 
 
+def _command_comparison_class(
+    args: argparse.Namespace,
+    machine_profile_path: Path,
+) -> dict[str, object]:
+    return {
+        "ok": True,
+        "inspection": inspect_comparison_class(
+            args.comparison_class_id,
+            machine_profile_path=machine_profile_path,
+        ),
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="lmre",
@@ -398,6 +412,19 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("json", "text"),
         default="json",
     )
+    comparison_class = commands.add_parser(
+        "comparison-class",
+        help="Inspect checked-in expansion readiness without live contact",
+    )
+    comparison_class_commands = comparison_class.add_subparsers(
+        dest="comparison_class_command",
+        required=True,
+    )
+    inspect = comparison_class_commands.add_parser(
+        "inspect",
+        help="Inspect one checked-in comparison class and approved artifacts",
+    )
+    inspect.add_argument("comparison_class_id")
     return parser
 
 
@@ -424,6 +451,8 @@ def main(
             body = _command_doctor(args, machine_profile_path)
             if body is None:
                 return 0
+        elif args.command == "comparison-class":
+            body = _command_comparison_class(args, machine_profile_path)
         else:
             body = _command_report(args)
         _emit(body)
