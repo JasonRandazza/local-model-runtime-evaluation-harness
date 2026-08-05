@@ -16,6 +16,12 @@ from typing import Sequence
 from .artifact_profile import DEFAULT_MACHINE_PROFILE_PATH
 from .comparison_class_inspect import inspect_comparison_class
 from .evidence_bundle import EvidenceBundle
+from .free_bind import (
+    adopt_binding,
+    propose_binding,
+    show_binding_proposal,
+    validate_binding_proposal,
+)
 from .managed_run import (
     default_collector_hooks,
     execute_managed_run,
@@ -316,6 +322,32 @@ def _command_comparison_class(
     }
 
 
+def _command_binding(
+    args: argparse.Namespace,
+    machine_profile_path: Path,
+) -> dict[str, object]:
+    common = {
+        "state_dir": args.state_dir,
+        "machine_profile_path": machine_profile_path,
+    }
+    if args.binding_command == "propose":
+        result = propose_binding(
+            binding_id=args.binding_id,
+            revision=args.revision,
+            family_id=args.family,
+            cell_ids=args.cells,
+            notes=args.notes,
+            **common,
+        )
+    elif args.binding_command == "show":
+        result = show_binding_proposal(args.binding_id, **common)
+    elif args.binding_command == "validate":
+        result = validate_binding_proposal(args.binding_id, **common)
+    else:
+        result = adopt_binding(args.binding_id, **common)
+    return {"binding": result, "ok": True}
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="lmre",
@@ -425,6 +457,37 @@ def build_parser() -> argparse.ArgumentParser:
         help="Inspect one checked-in comparison class and approved artifacts",
     )
     inspect.add_argument("comparison_class_id")
+
+    binding = commands.add_parser(
+        "binding",
+        help="Propose, validate, and explicitly adopt an offline cell binding",
+    )
+    binding_commands = binding.add_subparsers(
+        dest="binding_command",
+        required=True,
+    )
+    propose = binding_commands.add_parser(
+        "propose",
+        help="Write one immutable local proposal from checked-in cell IDs",
+    )
+    propose.add_argument("--id", dest="binding_id", required=True)
+    propose.add_argument("--revision", default="1")
+    propose.add_argument("--family", required=True)
+    propose.add_argument(
+        "--cell",
+        dest="cells",
+        action="append",
+        required=True,
+        help="Checked-in same-family native cell ID; repeat in desired order",
+    )
+    propose.add_argument("--notes", default="")
+    for name, help_text in (
+        ("show", "Show a proposal and its current offline validation"),
+        ("validate", "Revalidate proposal hashes, cells, and artifacts"),
+        ("adopt", "Explicitly adopt a ready declaration without live authority"),
+    ):
+        command = binding_commands.add_parser(name, help=help_text)
+        command.add_argument("binding_id")
     return parser
 
 
@@ -453,6 +516,8 @@ def main(
                 return 0
         elif args.command == "comparison-class":
             body = _command_comparison_class(args, machine_profile_path)
+        elif args.command == "binding":
+            body = _command_binding(args, machine_profile_path)
         else:
             body = _command_report(args)
         _emit(body)
