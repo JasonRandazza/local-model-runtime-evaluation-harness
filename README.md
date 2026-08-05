@@ -44,6 +44,28 @@ For a complete managed run, start with:
 ./bin/lmre --help
 ```
 
+## One-Time Machine Profile
+
+Committed model configuration is portable and contains logical roots instead
+of developer-specific absolute paths. Create the fixed, gitignored local
+profile before using dry-config, discovery, planning, or collection commands:
+
+```bash
+mkdir -p .lmre
+cp config/machine-profile.example.json .lmre/machine-profile.json
+```
+
+Edit only the two absolute directory values in
+`.lmre/machine-profile.json`: `local_models` for curated local builds and
+`huggingface_hub` for the Hugging Face hub root. Both directories must already
+exist. LMRE does not scan caches, expand environment variables, accept a
+profile-path CLI override, or relocate model weights.
+
+Model entries use only `{LMRE_ROOT:local_models}/...` or
+`{LMRE_ROOT:huggingface_hub}/...`. Runtime model IDs and fixed start commands
+may derive from the resolved artifact through `{artifact_path}`. Unknown,
+embedded, relative, traversing, or malformed tokens fail closed.
+
 The other CLIs are retained low-level diagnostic and dry-config surfaces. Use
 the managed `lmre` workflow for normal live evaluation.
 
@@ -92,3 +114,5 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
 These checks must not contact Osaurus, oMLX, OptiQ, Keychain, or a real model.
+They read the local machine profile and report missing artifacts without
+starting services.

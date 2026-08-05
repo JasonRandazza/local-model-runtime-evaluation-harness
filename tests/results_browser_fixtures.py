@@ -17,6 +17,7 @@ from local_model_runtime_evaluation.evidence_bundle import EvidenceBundle
 from local_model_runtime_evaluation.managed_run_types import ManagedStep, StepState
 from local_model_runtime_evaluation.operator_policy import adopt_policy
 from local_model_runtime_evaluation.run_identity import build_plan
+from tests.artifact_profile_fixtures import write_machine_profile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -62,6 +63,7 @@ def _make_bundle(
         results_root=results_root,
         now=now,
         entropy=entropy,
+        machine_profile_path=write_machine_profile(root / "machine-profile"),
     )
     return EvidenceBundle.create(
         results_root,

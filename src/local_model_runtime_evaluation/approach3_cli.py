@@ -7,6 +7,11 @@ import json
 from pathlib import Path
 from typing import Sequence
 
+from local_model_runtime_evaluation.artifact_profile import (
+    DEFAULT_MACHINE_PROFILE_PATH,
+    ArtifactRoots,
+    load_artifact_roots,
+)
 from local_model_runtime_evaluation.approach3 import (
     DEFAULT_APPROACH3_ROOT,
     DEFAULT_CELLS_ROOT,
@@ -74,6 +79,7 @@ def _cmd_collect_preference(
     suite_path: Path,
     results_root: Path,
     confirm_live: bool,
+    artifact_roots: ArtifactRoots,
 ) -> dict[str, object]:
     if not confirm_live:
         raise Approach3Error(
@@ -88,13 +94,18 @@ def _cmd_collect_preference(
             "recipe does not list preference suite",
             code="suite_unsupported",
         )
-    cells = load_recipe_cells(recipe, cells_root=cells_root)
+    cells = load_recipe_cells(
+        recipe,
+        cells_root=cells_root,
+        artifact_roots=artifact_roots,
+    )
     run_dir = run_collect(
         tuple(cell.cell_id for cell in cells),
         suite_path,
         cells_root,
         results_root,
         family_id=recipe.family_id,
+        artifact_roots=artifact_roots,
         require_native_server=recipe.require_native_server,
     )
     return {
@@ -117,6 +128,7 @@ def _cmd_collect_rag(
     results_root: Path,
     mode: str,
     confirm_live: bool,
+    artifact_roots: ArtifactRoots,
 ) -> dict[str, object]:
     if not confirm_live:
         raise Approach3Error(
@@ -136,7 +148,11 @@ def _cmd_collect_rag(
             "rag mode must be oracle or keyword",
             code="rag_mode_invalid",
         )
-    cells = load_recipe_cells(recipe, cells_root=cells_root)
+    cells = load_recipe_cells(
+        recipe,
+        cells_root=cells_root,
+        artifact_roots=artifact_roots,
+    )
     run_dir = run_rag_collect(
         tuple(cell.cell_id for cell in cells),
         suite_path,
@@ -144,6 +160,7 @@ def _cmd_collect_rag(
         cells_root,
         results_root,
         family_id=recipe.family_id,
+        artifact_roots=artifact_roots,
         mode=mode,
         require_native_server=recipe.require_native_server,
     )
@@ -185,6 +202,7 @@ def _cmd_collect_overhead(
     suite_path: Path,
     results_root: Path,
     confirm_live: bool,
+    artifact_roots: ArtifactRoots,
 ) -> dict[str, object]:
     if not confirm_live:
         raise Approach3Error(
@@ -200,7 +218,11 @@ def _cmd_collect_overhead(
             code="suite_unsupported",
         )
     # Validate cells load under recipe rules before measuring.
-    load_recipe_cells(recipe, cells_root=cells_root)
+    load_recipe_cells(
+        recipe,
+        cells_root=cells_root,
+        artifact_roots=artifact_roots,
+    )
     pair_ids = _pair_ids_for_recipe(recipe, pairs_root=pairs_root)
     run_dir = run_overhead(
         pair_ids,
@@ -209,6 +231,7 @@ def _cmd_collect_overhead(
         suite_path,
         results_root,
         family_id=recipe.family_id,
+        artifact_roots=artifact_roots,
     )
     return {
         "ok": True,
@@ -314,7 +337,11 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    artifact_roots: ArtifactRoots | None = None,
+) -> int:
     parser = build_parser()
     try:
         args = parser.parse_args(argv)
@@ -325,14 +352,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "list":
             payload = _cmd_list(root=args.approach3_root)
         elif args.command == "dry-config":
+            roots = artifact_roots or load_artifact_roots(DEFAULT_MACHINE_PROFILE_PATH)
             payload = dry_config(
                 args.recipe,
                 approach3_root=args.approach3_root,
                 cells_root=args.cells_root,
+                artifact_roots=roots,
             )
         elif args.command == "show":
             payload = _cmd_show(args.recipe, root=args.approach3_root)
         elif args.command == "collect-preference":
+            if not args.i_understand_live:
+                raise Approach3Error(
+                    "refusing live collect without --i-understand-live "
+                    "(Approach 3 live collect is UNTESTED)",
+                    code="live_not_confirmed",
+                )
+            roots = artifact_roots or load_artifact_roots(DEFAULT_MACHINE_PROFILE_PATH)
             payload = _cmd_collect_preference(
                 args.recipe,
                 root=args.approach3_root,
@@ -340,8 +376,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 suite_path=args.suite,
                 results_root=args.results_root,
                 confirm_live=args.i_understand_live,
+                artifact_roots=roots,
             )
         elif args.command == "collect-rag":
+            if not args.i_understand_live:
+                raise Approach3Error(
+                    "refusing live collect without --i-understand-live "
+                    "(Approach 3 live collect is UNTESTED)",
+                    code="live_not_confirmed",
+                )
+            roots = artifact_roots or load_artifact_roots(DEFAULT_MACHINE_PROFILE_PATH)
             payload = _cmd_collect_rag(
                 args.recipe,
                 root=args.approach3_root,
@@ -351,8 +395,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 results_root=args.results_root,
                 mode=args.mode,
                 confirm_live=args.i_understand_live,
+                artifact_roots=roots,
             )
         elif args.command == "collect-overhead":
+            if not args.i_understand_live:
+                raise Approach3Error(
+                    "refusing live collect without --i-understand-live "
+                    "(Approach 3 live collect is UNTESTED)",
+                    code="live_not_confirmed",
+                )
+            roots = artifact_roots or load_artifact_roots(DEFAULT_MACHINE_PROFILE_PATH)
             payload = _cmd_collect_overhead(
                 args.recipe,
                 root=args.approach3_root,
@@ -361,6 +413,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 suite_path=args.suite,
                 results_root=args.results_root,
                 confirm_live=args.i_understand_live,
+                artifact_roots=roots,
             )
         else:
             raise Approach3Error(f"unknown command: {args.command}", code="unknown_command")

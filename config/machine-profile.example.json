@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_roots": {
+    "huggingface_hub": "/absolute/path/to/huggingface/hub",
+    "local_models": "/absolute/path/to/local/models"
+  }
+}

@@ -8,6 +8,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
+
+from .artifact_profile import ArtifactRoots
 from urllib.parse import urlparse
 
 from .matrix_config import Cell, MatrixSuite, load_family
@@ -201,6 +203,7 @@ def run_overhead(
     results_root: Path,
     *,
     family_id: str = "gemma-4-12b-qat",
+    artifact_roots: ArtifactRoots,
     mode: str = "screen",
     build_server: BuildServer | None = None,
     measure_cell: MeasureCell | None = None,
@@ -212,7 +215,8 @@ def run_overhead(
     memory_floor_percent: int = DEFAULT_MEMORY_FLOOR_PERCENT,
 ) -> Path:
     suite = MatrixSuite.load(suite_path)
-    family = load_family(family_id)
+    family_template = load_family(family_id)
+    family = family_template.resolve(artifact_roots)
     resource_probe = probe if probe is not None else HostResourceProbe()
     check_port = port_free or port_is_free
     stop = stop_runner or run_stop_command
@@ -263,9 +267,18 @@ def run_overhead(
                 stop_reason = "memory_floor"
                 break
 
-            pair = OverheadPair.load(pairs_root / f"{pair_id}.json")
-            direct = Cell.load(cells_root / f"{pair.direct_cell_id}.json", family=family)
-            backend = Cell.load(cells_root / f"{pair.backend_cell_id}.json", family=family)
+            pair_template = OverheadPair.load(pairs_root / f"{pair_id}.json")
+            direct = Cell.load(
+                cells_root / f"{pair_template.direct_cell_id}.json",
+                family=family_template,
+            ).resolve(artifact_roots)
+            backend = Cell.load(
+                cells_root / f"{pair_template.backend_cell_id}.json",
+                family=family_template,
+            ).resolve(artifact_roots)
+            direct.validate_for_family(family)
+            backend.validate_for_family(family)
+            pair = pair_template.resolve(backend.artifact_path)
 
             base_urls = {direct.base_url, pair.routed_base_url}
             transport = LoopbackTransport(base_urls)

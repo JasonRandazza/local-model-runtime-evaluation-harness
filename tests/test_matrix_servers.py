@@ -17,7 +17,7 @@ def _cell(**overrides: object) -> Cell:
         server="omlx",
         base_url="http://127.0.0.1:8100/v1",
         model_id="gemma-4-12B-it-qat-oQ4-fp16",
-        artifact_path="/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
+        artifact_path="/synthetic/huggingface-hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
         start_command=("true",),
         stop_command=(),
         health_path="/health",
@@ -34,7 +34,7 @@ def _osaurus(**overrides: object) -> Cell:
         server="osaurus",
         base_url="http://127.0.0.1:1337/v1",
         model_id="gemma-4-12b-it-qat-jang_4m",
-        artifact_path="/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
+        artifact_path="/synthetic/local-models/gemma-4-12B-it-qat-JANG_4M",
         start_command=("osaurus", "serve", "--port", "1337", "--yes"),
         stop_command=("osaurus", "stop"),
         health_path="/health",
@@ -46,11 +46,11 @@ def _osaurus(**overrides: object) -> Cell:
 
 def _optiq(**overrides: object) -> Cell:
     model_id = (
-        "/Users/jrazz/.cache/huggingface/hub/mlx-community/"
+        "/synthetic/huggingface-hub/mlx-community/"
         "gemma-4-12B-it-qat-OptiQ-4bit:no-think"
     )
     artifact = (
-        "/Users/jrazz/.cache/huggingface/hub/mlx-community/"
+        "/synthetic/huggingface-hub/mlx-community/"
         "gemma-4-12B-it-qat-OptiQ-4bit"
     )
     data = dict(
@@ -271,7 +271,7 @@ class MatrixServerTests(unittest.TestCase):
     def test_optiq_attaches_when_busy_and_model_present(self) -> None:
         transport = MagicMock()
         model_id = (
-            "/Users/jrazz/.cache/huggingface/hub/mlx-community/"
+            "/synthetic/huggingface-hub/mlx-community/"
             "gemma-4-12B-it-qat-OptiQ-4bit:no-think"
         )
         transport.list_models.return_value = (model_id,)
@@ -294,15 +294,15 @@ class MatrixServerTests(unittest.TestCase):
     def test_optiq_busy_wrong_model_requires_managed_policy(self) -> None:
         transport = MagicMock()
         model_id = (
-            "/Users/jrazz/.cache/huggingface/hub/mlx-community/"
+            "/synthetic/huggingface-hub/mlx-community/"
             "Ornith-1.0-35B-OptiQ-4bit:no-think"
         )
         artifact = (
-            "/Users/jrazz/.cache/huggingface/hub/mlx-community/"
+            "/synthetic/huggingface-hub/mlx-community/"
             "Ornith-1.0-35B-OptiQ-4bit"
         )
         transport.list_models.return_value = (
-            "/Users/jrazz/.cache/huggingface/hub/mlx-community/"
+            "/synthetic/huggingface-hub/mlx-community/"
             "gemma-4-12B-it-qat-OptiQ-4bit:no-think",
         )
         seen: list[tuple[str, ...]] = []

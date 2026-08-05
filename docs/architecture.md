@@ -11,13 +11,15 @@ Planning and preflight do not silently download, copy, relocate, or remap model
 weights. A family is executable only when its complete native triple passes
 artifact, policy, memory, configuration, and exact runtime checks.
 Run and resume also require unchanged hashes for every bound executable input,
-the exact adopted-policy record captured at planning time, and exclusive
+including the fixed local machine profile, the exact adopted-policy record
+captured at planning time, and exclusive
 ownership of the local active-run lock.
 
 ## Active Components
 
 | Component | Responsibility |
 | --- | --- |
+| `artifact_profile.py` | Strict logical-root resolution from the fixed ignored machine profile |
 | `operator_policy.py` | Standing local authority, exact limits, adoption record |
 | `run_identity.py` / `managed_run_types.py` | Immutable plan, bound input hashes, name, ID, and state contracts |
 | `runtime_adapters/` / `runtime_manager.py` | Exact attach/start/reclaim/release ownership |
@@ -48,6 +50,13 @@ OptiQ quant          -> OptiQ
 
 Historical cross-server cells are archived. Discovery, matrix, preference, and
 RAG share the same family and cell identities so incompatible mixes fail closed.
+
+Committed family, cell, and overhead configuration uses logical
+`{LMRE_ROOT:...}` and `{artifact_path}` templates. Resolution happens only at
+explicit runtime boundaries through `.lmre/machine-profile.json`; unresolved
+tokens never reach runtime adapters. The resolver accepts exactly the two
+declared root keys, never scans caches, and never takes arbitrary roots from a
+CLI or environment variable.
 
 ## Lifecycle
 

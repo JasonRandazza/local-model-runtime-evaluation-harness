@@ -61,11 +61,13 @@ MXFP (`qwen_mxfp4__osaurus`) has no overhead pair (Osaurus-native). A third pair
 
 ### Exact routed model ids
 
-Checked-in `routed_model_id` strings in `config/overhead/pairs/*.json` are exact
-allowlisted requirements, not placeholders to edit during a run. Managed
-execution verifies inventory before dispatch and seals a missing route as
+Checked-in `routed_model_id` strings in `config/overhead/pairs/*.json` are
+allowlisted templates. `{artifact_path}` is the only supported substitution
+and resolves from the pair's already validated backend cell; operators do not
+edit it during a run. The resulting string is the exact inventory requirement.
+Managed execution verifies it before dispatch and seals a missing route as
 `PARTIAL_BLOCKED`. A direct low-level run requires the existing Osaurus
-inventory to expose the exact configured id; mismatch fails the routed leg
+inventory to expose that exact resolved id; mismatch fails the routed leg
 early.
 
 ## Direct low-level hybrid lifecycle
@@ -103,7 +105,8 @@ Before `./bin/lmre-overhead run`:
 - [ ] Osaurus listening on `:1337` (`GET /health` or inventory probe succeeds).
 - [ ] Provider for oQ4 and/or OptiQ backend is connected and exposes the target model.
 - [ ] Routed model ids in the selected family’s pair JSON match live inventory **exactly**.
-- [ ] Artifact paths in `config/matrix/cells/` exist; `optiq` on `PATH` for OptiQ pair.
+- [ ] `.lmre/machine-profile.json` resolves every selected cell to an existing
+  artifact; `optiq` is on `PATH` for an OptiQ pair.
 - [ ] Osaurus Keychain credential stored (see [matrix.md](matrix.md)).
 - [ ] Other heavy models unloaded; RAM above the campaign floor (`20%` free).
 - [ ] Confirm the user explicitly requested this direct low-level live run.

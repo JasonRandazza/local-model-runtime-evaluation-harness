@@ -9,6 +9,12 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Sequence
+
+from .artifact_profile import (
+    DEFAULT_MACHINE_PROFILE_PATH,
+    ArtifactRoots,
+    load_artifact_roots,
+)
 from urllib.parse import urlparse
 
 from .credentials import (
@@ -244,9 +250,7 @@ def run_campaign(
         raise MatrixRunnerError(f"unknown mode {mode!r}")
 
     suite = MatrixSuite.load(campaign.suite_path)
-    loaded_cells = cells if cells is not None else tuple(
-        Cell.load(path, family=campaign.family) for path in campaign.cell_paths
-    )
+    loaded_cells = cells if cells is not None else campaign.cells
     if cell_filter is not None:
         allowed = set(cell_filter)
         loaded_cells = tuple(cell for cell in loaded_cells if cell.cell_id in allowed)
@@ -401,13 +405,22 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    artifact_roots: ArtifactRoots | None = None,
+) -> int:
     args = _parser().parse_args(argv)
     try:
-        campaign = Campaign.load(_resolve_repo_path(args.campaign))
+        roots = (
+            load_artifact_roots(DEFAULT_MACHINE_PROFILE_PATH)
+            if artifact_roots is None
+            else artifact_roots
+        )
+        campaign = Campaign.load(_resolve_repo_path(args.campaign)).resolve(roots)
         suite = MatrixSuite.load(campaign.suite_path)
         cell_filter = _parse_cell_filter(args.cells)
-        cells = tuple(Cell.load(path, family=campaign.family) for path in campaign.cell_paths)
+        cells = campaign.cells
         if cell_filter is not None:
             allowed = set(cell_filter)
             cells = tuple(cell for cell in cells if cell.cell_id in allowed)

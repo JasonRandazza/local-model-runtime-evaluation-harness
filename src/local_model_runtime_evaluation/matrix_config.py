@@ -7,6 +7,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .artifact_profile import (
+    ArtifactProfileError,
+    ArtifactRoots,
+    OMLX_CATALOG_TOKEN,
+    resolve_artifact_template,
+    resolve_artifact_text,
+)
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_FAMILIES_ROOT = REPOSITORY_ROOT / "config" / "matrix" / "families"
@@ -97,6 +105,23 @@ class FamilyQuant:
     native_server: str
     role: str | None = None
 
+    def resolve(self, roots: ArtifactRoots) -> FamilyQuant:
+        try:
+            artifact_path = resolve_artifact_template(self.artifact_path, roots)
+            model_ids = tuple(
+                resolve_artifact_text(model_id, artifact_path)
+                for model_id in self.model_ids
+            )
+        except ArtifactProfileError as error:
+            raise MatrixError("family quant artifact template is invalid") from error
+        return FamilyQuant(
+            quant=self.quant,
+            artifact_path=artifact_path,
+            model_ids=model_ids,
+            native_server=self.native_server,
+            role=self.role,
+        )
+
 
 def _parse_family_quant(quant_key: str, entry: Any) -> FamilyQuant:
     if not isinstance(entry, dict):
@@ -129,6 +154,15 @@ def _parse_family_quant(quant_key: str, entry: Any) -> FamilyQuant:
 class ModelFamily:
     family_id: str
     quants: dict[str, FamilyQuant]
+
+    def resolve(self, roots: ArtifactRoots) -> ModelFamily:
+        return ModelFamily(
+            family_id=self.family_id,
+            quants={
+                quant: entry.resolve(roots)
+                for quant, entry in self.quants.items()
+            },
+        )
 
     @classmethod
     def load(cls, path: Path) -> ModelFamily:
@@ -179,6 +213,38 @@ class Cell:
         _validate_server_base_url(self.server, self.base_url)
         if not self.start_command:
             raise MatrixError("start_command must not be empty")
+
+    def resolve(self, roots: ArtifactRoots) -> Cell:
+        try:
+            artifact_path = resolve_artifact_template(self.artifact_path, roots)
+            return Cell(
+                cell_id=self.cell_id,
+                quant=self.quant,
+                server=self.server,
+                base_url=self.base_url,
+                model_id=resolve_artifact_text(self.model_id, artifact_path),
+                artifact_path=artifact_path,
+                start_command=tuple(
+                    resolve_artifact_text(
+                        part,
+                        artifact_path,
+                        allowed_tokens=frozenset({OMLX_CATALOG_TOKEN}),
+                    )
+                    for part in self.start_command
+                ),
+                stop_command=tuple(
+                    resolve_artifact_text(
+                        part,
+                        artifact_path,
+                        allowed_tokens=frozenset({OMLX_CATALOG_TOKEN}),
+                    )
+                    for part in self.stop_command
+                ),
+                health_path=self.health_path,
+                notes=self.notes,
+            )
+        except ArtifactProfileError as error:
+            raise MatrixError("cell artifact template is invalid") from error
 
     def validate_for_family(
         self, family: ModelFamily, *, require_native_server: bool = True,
@@ -283,6 +349,27 @@ class Campaign:
     on_cell_failure: str
     ports: dict[str, int]
     cell_paths: tuple[Path, ...]
+    cells: tuple[Cell, ...]
+
+    def resolve(self, roots: ArtifactRoots) -> Campaign:
+        family = self.family.resolve(roots)
+        cells = tuple(cell.resolve(roots) for cell in self.cells)
+        for cell in cells:
+            cell.validate_for_family(family)
+        return Campaign(
+            self.campaign_id,
+            self.family_id,
+            family,
+            self.suite_path,
+            self.results_root,
+            self.memory_floor_percent,
+            self.ready_timeout_seconds,
+            self.request_timeout_seconds,
+            self.on_cell_failure,
+            self.ports,
+            self.cell_paths,
+            cells,
+        )
 
     @classmethod
     def load(cls, path: Path) -> Campaign:
@@ -333,4 +420,5 @@ class Campaign:
             str(data["on_cell_failure"]),
             normalized_ports,
             cell_paths,
+            loaded,
         )

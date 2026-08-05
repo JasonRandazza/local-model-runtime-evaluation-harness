@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .artifact_profile import ArtifactProfileError, resolve_artifact_text
 from .matrix_config import REPOSITORY_ROOT, Cell, ModelFamily
 
 
@@ -114,6 +115,22 @@ class OverheadPair:
     backend_cell_id: str
     routed_base_url: str
     routed_model_id: str
+
+    def resolve(self, artifact_path: str) -> OverheadPair:
+        try:
+            routed_model_id = resolve_artifact_text(
+                self.routed_model_id,
+                artifact_path,
+            )
+        except ArtifactProfileError as error:
+            raise OverheadError("pair routed_model_id template is invalid") from error
+        return OverheadPair(
+            pair_id=self.pair_id,
+            direct_cell_id=self.direct_cell_id,
+            backend_cell_id=self.backend_cell_id,
+            routed_base_url=self.routed_base_url,
+            routed_model_id=routed_model_id,
+        )
 
     @classmethod
     def load(cls, path: Path) -> OverheadPair:

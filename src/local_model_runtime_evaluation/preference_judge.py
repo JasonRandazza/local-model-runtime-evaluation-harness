@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from .artifact_profile import ArtifactRoots
 from .credentials import Credential
 from .matrix_config import Cell, load_family
 from .matrix_servers import ServerError, ServerHandle, build_server as default_build_server
@@ -195,6 +196,7 @@ def run_judge(
     cells_root: Path,
     suite: PreferenceSuite,
     family_id: str,
+    artifact_roots: ArtifactRoots,
     build_server: BuildServer | None = None,
     transport_factory: TransportFactory | None = None,
     credential_for: CredentialFor | None = None,
@@ -206,8 +208,13 @@ def run_judge(
     answers_by_cell = load_answers(run_dir)
     prompts_by_id = {prompt.prompt_id: prompt.prompt for prompt in suite.prompts}
 
-    family = load_family(family_id)
-    cell = Cell.load(cells_root / f"{judge_cell_id}.json", family=family)
+    family_template = load_family(family_id)
+    family = family_template.resolve(artifact_roots)
+    cell = Cell.load(
+        cells_root / f"{judge_cell_id}.json",
+        family=family_template,
+    ).resolve(artifact_roots)
+    cell.validate_for_family(family)
     resolve = credential_for or (lambda server: resolve_credential(server))
     credential = resolve(cell.server)
     build = build_server or (

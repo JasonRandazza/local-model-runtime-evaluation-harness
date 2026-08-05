@@ -7,6 +7,11 @@ import json
 from pathlib import Path
 from typing import Any, Sequence
 
+from .artifact_profile import (
+    DEFAULT_MACHINE_PROFILE_PATH,
+    ArtifactRoots,
+    load_artifact_roots,
+)
 from .matrix_config import REPOSITORY_ROOT, Cell, MatrixSuite, load_family
 from .overhead_config import (
     DEFAULT_PAIRS_ROOT,
@@ -53,14 +58,25 @@ def _dry_config_payload(
     pairs_root: Path,
     cells_root: Path,
     suite_path: Path,
+    artifact_roots: ArtifactRoots,
 ) -> dict[str, Any]:
     suite = MatrixSuite.load(suite_path)
-    family = load_family(selection.family_id)
+    family_template = load_family(selection.family_id)
+    family = family_template.resolve(artifact_roots)
     pairs: list[dict[str, str]] = []
     for pair_id in selection.pairs:
-        pair = OverheadPair.load(pairs_root / f"{pair_id}.json")
-        Cell.load(cells_root / f"{pair.direct_cell_id}.json", family=family)
-        backend = Cell.load(cells_root / f"{pair.backend_cell_id}.json", family=family)
+        pair_template = OverheadPair.load(pairs_root / f"{pair_id}.json")
+        direct = Cell.load(
+            cells_root / f"{pair_template.direct_cell_id}.json",
+            family=family_template,
+        ).resolve(artifact_roots)
+        backend = Cell.load(
+            cells_root / f"{pair_template.backend_cell_id}.json",
+            family=family_template,
+        ).resolve(artifact_roots)
+        direct.validate_for_family(family)
+        backend.validate_for_family(family)
+        pair = pair_template.resolve(backend.artifact_path)
         routed = make_routed_measure_cell(backend, pair, family=family)
         pairs.append({
             "pair_id": pair.pair_id,
@@ -78,7 +94,7 @@ def _dry_config_payload(
     }
 
 
-def _cmd_run(args: argparse.Namespace) -> int:
+def _cmd_run(args: argparse.Namespace, artifact_roots: ArtifactRoots) -> int:
     pairs_root = _resolve_repo_path(args.pairs_root)
     cells_root = _resolve_repo_path(args.cells_root)
     suite_path = _resolve_repo_path(args.suite)
@@ -86,7 +102,13 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
     if args.dry_config:
         print(json.dumps(
-            _dry_config_payload(selection, pairs_root, cells_root, suite_path),
+            _dry_config_payload(
+                selection,
+                pairs_root,
+                cells_root,
+                suite_path,
+                artifact_roots,
+            ),
             sort_keys=True,
         ))
         return 0
@@ -99,6 +121,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         suite_path,
         results_root,
         family_id=selection.family_id,
+        artifact_roots=artifact_roots,
         mode=DEFAULT_MODE,
     )
     print(json.dumps({"ok": True, "run_dir": str(run_dir)}, sort_keys=True))
@@ -176,12 +199,17 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    artifact_roots: ArtifactRoots | None = None,
+) -> int:
     args = _parser().parse_args(argv)
     dry_config = getattr(args, "dry_config", False)
     try:
         if args.command is None:
             if dry_config:
+                roots = artifact_roots or load_artifact_roots(DEFAULT_MACHINE_PROFILE_PATH)
                 return _cmd_run(argparse.Namespace(
                     family=None,
                     pairs=None,
@@ -190,10 +218,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     suite=DEFAULT_SUITE,
                     results_dir=DEFAULT_RESULTS,
                     dry_config=True,
-                ))
+                ), roots)
             raise OverheadError("command is required (run or report)")
         if args.command == "run":
-            return _cmd_run(args)
+            roots = artifact_roots or load_artifact_roots(DEFAULT_MACHINE_PROFILE_PATH)
+            return _cmd_run(args, roots)
         if args.command == "report":
             return _cmd_report(args)
         raise OverheadError(f"unknown command {args.command!r}")

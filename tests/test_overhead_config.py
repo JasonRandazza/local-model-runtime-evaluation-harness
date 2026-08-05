@@ -114,7 +114,13 @@ class OverheadConfigTests(unittest.TestCase):
         pair = OverheadPair.load(ROOT / "config/overhead/pairs/ornith_optiq_4bit.json")
         self.assertEqual(pair.pair_id, "ornith_optiq_4bit")
         self.assertEqual(pair.direct_cell_id, "ornith_optiq_4bit__optiq")
-        self.assertIn("Ornith-1.0-35B-OptiQ-4bit", pair.routed_model_id)
+        resolved = pair.resolve(
+            "/synthetic/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit"
+        )
+        self.assertEqual(
+            resolved.routed_model_id,
+            "optiq//synthetic/hub/mlx-community/Ornith-1.0-35B-OptiQ-4bit:no-think",
+        )
 
     def test_resolve_family_override_ornith(self) -> None:
         selection = resolve_overhead_selection(family_id="ornith-35b", pairs=None)

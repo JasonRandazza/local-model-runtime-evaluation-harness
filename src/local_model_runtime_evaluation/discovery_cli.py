@@ -10,6 +10,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
+from local_model_runtime_evaluation.artifact_profile import (
+    DEFAULT_MACHINE_PROFILE_PATH,
+    ArtifactRoots,
+    load_artifact_roots,
+)
 from local_model_runtime_evaluation.discovery_execute import (
     DiscoverySuiteHooks,
     default_suite_hooks,
@@ -64,6 +69,7 @@ def _cmd_dry_config(
     cells_root: Path | None = None,
     preference_recipes: dict[str, tuple[str, ...]] | None = None,
     rag_recipes: dict[str, tuple[str, ...]] | None = None,
+    artifact_roots: ArtifactRoots,
 ) -> dict[str, object]:
     cells_root = cells_root or DEFAULT_CELLS_ROOT
     preference = (
@@ -82,9 +88,14 @@ def _cmd_dry_config(
     )
     cells: dict[str, list[str]] = {}
     for family_id, cell_ids in sorted(agreed.items()):
-        family = load_family(family_id)
+        family_template = load_family(family_id)
+        family = family_template.resolve(artifact_roots)
         for cell_id in cell_ids:
-            Cell.load(cells_root / f"{cell_id}.json", family=family)
+            cell = Cell.load(
+                cells_root / f"{cell_id}.json",
+                family=family_template,
+            ).resolve(artifact_roots)
+            cell.validate_for_family(family)
         cells[family_id] = list(cell_ids)
     return {
         "ok": True,
@@ -102,6 +113,7 @@ def _cmd_propose(
     preference_recipes: dict[str, tuple[str, ...]] | None = None,
     rag_recipes: dict[str, tuple[str, ...]] | None = None,
     credential_for: Callable[[str], object | None] | None = None,
+    artifact_roots: ArtifactRoots,
 ) -> dict[str, object]:
     cells_root = cells_root or DEFAULT_CELLS_ROOT
     preference = (
@@ -124,6 +136,7 @@ def _cmd_propose(
         rag_recipes=rag,
         cells_root=cells_root,
         transport=transport,
+        artifact_roots=artifact_roots,
         credential_for=resolve_credential,
         path_exists=path_exists,
     )
@@ -259,7 +272,11 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    artifact_roots: ArtifactRoots | None = None,
+) -> int:
     raw_argv = list(sys.argv[1:] if argv is None else argv)
     if not raw_argv or raw_argv[0] not in _COMMANDS:
         raw_argv = ["propose", *raw_argv]
@@ -267,14 +284,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(raw_argv)
     try:
         if args.command == "dry-config":
+            roots = artifact_roots or load_artifact_roots(DEFAULT_MACHINE_PROFILE_PATH)
             payload = _cmd_dry_config(
                 cells_root=_resolve_repo_path(args.cells_root),
+                artifact_roots=roots,
             )
         elif args.command == "propose":
+            roots = artifact_roots or load_artifact_roots(DEFAULT_MACHINE_PROFILE_PATH)
             payload = _cmd_propose(
                 results_root=_resolve_repo_path(args.results_dir),
                 transport=_default_transport(),
                 cells_root=_resolve_repo_path(args.cells_root),
+                artifact_roots=roots,
             )
         elif args.command == "show":
             payload = _cmd_show(
@@ -282,6 +303,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 proposal_id=args.proposal_id,
             )
         elif args.command == "execute":
+            roots = artifact_roots or load_artifact_roots(DEFAULT_MACHINE_PROFILE_PATH)
             hooks = default_suite_hooks(
                 preference_suite=_resolve_repo_path(args.preference_suite),
                 rag_suite=_resolve_repo_path(args.rag_suite),
@@ -289,6 +311,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 cells_root=_resolve_repo_path(args.cells_root),
                 preference_results=_resolve_repo_path(args.preference_results_dir),
                 rag_results=_resolve_repo_path(args.rag_results_dir),
+                artifact_roots=roots,
             )
             payload = _cmd_execute(
                 results_root=_resolve_repo_path(args.results_dir),

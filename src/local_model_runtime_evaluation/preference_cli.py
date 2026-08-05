@@ -7,6 +7,11 @@ import json
 from pathlib import Path
 from typing import Sequence
 
+from .artifact_profile import (
+    DEFAULT_MACHINE_PROFILE_PATH,
+    ArtifactRoots,
+    load_artifact_roots,
+)
 from .matrix_config import Cell, MatrixError, REPOSITORY_ROOT, load_family
 from .preference_collect import run_collect
 from .preference_config import (
@@ -53,11 +58,17 @@ def _load_cells(
     cell_ids: tuple[str, ...],
     cells_root: Path,
     family_id: str,
+    artifact_roots: ArtifactRoots,
 ) -> None:
-    family = load_family(family_id)
+    family_template = load_family(family_id)
+    family = family_template.resolve(artifact_roots)
     for cell_id in cell_ids:
         try:
-            Cell.load(cells_root / f"{cell_id}.json", family=family)
+            cell = Cell.load(
+                cells_root / f"{cell_id}.json",
+                family=family_template,
+            ).resolve(artifact_roots)
+            cell.validate_for_family(family)
         except MatrixError as error:
             raise PreferenceError(str(error)) from error
 
@@ -79,13 +90,13 @@ def _load_run_metadata(run_dir: Path) -> tuple[tuple[str, ...], str | None]:
     return cell_ids, suite_id_str
 
 
-def _cmd_collect(args: argparse.Namespace) -> int:
+def _cmd_collect(args: argparse.Namespace, artifact_roots: ArtifactRoots) -> int:
     suite_path = _resolve_repo_path(args.suite)
     cells_root = _resolve_repo_path(args.cells_root)
     selection = _selection_from_args(args)
 
     suite = PreferenceSuite.load(suite_path)
-    _load_cells(selection.cells, cells_root, selection.family_id)
+    _load_cells(selection.cells, cells_root, selection.family_id, artifact_roots)
 
     if args.dry_config:
         print(json.dumps({
@@ -104,6 +115,7 @@ def _cmd_collect(args: argparse.Namespace) -> int:
         cells_root,
         results_root,
         family_id=selection.family_id,
+        artifact_roots=artifact_roots,
     )
     print(json.dumps({"ok": True, "run_dir": str(run_dir)}, sort_keys=True))
     return 0
@@ -129,7 +141,7 @@ def _cmd_tally(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_judge(args: argparse.Namespace) -> int:
+def _cmd_judge(args: argparse.Namespace, artifact_roots: ArtifactRoots) -> int:
     run_dir = _resolve_repo_path(args.run)
     if not run_dir.is_dir():
         raise PreferenceError(f"run directory not found: {run_dir}")
@@ -143,7 +155,7 @@ def _cmd_judge(args: argparse.Namespace) -> int:
         judge_cell_id,
         family_id=getattr(args, "family", None),
     )
-    _load_cells((judge_cell_id,), cells_root, judge_family_id)
+    _load_cells((judge_cell_id,), cells_root, judge_family_id, artifact_roots)
 
     answers_dir = run_dir / "answers"
     if not answers_dir.is_dir():
@@ -166,6 +178,7 @@ def _cmd_judge(args: argparse.Namespace) -> int:
         cells_root=cells_root,
         suite=suite,
         family_id=judge_family_id,
+        artifact_roots=artifact_roots,
     )
     print(json.dumps({"ok": True, "run_dir": str(run_dir)}, sort_keys=True))
     return 0
@@ -271,15 +284,21 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    artifact_roots: ArtifactRoots | None = None,
+) -> int:
     args = _parser().parse_args(argv)
     try:
         if args.command == "collect":
-            return _cmd_collect(args)
+            roots = artifact_roots or load_artifact_roots(DEFAULT_MACHINE_PROFILE_PATH)
+            return _cmd_collect(args, roots)
         if args.command == "review":
             return _cmd_review(args)
         if args.command == "judge":
-            return _cmd_judge(args)
+            roots = artifact_roots or load_artifact_roots(DEFAULT_MACHINE_PROFILE_PATH)
+            return _cmd_judge(args, roots)
         if args.command == "tally":
             return _cmd_tally(args)
         raise PreferenceError(f"unknown command {args.command!r}")

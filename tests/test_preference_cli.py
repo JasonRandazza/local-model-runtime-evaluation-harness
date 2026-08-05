@@ -10,10 +10,16 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from local_model_runtime_evaluation.preference_config import DEFAULT_PREFERENCE_CELLS
-from local_model_runtime_evaluation.preference_cli import main
+from local_model_runtime_evaluation.preference_cli import main as _main
 from local_model_runtime_evaluation.preference_judge import DEFAULT_JUDGE_CELL
+from tests.artifact_profile_fixtures import synthetic_artifact_roots
 
 ROOT = Path(__file__).resolve().parents[1]
+ROOTS = synthetic_artifact_roots()
+
+
+def main(argv: list[str]) -> int:
+    return _main(argv, artifact_roots=ROOTS)
 
 
 class PreferenceCliTests(unittest.TestCase):

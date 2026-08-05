@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
+from .artifact_profile import ArtifactRoots
 from .credentials import (
     OSAURUS_KEYCHAIN_SERVICE,
     Credential,
@@ -178,6 +179,7 @@ def run_collect(
     results_root: Path,
     *,
     family_id: str,
+    artifact_roots: ArtifactRoots,
     build_server: BuildServer | None = None,
     transport_factory: TransportFactory | None = None,
     probe: HostResourceProbe | None = None,
@@ -188,15 +190,21 @@ def run_collect(
     require_native_server: bool = True,
 ) -> Path:
     suite = PreferenceSuite.load(suite_path)
-    family = load_family(family_id)
+    family_template = load_family(family_id)
+    family = family_template.resolve(artifact_roots)
     loaded_cells = tuple(
         Cell.load(
             cells_root / f"{cell_id}.json",
-            family=family,
+            family=family_template,
             require_native_server=require_native_server,
-        )
+        ).resolve(artifact_roots)
         for cell_id in cell_ids
     )
+    for cell in loaded_cells:
+        cell.validate_for_family(
+            family,
+            require_native_server=require_native_server,
+        )
     resource_probe = probe if probe is not None else HostResourceProbe()
     resolve_credential_fn = credential_for or _credential_for
     build = build_server or (

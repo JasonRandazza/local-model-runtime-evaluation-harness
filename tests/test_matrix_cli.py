@@ -6,10 +6,44 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from local_model_runtime_evaluation.matrix_runner import main
+from local_model_runtime_evaluation.artifact_profile import load_artifact_roots
+from local_model_runtime_evaluation.matrix_runner import main as _main
+from tests.artifact_profile_fixtures import synthetic_artifact_roots, temporary_machine_profile
+
+ROOTS = synthetic_artifact_roots()
+
+
+def main(argv: list[str], *, artifact_roots=None) -> int:
+    return _main(argv, artifact_roots=artifact_roots or ROOTS)
 
 
 class MatrixCliTest(unittest.TestCase):
+    def test_dry_config_uses_injected_roots_for_exact_artifact_checks(self) -> None:
+        with temporary_machine_profile() as (profile, paths):
+            existing = (
+                paths["local_models"] / "gemma-4-12B-it-qat-JANG_4M"
+            )
+            existing.mkdir()
+            roots = load_artifact_roots(profile)
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                code = main(
+                    [
+                        "--dry-config",
+                        "--campaign",
+                        "config/matrix/gemma-4-12b-qat-campaign.json",
+                    ],
+                    artifact_roots=roots,
+                )
+
+        self.assertEqual(code, 0)
+        payload = json.loads(buffer.getvalue())
+        self.assertNotIn(str(existing.resolve()), payload["artifact_missing"])
+        self.assertEqual(len(payload["artifact_missing"]), 2)
+        self.assertTrue(
+            all("{LMRE_ROOT:" not in path for path in payload["artifact_missing"])
+        )
+
     def test_dry_config_prints_ok(self) -> None:
         buffer = io.StringIO()
         with redirect_stdout(buffer):

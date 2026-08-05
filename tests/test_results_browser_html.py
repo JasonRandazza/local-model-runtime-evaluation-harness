@@ -36,6 +36,7 @@ from tests.results_browser_fixtures import (
     make_unsealed_running,
     make_unsupported_schema,
 )
+from tests.artifact_profile_fixtures import write_machine_profile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,6 +65,7 @@ def _build_hostile_bundle(root: Path) -> Path:
         results_root=results_root,
         now=now,
         entropy="999999",
+        machine_profile_path=write_machine_profile(root / "machine-profile"),
     )
     bundle = EvidenceBundle.create(
         results_root, plan, adopted, {"platform": "macOS", "python": "3.11"}

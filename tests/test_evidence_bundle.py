@@ -17,6 +17,7 @@ from local_model_runtime_evaluation.managed_run_types import (
 )
 from local_model_runtime_evaluation.operator_policy import adopt_policy
 from local_model_runtime_evaluation.run_identity import build_plan
+from tests.artifact_profile_fixtures import write_machine_profile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +50,9 @@ class EvidenceBundleTests(unittest.TestCase):
             results_root=self.results_root,
             now=datetime(2026, 7, 30, 18, 0, tzinfo=timezone.utc),
             entropy="a1b2c3",
+            machine_profile_path=write_machine_profile(
+                self.root / "machine-profile"
+            ),
         )
         self.bundle = EvidenceBundle.create(
             self.results_root,

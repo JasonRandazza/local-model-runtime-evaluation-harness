@@ -16,8 +16,10 @@ from local_model_runtime_evaluation.rag_collect import collect_cell, run_collect
 from local_model_runtime_evaluation.rag_config import RagCorpus, RagError, RagSuite
 from local_model_runtime_evaluation.rag_prompt import build_oracle_prompt
 from local_model_runtime_evaluation.transport import TransportError
+from tests.artifact_profile_fixtures import synthetic_artifact_roots
 
 ROOT = Path(__file__).resolve().parents[1]
+ROOTS = synthetic_artifact_roots()
 
 
 def _cell(**overrides: object) -> Cell:
@@ -27,7 +29,7 @@ def _cell(**overrides: object) -> Cell:
         server="osaurus",
         base_url="http://127.0.0.1:1337/v1",
         model_id="gemma-4-12b-it-qat-jang_4m",
-        artifact_path="/Users/jrazz/MLXModels/OsaurusAI/gemma-4-12B-it-qat-JANG_4M",
+        artifact_path="{LMRE_ROOT:local_models}/gemma-4-12B-it-qat-JANG_4M",
         start_command=("true",),
         stop_command=(),
         health_path="/health",
@@ -304,7 +306,10 @@ class RunCollectTests(unittest.TestCase):
                 server="omlx",
                 base_url="http://127.0.0.1:8100/v1",
                 model_id="gemma-4-12B-it-qat-oQ4-fp16",
-                artifact_path="/Users/jrazz/.cache/huggingface/hub/avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
+                artifact_path=(
+                    "{LMRE_ROOT:huggingface_hub}/"
+                    "avneetsb/gemma-4-12B-it-qat-oQ4-fp16"
+                ),
             ),
         )
         suite = RagSuite.load(ROOT / "suites/gemma-rag-oracle-v1.json")
@@ -365,6 +370,7 @@ class RunCollectTests(unittest.TestCase):
                 cells_root,
                 Path(tmp) / "results" / "rag",
                 family_id="gemma-4-12b-qat",
+                artifact_roots=ROOTS,
                 build_server=build_server,
                 transport_factory=FakeTransport,
                 probe=FakeProbe([80, 80, 80]),
@@ -441,6 +447,7 @@ class RunCollectTests(unittest.TestCase):
                 cells_root,
                 Path(tmp) / "results" / "rag",
                 family_id="gemma-4-12b-qat",
+                artifact_roots=ROOTS,
                 build_server=lambda cell, transport, log_dir, credential: FakeHandle(),
                 transport_factory=FakeTransport,
                 probe=FakeProbe([80]),
@@ -471,6 +478,7 @@ class RunCollectTests(unittest.TestCase):
                     ROOT / "cells",
                     Path(tmp) / "results" / "rag",
                     family_id="gemma-4-12b-qat",
+                    artifact_roots=ROOTS,
                     mode="bm25",
                 )
 

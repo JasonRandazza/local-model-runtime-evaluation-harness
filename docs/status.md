@@ -9,6 +9,11 @@ provider reconnect. A read-only sealed-results browser (`lmre browse`)
 renders that evidence as static local HTML; it grants no run, lifecycle,
 provider, or credential authority.
 
+Committed model configuration is now machine-portable. A strict, gitignored
+`.lmre/machine-profile.json` supplies the two approved local artifact roots;
+new managed plans checksum that profile so changed mappings fail before
+inference. Fable's separate `lmre doctor` work is not part of this slice.
+
 ## Managed Live Acceptance (2026-07-31)
 
 The managed path was accepted with a sealed local run:
@@ -61,8 +66,8 @@ and is intentionally not committed.
 - Approach 3 evidence still needs a separate review/seal decision.
 - Backend attach/reclaim behavior is powerful and requires an adopted policy
   authorizing the exact plan.
-- Artifact paths are machine-local and may be missing even when config is
-  valid.
+- Resolved artifacts remain machine-local and may be missing even when the
+  portable committed templates and machine profile are structurally valid.
 - The results browser defers cross-run comparison; sealed runs are rendered
   individually only.
 - No external plugin lifecycle is managed by this repository cleanup.

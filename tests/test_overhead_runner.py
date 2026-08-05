@@ -11,8 +11,10 @@ from local_model_runtime_evaluation.matrix_config import Cell
 from local_model_runtime_evaluation.matrix_measure import CellResult
 from local_model_runtime_evaluation.overhead_config import DEFAULT_PAIR_IDS, OverheadError
 from local_model_runtime_evaluation.overhead_runner import require_osaurus_listening, run_overhead
+from tests.artifact_profile_fixtures import synthetic_artifact_roots
 
 ROOT = Path(__file__).resolve().parents[1]
+ROOTS = synthetic_artifact_roots()
 
 
 class FakeProbe:
@@ -96,6 +98,7 @@ class RunOverheadTests(unittest.TestCase):
                 ROOT / "config/matrix/cells",
                 ROOT / "suites/gemma-matrix-v1.json",
                 Path(tmp),
+                artifact_roots=ROOTS,
                 build_server=fake_build,
                 measure_cell=fake_measure,
                 probe=FakeProbe([80] * 10),
@@ -151,6 +154,7 @@ class RunOverheadTests(unittest.TestCase):
                 ROOT / "config/matrix/cells",
                 ROOT / "suites/gemma-matrix-v1.json",
                 Path(tmp),
+                artifact_roots=ROOTS,
                 build_server=fake_build,
                 measure_cell=fake_measure,
                 probe=FakeProbe([80] * 10),
@@ -203,6 +207,7 @@ class RunOverheadTests(unittest.TestCase):
                 ROOT / "config/matrix/cells",
                 ROOT / "suites/gemma-matrix-v1.json",
                 Path(tmp),
+                artifact_roots=ROOTS,
                 build_server=fake_build,
                 measure_cell=fake_measure,
                 probe=FakeProbe([80] * 10),
@@ -232,6 +237,7 @@ class RunOverheadTests(unittest.TestCase):
                 ROOT / "config/matrix/cells",
                 ROOT / "suites/gemma-matrix-v1.json",
                 Path(tmp),
+                artifact_roots=ROOTS,
                 build_server=build_server,
                 measure_cell=MagicMock(),
                 probe=FakeProbe([80] * 10),
@@ -253,6 +259,7 @@ class RunOverheadTests(unittest.TestCase):
                 ROOT / "config/matrix/cells",
                 ROOT / "suites/gemma-matrix-v1.json",
                 Path(tmp),
+                artifact_roots=ROOTS,
                 build_server=build_server,
                 measure_cell=MagicMock(),
                 probe=FakeProbe([15]),

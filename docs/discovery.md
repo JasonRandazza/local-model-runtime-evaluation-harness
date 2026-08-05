@@ -56,7 +56,12 @@ Matrix measure is **not** part of default execute. First hard failure stops rema
 
 ## Model placement
 
-Discovery **never** silently copies, moves, or relocates model weights. Match checks pinned `artifact_path` only. Missing paths → cell not ready; the proposal reports the expected path. Operators fix gaps manually or via future explicit `place` UX (not implemented in Gate A).
+Discovery **never** silently copies, moves, scans for, or relocates model
+weights. It resolves the checked-in logical artifact template through the
+fixed `.lmre/machine-profile.json`, then checks only that exact path. Missing
+paths make the cell not ready and the proposal reports the resolved expected
+path. Operators correct the profile or placement manually; there is no
+automatic `place` behavior.
 
 ## Live authorization
 

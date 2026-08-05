@@ -13,11 +13,17 @@ from local_model_runtime_evaluation.approach3 import (
     dry_config,
     resolve_recipe_path,
 )
-from local_model_runtime_evaluation.approach3_cli import main as approach3_main
+from local_model_runtime_evaluation.approach3_cli import main as _approach3_main
 from local_model_runtime_evaluation.matrix_config import REPOSITORY_ROOT
+from tests.artifact_profile_fixtures import synthetic_artifact_roots
 
 ROOT = REPOSITORY_ROOT
 NATIVE = ROOT / "config/approach3/gemma-freeform-native-triple-v1.json"
+ROOTS = synthetic_artifact_roots()
+
+
+def approach3_main(argv: list[str]) -> int:
+    return _approach3_main(argv, artifact_roots=ROOTS)
 
 
 class Approach3RecipeTests(unittest.TestCase):
@@ -28,7 +34,7 @@ class Approach3RecipeTests(unittest.TestCase):
         self.assertEqual(len(recipe.cell_ids), 3)
 
     def test_dry_config_ok(self) -> None:
-        report = dry_config(NATIVE)
+        report = dry_config(NATIVE, artifact_roots=ROOTS)
         self.assertTrue(report["ok"])
         self.assertEqual(report["status"], "DRY_CONFIG_OK")
         self.assertEqual(report["live_collect"], "UNTESTED")

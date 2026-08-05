@@ -10,6 +10,9 @@ from local_model_runtime_evaluation.discovery_match import (
 )
 from local_model_runtime_evaluation.discovery_types import DiscoveryError
 from local_model_runtime_evaluation.matrix_config import REPOSITORY_ROOT, load_family
+from tests.artifact_profile_fixtures import synthetic_artifact_roots
+
+ROOTS = synthetic_artifact_roots()
 
 
 class FakeTransport:
@@ -47,7 +50,7 @@ class DiscoveryMatchTests(unittest.TestCase):
             "oq4_fp16__omlx",
             "optiq_4bit__optiq",
         )
-        family = load_family(family_id)
+        family = load_family(family_id).resolve(ROOTS)
         # Only osaurus reachable; pretend all artifacts exist
         osaurus = f"http://127.0.0.1:1337/v1"
         transport = FakeTransport(
@@ -60,6 +63,7 @@ class DiscoveryMatchTests(unittest.TestCase):
             cell_ids=cell_ids,
             cells_root=cells_root,
             transport=transport,
+            artifact_roots=ROOTS,
             server_probe=probe,
             path_exists=lambda _p: True,
         )
@@ -75,7 +79,7 @@ class DiscoveryMatchTests(unittest.TestCase):
             "oq4_fp16__omlx",
             "optiq_4bit__optiq",
         )
-        family = load_family(family_id)
+        family = load_family(family_id).resolve(ROOTS)
         urls = {
             "osaurus": "http://127.0.0.1:1337/v1",
             "omlx": "http://127.0.0.1:8100/v1",
@@ -93,6 +97,7 @@ class DiscoveryMatchTests(unittest.TestCase):
             cell_ids=cell_ids,
             cells_root=cells_root,
             transport=transport,
+            artifact_roots=ROOTS,
             server_probe=probe,
             path_exists=lambda _p: True,
         )
@@ -106,6 +111,7 @@ class DiscoveryMatchTests(unittest.TestCase):
             rag_recipes=preference,
             cells_root=cells_root,
             transport=transport,
+            artifact_roots=ROOTS,
             path_exists=lambda _p: True,
         )
         self.assertEqual(proposal["executable_families"], [family_id])

@@ -11,13 +11,14 @@ from unittest.mock import patch
 from local_model_runtime_evaluation.evidence_bundle import EvidenceBundle
 from local_model_runtime_evaluation.managed_run_cli import (
     _build_runtime_manager,
-    main,
+    main as _main,
 )
 from local_model_runtime_evaluation.managed_run_types import (
     ManagedStep,
     StepState,
 )
 from local_model_runtime_evaluation.operator_policy import load_adopted_policy
+from tests.artifact_profile_fixtures import write_machine_profile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,9 +32,11 @@ POLICY = (
 
 
 def _main_json(argv: list[str]) -> tuple[int, dict[str, object]]:
+    state_dir = Path(argv[argv.index("--state-dir") + 1])
+    profile = write_machine_profile(state_dir / "machine-profile")
     output = StringIO()
     with redirect_stdout(output):
-        code = main(argv)
+        code = _main(argv, machine_profile_path=profile)
     return code, json.loads(output.getvalue())
 
 
@@ -242,7 +245,7 @@ class ManagedRunCliTests(unittest.TestCase):
     def test_help_names_ui_owned_provider_reconnect(self) -> None:
         output = StringIO()
         with self.assertRaises(SystemExit) as context, redirect_stdout(output):
-            main(["resume", "--help"])
+            _main(["resume", "--help"])
         self.assertEqual(context.exception.code, 0)
         self.assertIn("Osaurus UI", output.getvalue())
 

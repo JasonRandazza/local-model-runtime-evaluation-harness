@@ -23,8 +23,10 @@ from local_model_runtime_evaluation.preference_judge import (
     run_judge,
 )
 from local_model_runtime_evaluation.transport import TransportError
+from tests.artifact_profile_fixtures import synthetic_artifact_roots
 
 ROOT = Path(__file__).resolve().parents[1]
+ROOTS = synthetic_artifact_roots()
 CELLS_ROOT = ROOT / "config/matrix/cells"
 JUDGE_CELL_ID = DEFAULT_JUDGE_CELL
 
@@ -229,6 +231,7 @@ class RunJudgeTests(unittest.TestCase):
             cells_root=CELLS_ROOT,
             suite=_TEST_SUITE,
             family_id="gemma-4-12b-qat",
+            artifact_roots=ROOTS,
             build_server=lambda cell, transport_arg, log_dir, credential: FakeHandle(),
             transport_factory=lambda base_urls, timeout: transport,  # type: ignore[return-value]
             credential_for=lambda server: None,
