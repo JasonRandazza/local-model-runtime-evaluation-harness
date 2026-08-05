@@ -28,6 +28,7 @@ from .operator_policy import (
     load_adopted_policy,
 )
 from .process_inspection import ProcessInspector
+from .doctor import render_text, run_diagnostics
 from .results_browser_html import write_browser
 from .run_identity import build_plan
 from .runtime_adapters import (
@@ -281,6 +282,21 @@ def _command_browse(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
+def _command_doctor(
+    args: argparse.Namespace, machine_profile_path: Path
+) -> dict[str, object] | None:
+    result = run_diagnostics(
+        machine_profile_path=machine_profile_path,
+        state_root=args.state_dir,
+    )
+    if args.format == "text":
+        # Text mode prints the checklist projection alone; the JSON envelope
+        # is the default managed-CLI convention.
+        print(render_text(result))
+        return None
+    return {"ok": True, "diagnostic": result}
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="lmre",
@@ -361,6 +377,16 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path("results/browser"),
     )
+
+    doctor = commands.add_parser(
+        "doctor",
+        help="Report offline static readiness; live facts are never checked",
+    )
+    doctor.add_argument(
+        "--format",
+        choices=("json", "text"),
+        default="json",
+    )
     return parser
 
 
@@ -383,6 +409,10 @@ def main(
             body = _command_status(args)
         elif args.command == "browse":
             body = _command_browse(args)
+        elif args.command == "doctor":
+            body = _command_doctor(args, machine_profile_path)
+            if body is None:
+                return 0
         else:
             body = _command_report(args)
         _emit(body)
