@@ -239,11 +239,13 @@ class RuntimeManagerTests(unittest.TestCase):
         new = _identity(pid=900)
         notices: list[str] = []
         sleeps: list[float] = []
-        adapter = FakeAdapter([
-            _observation(old, compatible=False),
-            _absent(),
-            _observation(new, compatible=True),
-        ])
+        adapter = FakeAdapter(
+            [
+                _observation(old, compatible=False),
+                _absent(),
+                _observation(new, compatible=True),
+            ]
+        )
         manager = RuntimeManager({"omlx": adapter})
         lease = manager.prepare(
             _requirement(),
@@ -260,12 +262,14 @@ class RuntimeManagerTests(unittest.TestCase):
         new = _identity(pid=900)
         notices: list[str] = []
         sleeps: list[float] = []
-        adapter = FakeAdapter([
-            _observation(old, compatible=False),
-            _observation(old, compatible=False),
-            _absent(),
-            _observation(new, compatible=True),
-        ])
+        adapter = FakeAdapter(
+            [
+                _observation(old, compatible=False),
+                _observation(old, compatible=False),
+                _absent(),
+                _observation(new, compatible=True),
+            ]
+        )
         manager = RuntimeManager({"omlx": adapter})
         lease = manager.prepare(
             _requirement(),
@@ -279,10 +283,12 @@ class RuntimeManagerTests(unittest.TestCase):
     def test_changed_identity_cancels_reclaim(self) -> None:
         old = _identity()
         changed = _identity(pid=654)
-        adapter = FakeAdapter([
-            _observation(old, compatible=False),
-            _observation(changed, compatible=False),
-        ])
+        adapter = FakeAdapter(
+            [
+                _observation(old, compatible=False),
+                _observation(changed, compatible=False),
+            ]
+        )
         manager = RuntimeManager({"omlx": adapter})
         with self.assertRaises(RuntimeManagerError) as context:
             manager.prepare(_requirement(), _context())
@@ -295,13 +301,15 @@ class RuntimeManagerTests(unittest.TestCase):
     def test_interrupt_then_policy_allowed_terminate(self) -> None:
         old = _identity()
         new = _identity(pid=900)
-        adapter = FakeAdapter([
-            _observation(old, compatible=False),
-            _observation(old, compatible=False),
-            _observation(old, compatible=False),
-            _absent(),
-            _observation(new, compatible=True),
-        ])
+        adapter = FakeAdapter(
+            [
+                _observation(old, compatible=False),
+                _observation(old, compatible=False),
+                _observation(old, compatible=False),
+                _absent(),
+                _observation(new, compatible=True),
+            ]
+        )
         manager = RuntimeManager({"omlx": adapter})
         lease = manager.prepare(_requirement(), _context())
         self.assertEqual(adapter.interrupted, [old])
@@ -310,11 +318,13 @@ class RuntimeManagerTests(unittest.TestCase):
 
     def test_terminate_denied_fails_without_force(self) -> None:
         old = _identity()
-        adapter = FakeAdapter([
-            _observation(old, compatible=False),
-            _observation(old, compatible=False),
-            _observation(old, compatible=False),
-        ])
+        adapter = FakeAdapter(
+            [
+                _observation(old, compatible=False),
+                _observation(old, compatible=False),
+                _observation(old, compatible=False),
+            ]
+        )
         context = replace(
             _context(),
             policy=_policy(allow_terminate_after_interrupt=False),
@@ -330,10 +340,12 @@ class RuntimeManagerTests(unittest.TestCase):
 
     def test_started_runtime_must_verify_exact_model(self) -> None:
         new = _identity(pid=900)
-        adapter = FakeAdapter([
-            _absent(),
-            _observation(new, compatible=False),
-        ])
+        adapter = FakeAdapter(
+            [
+                _absent(),
+                _observation(new, compatible=False),
+            ]
+        )
         manager = RuntimeManager({"omlx": adapter})
         with self.assertRaises(RuntimeManagerError) as context:
             manager.prepare(_requirement(), _context())
@@ -344,12 +356,14 @@ class RuntimeManagerTests(unittest.TestCase):
 
     def test_owned_release_revalidates_identity(self) -> None:
         new = _identity(pid=900)
-        adapter = FakeAdapter([
-            _absent(),
-            _observation(new, compatible=True),
-            _observation(new, compatible=True),
-            _absent(),
-        ])
+        adapter = FakeAdapter(
+            [
+                _absent(),
+                _observation(new, compatible=True),
+                _observation(new, compatible=True),
+                _absent(),
+            ]
+        )
         manager = RuntimeManager({"omlx": adapter})
         context = _context()
         lease = manager.prepare(_requirement(), context)
@@ -382,14 +396,85 @@ class RuntimeManagerTests(unittest.TestCase):
         self.assertEqual(adapter.process_checks, [new, new])
         self.assertEqual(sleeps, [context.poll_seconds])
 
+    def test_owned_release_interrupts_exact_process_left_after_listener_closes(
+        self,
+    ) -> None:
+        new = _identity(pid=900)
+        lifecycle: list[tuple[str, str, dict[str, object]]] = []
+        adapter = FakeAdapter(
+            [
+                _absent(),
+                _observation(new, compatible=True),
+                _observation(new, compatible=True),
+                _absent(),
+            ],
+            process_alive=[True, False],
+        )
+        manager = RuntimeManager({"omlx": adapter})
+        context = _context(lifecycle=lifecycle)
+        lease = manager.prepare(_requirement(), context)
+
+        manager.release(lease, context)
+
+        self.assertEqual(adapter.interrupted, [new])
+        self.assertEqual(adapter.terminated, [])
+        self.assertIn("cleanup_interrupt_sent", [item[1] for item in lifecycle])
+
+    def test_owned_release_terminates_exact_process_after_bounded_interrupt(
+        self,
+    ) -> None:
+        new = _identity(pid=900)
+        lifecycle: list[tuple[str, str, dict[str, object]]] = []
+        adapter = FakeAdapter(
+            [
+                _absent(),
+                _observation(new, compatible=True),
+                _observation(new, compatible=True),
+                _absent(),
+            ],
+            process_alive=[True, True, False],
+        )
+        manager = RuntimeManager({"omlx": adapter})
+        context = _context(lifecycle=lifecycle)
+        lease = manager.prepare(_requirement(), context)
+
+        manager.release(lease, context)
+
+        self.assertEqual(adapter.interrupted, [new])
+        self.assertEqual(adapter.terminated, [new])
+        self.assertIn("cleanup_terminate_sent", [item[1] for item in lifecycle])
+
+    def test_owned_release_cleans_verified_process_when_listener_is_already_absent(
+        self,
+    ) -> None:
+        new = _identity(pid=900)
+        adapter = FakeAdapter(
+            [
+                _absent(),
+                _observation(new, compatible=True),
+                _absent(),
+            ],
+            process_alive=[True, False],
+        )
+        manager = RuntimeManager({"omlx": adapter})
+        context = _context()
+        lease = manager.prepare(_requirement(), context)
+
+        manager.release(lease, context)
+
+        self.assertEqual(adapter.released, [lease])
+        self.assertEqual(adapter.interrupted, [new])
+
     def test_owned_release_rejects_changed_identity(self) -> None:
         new = _identity(pid=900)
         changed = _identity(pid=901)
-        adapter = FakeAdapter([
-            _absent(),
-            _observation(new, compatible=True),
-            _observation(changed, compatible=True),
-        ])
+        adapter = FakeAdapter(
+            [
+                _absent(),
+                _observation(new, compatible=True),
+                _observation(changed, compatible=True),
+            ]
+        )
         manager = RuntimeManager({"omlx": adapter})
         context = _context()
         lease = manager.prepare(_requirement(), context)
