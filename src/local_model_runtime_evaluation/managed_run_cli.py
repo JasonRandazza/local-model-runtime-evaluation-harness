@@ -281,6 +281,7 @@ def _command_browse(args: argparse.Namespace) -> dict[str, object]:
         "output": str(args.output),
         "comparison_index": result["comparison_index"],
         "comparisons": result["comparisons"],
+        "unattributed_exclusions": result["unattributed_exclusions"],
     }
 
 

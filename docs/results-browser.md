@@ -64,6 +64,16 @@ index. The contract (frozen in
   identity never invents a group; `UNREADABLE`, `UNRECOGNIZED`, and
   `UNSUPPORTED_SCHEMA` bundles have no vetted identity and join no group
   (they stay visible in the run index).
+- Two kinds of exclusion are distinct and never conflated. **In-group
+  exclusions** are `UNSEALED`/`SEALED_CORRUPT` bundles with vetted identity:
+  they appear as excluded members inside their comparison group. **Unattributed
+  exclusions** are entries with no vetted identity at all — degraded health
+  (`UNREADABLE`/`UNSUPPORTED_SCHEMA`/`UNRECOGNIZED`, including symlinked
+  entries) or a present-but-malformed `comparison_id` — and are listed
+  separately in the comparisons index under "Unattributed exclusions"; they
+  contribute nothing and cannot be assigned to any group. A healthy solo run
+  with no explicit `comparison_id` is neither: it keeps forming its own
+  one-member `N/A` group as before.
 - Only `SEALED_VERIFIED` members contribute accepted comparison data.
   `UNSEALED` and `SEALED_CORRUPT` members are listed with the group as
   excluded, with a deterministic reason, and never leak withheld report
@@ -86,7 +96,8 @@ index. The contract (frozen in
   remain deferred.
 
 The `browse` JSON output adds `comparison_index` and `comparisons`
-alongside the existing keys.
+alongside the existing keys, plus `unattributed_exclusions` (the count of
+entries listed in the "Unattributed exclusions" section above).
 
 ## Boundaries
 

@@ -67,6 +67,20 @@ class BrowseCliTests(unittest.TestCase):
             output_root / "comparisons" / "index.html",
         )
         self.assertIsInstance(payload["comparisons"], int)
+        self.assertIsInstance(payload["unattributed_exclusions"], int)
+        self.assertEqual(
+            set(payload),
+            {
+                "ok",
+                "index",
+                "runs",
+                "results_root",
+                "output",
+                "comparison_index",
+                "comparisons",
+                "unattributed_exclusions",
+            },
+        )
 
     def test_missing_results_root_still_reports_ok_with_zero_runs(self) -> None:
         results_root = self.root / "does-not-exist"

@@ -49,6 +49,19 @@ authority, no JavaScript, no network, no new scoring.
 9. **Degradation.** A malformed member degrades only itself; other members
    and other groups still render. No single bad bundle aborts the
    comparison index.
+10. **Unattributed exclusions.** An entry with no vetted comparison identity
+    at all is listed separately, never assigned to any group. This covers
+    degraded health (`UNREADABLE`, `UNSUPPORTED_SCHEMA`, `UNRECOGNIZED`,
+    including symlinked entries -- the symlink is never followed) and a
+    present-but-malformed `comparison_id` (non-string, or failing the safe
+    shape in point 1) on an otherwise vetted bundle. A genuinely absent
+    `comparison_id` on a healthy bundle is unchanged solo-run behavior, not
+    an exclusion. Each record carries exactly `run_dir_name` (the safe run
+    directory name, or a fixed placeholder for names that fail the safe
+    run-id shape), `health`, and a fixed `reason` string -- never
+    `health_detail`, exception text, or any bundle-derived content.
+    Ordering is deterministic: by `(health, run_dir.name)` using the raw
+    directory name as the internal sort tiebreaker.
 
 ## Shape
 
@@ -61,3 +74,9 @@ authority, no JavaScript, no network, no new scoring.
   keeps refusing output paths inside the evidence root.
 - `lmre browse` JSON stays backwards-compatible and adds
   `comparison_index` (path) and `comparisons` (group count).
+- `build_comparisons` return dict gains one additive key,
+  `unattributed_exclusions` (a list, present in every branch including
+  missing-root and empty-root). `render_comparisons_index` gains an
+  "Unattributed exclusions" section after the groups content. `write_browser`
+  and `lmre browse` JSON both gain an additive `unattributed_exclusions`
+  key (int count).

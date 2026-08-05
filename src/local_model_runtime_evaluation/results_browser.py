@@ -449,10 +449,37 @@ _EXCLUSION_REASONS = {
     HEALTH_UNSEALED: "excluded: bundle is not sealed",
 }
 
+# Fixed reason strings for unattributed_exclusions records. Never
+# interpolate health_detail or other bundle-derived text into a reason: a
+# degraded bundle's own content must never reach the comparisons view.
+_UNATTRIBUTED_REASONS = {
+    HEALTH_UNREADABLE: "unreadable_bundle",
+    HEALTH_UNSUPPORTED_SCHEMA: "unsupported_schema",
+    HEALTH_UNRECOGNIZED: "unrecognized_entry",
+}
+_MALFORMED_COMPARISON_ID_REASON = "malformed_comparison_id"
 
-def _comparison_member(run_dir: Path) -> tuple[str, dict, dict | None] | None:
-    """Return (comparison_id, member, dimensions) or None when the bundle
-    cannot declare a trustworthy comparison identity.
+_UNATTRIBUTED_PLACEHOLDER = "(unrecognized entry)"
+
+
+def _unattributed_record(health: str, raw_run_dir_name: str, reason: str) -> dict:
+    display_name = (
+        raw_run_dir_name
+        if SAFE_RUN_ID.fullmatch(raw_run_dir_name)
+        else _UNATTRIBUTED_PLACEHOLDER
+    )
+    return {"run_dir_name": display_name, "health": health, "reason": reason}
+
+
+def _comparison_scan(run_dir: Path) -> tuple:
+    """Classify one results-root entry for the comparisons view.
+
+    Returns one of:
+      ("group", comparison_id, member, dimensions) -- contributes to a group
+      ("unattributed", health, reason) -- no vetted identity; listed
+          separately, never assigned to any group
+      ("skip",) -- a healthy bundle with no comparison_id at all (a solo
+          run); unchanged existing behavior, not an exclusion
 
     UNREADABLE/UNRECOGNIZED/UNSUPPORTED_SCHEMA bundles have no vetted
     identity, so they cannot be attributed to any group (fail closed); they
@@ -460,17 +487,24 @@ def _comparison_member(run_dir: Path) -> tuple[str, dict, dict | None] | None:
     """
     health, detail = classify_bundle(run_dir)
     if health in _DEGRADED_HEALTHS:
-        return None
+        return ("unattributed", health, _UNATTRIBUTED_REASONS[health])
     try:
         bundle = EvidenceBundle.load(run_dir)
     except EvidenceError:
-        return None
+        # classify_bundle already loaded this bundle successfully; a load
+        # failure here means the filesystem changed between calls. Fail
+        # closed the same way this branch always has: no group membership.
+        return ("skip",)
     plan = bundle.plan
     comparison_id = plan.identity.comparison_id
+    if comparison_id is None:
+        # A healthy solo run with no comparison_id is not an exclusion --
+        # it simply never participates in comparisons.
+        return ("skip",)
     if not isinstance(comparison_id, str) or not SAFE_COMPARISON_ID.fullmatch(
         comparison_id
     ):
-        return None
+        return ("unattributed", health, _MALFORMED_COMPARISON_ID_REASON)
     accepted = health == HEALTH_SEALED_VERIFIED
     member: dict = {
         "run_dir_name": run_dir.name,
@@ -488,7 +522,7 @@ def _comparison_member(run_dir: Path) -> tuple[str, dict, dict | None] | None:
         member["run_status"] = bundle.state.summary_state.value
     except EvidenceError:
         pass
-    return comparison_id, member, _plan_dimensions(plan) if accepted else None
+    return ("group", comparison_id, member, _plan_dimensions(plan) if accepted else None)
 
 
 def build_comparisons(results_root: Path) -> dict:
@@ -504,14 +538,28 @@ def build_comparisons(results_root: Path) -> dict:
             "results_root": str(results_root),
             "missing_root": True,
             "groups": [],
+            "unattributed_exclusions": [],
         }
     grouped: dict[str, list[tuple[dict, dict | None]]] = {}
+    # (health, raw run_dir.name, reason): sorted with the raw name as
+    # tiebreaker so ordering is deterministic regardless of scan order.
+    unattributed_raw: list[tuple[str, str, str]] = []
     for child in results_root.iterdir():
-        result = _comparison_member(child)
-        if result is None:
+        outcome = _comparison_scan(child)
+        if outcome[0] == "skip":
             continue
-        comparison_id, member, dimensions = result
+        if outcome[0] == "unattributed":
+            _, health, reason = outcome
+            unattributed_raw.append((health, child.name, reason))
+            continue
+        _, comparison_id, member, dimensions = outcome
         grouped.setdefault(comparison_id, []).append((member, dimensions))
+
+    unattributed_raw.sort(key=lambda item: (item[0], item[1]))
+    unattributed_exclusions = [
+        _unattributed_record(health, raw_name, reason)
+        for health, raw_name, reason in unattributed_raw
+    ]
 
     groups = []
     for comparison_id in sorted(grouped):
@@ -559,4 +607,5 @@ def build_comparisons(results_root: Path) -> dict:
         "results_root": str(results_root),
         "missing_root": False,
         "groups": groups,
+        "unattributed_exclusions": unattributed_exclusions,
     }
