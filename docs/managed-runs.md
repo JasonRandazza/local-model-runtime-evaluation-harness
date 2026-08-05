@@ -87,6 +87,20 @@ cells. It validates the product boundary without claiming that an additional
 artifact is installed or comparable. See the
 [controlled-expansion contract](superpowers/specs/2026-08-05-controlled-expansion-comparison-class.md).
 
+Inspect a class before planning:
+
+```bash
+./bin/lmre comparison-class inspect gemma-native-baseline-v1
+```
+
+Inspection is read-only and non-live. It validates the checked-in class,
+derives reviewed candidate cells only from additional family quant definitions
+and exact native cell files, and checks selected/candidate artifact directories
+through `.lmre/machine-profile.json`. It never scans arbitrary model folders,
+creates a plan, reads credentials, contacts a runtime, or infers live
+readiness. The current Gemma class honestly reports `BASELINE_ONLY` with no
+reviewed candidates on this repository state.
+
 Only one managed `run` or `resume` may hold `.lmre/active-run.lock` at a time.
 If a host crash leaves that file behind, first verify that its recorded PID is
 no longer active before removing the stale lock.

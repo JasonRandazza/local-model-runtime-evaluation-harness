@@ -32,6 +32,21 @@ every runtime, provider, credential, memory, and inference fact
   dry-config commands and a non-live class-bound managed plan passed. No live
   runtime, provider, credential, or model was contacted.
 
+## Comparison-Class Inspection (Non-Live, 2026-08-05)
+
+- `lmre comparison-class inspect <id>` reports class shape, selected cells,
+  reviewed native candidate cells, and approved-root artifact availability.
+- Candidate discovery is configuration-backed only; the command does not scan
+  arbitrary model directories or guess family identity from names.
+- The current `gemma-native-baseline-v1` inspection reports all three baseline
+  artifacts present, no reviewed candidate cells, `BASELINE_ONLY`, and
+  `NOT_CHECKED_LIVE`.
+- The command writes nothing and grants no plan, policy, lifecycle, provider,
+  credential, or inference authority.
+- Verification: 495 retained tests passed with one environment skip, all six
+  dry-config commands passed, and the real checked-in Gemma class inspection
+  returned the truthful baseline-only result without live contact.
+
 ## Managed Live Acceptance (2026-07-31)
 
 The managed path was accepted with a sealed local run:
@@ -80,6 +95,8 @@ and is intentionally not committed.
 - offline readiness doctor ([doctor.md](doctor.md))
 - checked-in controlled comparison classes bound into immutable managed plans
   ([controlled-expansion contract](superpowers/specs/2026-08-05-controlled-expansion-comparison-class.md))
+- offline comparison-class readiness inspection
+  ([inspection contract](superpowers/specs/2026-08-05-comparison-class-offline-inspection.md))
 
 ## Open Risks
 

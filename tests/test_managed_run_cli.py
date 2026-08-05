@@ -153,6 +153,36 @@ class ManagedRunCliTests(unittest.TestCase):
             "gemma-native-baseline-v1",
         )
 
+    def test_comparison_class_inspect_is_non_live_and_read_only(self) -> None:
+        inspection = {
+            "comparison_class_id": "gemma-native-baseline-v1",
+            "status": "BASELINE_ONLY",
+            "live_status": "NOT_CHECKED_LIVE",
+        }
+        with (
+            patch(
+                "local_model_runtime_evaluation.managed_run_cli."
+                "inspect_comparison_class",
+                return_value=inspection,
+            ) as inspect,
+            patch(
+                "local_model_runtime_evaluation.managed_run_cli."
+                "execute_managed_run",
+                side_effect=AssertionError("inspection must not execute"),
+            ),
+        ):
+            code, payload = _main_json(
+                self._global()
+                + [
+                    "comparison-class",
+                    "inspect",
+                    "gemma-native-baseline-v1",
+                ]
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(payload, {"ok": True, "inspection": inspection})
+        inspect.assert_called_once()
+
     def test_runtime_catalog_root_is_attempt_specific(self) -> None:
         self._adopt()
         planned = self._plan()
