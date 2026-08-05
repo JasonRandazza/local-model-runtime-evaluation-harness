@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from local_model_runtime_evaluation.managed_run_types import ManagedRunPlan
 from local_model_runtime_evaluation.results_browser import (
     VERDICT_COMPARABLE,
     VERDICT_INCOMPARABLE,
@@ -24,6 +25,7 @@ from local_model_runtime_evaluation.results_browser_html import (
     render_comparisons_index,
     write_browser,
 )
+from local_model_runtime_evaluation.run_identity import _canonical_plan_hash
 from tests.results_browser_fixtures import (
     make_corrupt,
     make_missing_plan,
@@ -31,6 +33,18 @@ from tests.results_browser_fixtures import (
     make_unsealed_running,
     make_unsupported_schema,
 )
+
+
+def _retamper_comparison_id(run_dir: Path, new_comparison_id: str) -> None:
+    """Rewrite identity.comparison_id and recompute plan_hash so the bundle
+    stays loadable -- only the SAFE_COMPARISON_ID check is meant to fail.
+    """
+    plan_path = run_dir / "plan.json"
+    raw = json.loads(plan_path.read_text(encoding="utf-8"))
+    raw["identity"]["comparison_id"] = new_comparison_id
+    plan = ManagedRunPlan.from_dict(raw)
+    raw["plan_hash"] = _canonical_plan_hash(plan)
+    plan_path.write_text(json.dumps(raw), encoding="utf-8")
 
 
 COMPARISON_ID = "compare-fixture-group"
@@ -170,10 +184,7 @@ class BuildComparisonsTests(unittest.TestCase):
 
     def test_malformed_comparison_id_never_forms_a_group(self) -> None:
         run_dir = make_unsealed_running(self.root, comparison_id=COMPARISON_ID)
-        plan_path = run_dir / "plan.json"
-        raw = json.loads(plan_path.read_text(encoding="utf-8"))
-        raw["identity"]["comparison_id"] = "../Evil Name"
-        plan_path.write_text(json.dumps(raw), encoding="utf-8")
+        _retamper_comparison_id(run_dir, "../Evil Name")
 
         comparisons = build_comparisons(self.results_root)
         for group in comparisons["groups"]:
@@ -181,6 +192,144 @@ class BuildComparisonsTests(unittest.TestCase):
             self.assertNotIn(
                 run_dir.name, [m["run_dir_name"] for m in group["members"]]
             )
+        # Malformed comparison_id is now visible as an unattributed record.
+        self.assertEqual(
+            comparisons["unattributed_exclusions"],
+            [
+                {
+                    "run_dir_name": run_dir.name,
+                    "health": "UNSEALED",
+                    "reason": "malformed_comparison_id",
+                }
+            ],
+        )
+
+    def test_healthy_solo_run_default_comparison_id_is_not_unattributed(
+        self,
+    ) -> None:
+        # build_plan defaults a None comparison_id to the sanitized run
+        # name, so a solo run forms its own one-member N/A group -- it is
+        # not an exclusion, and never appears in unattributed_exclusions.
+        make_sealed_pass(self.root, comparison_id=None)
+        comparisons = build_comparisons(self.results_root)
+        self.assertEqual(comparisons["unattributed_exclusions"], [])
+        self.assertEqual(len(comparisons["groups"]), 1)
+        self.assertEqual(comparisons["groups"][0]["verdict"], VERDICT_NOT_APPLICABLE)
+
+    def test_degraded_bundles_are_unattributed_never_grouped(self) -> None:
+        make_sealed_pass(self.root, comparison_id=COMPARISON_ID)
+        make_unsealed_running(self.root, comparison_id=COMPARISON_ID)
+        make_corrupt(self.root, comparison_id=COMPARISON_ID)
+        missing_plan_dir = make_missing_plan(self.root)
+        unsupported_dir = make_unsupported_schema(self.root)
+
+        comparisons = build_comparisons(self.results_root)
+        unattributed = {
+            record["run_dir_name"]: record
+            for record in comparisons["unattributed_exclusions"]
+        }
+        self.assertEqual(
+            unattributed[missing_plan_dir.name],
+            {
+                "run_dir_name": missing_plan_dir.name,
+                "health": "UNREADABLE",
+                "reason": "unreadable_bundle",
+            },
+        )
+        self.assertEqual(
+            unattributed[unsupported_dir.name],
+            {
+                "run_dir_name": unsupported_dir.name,
+                "health": "UNSUPPORTED_SCHEMA",
+                "reason": "unsupported_schema",
+            },
+        )
+        # Degraded bundles never join any group, accepted or excluded.
+        all_members = [
+            m["run_dir_name"] for g in comparisons["groups"] for m in g["members"]
+        ]
+        self.assertNotIn(missing_plan_dir.name, all_members)
+        self.assertNotIn(unsupported_dir.name, all_members)
+        # Existing group semantics for vetted-identity members are unchanged.
+        group = comparisons["groups"][0]
+        self.assertEqual(group["accepted_count"], 1)
+        self.assertEqual(group["excluded_count"], 2)
+
+    def test_symlinked_entry_is_unattributed_and_target_never_read(self) -> None:
+        self.results_root.mkdir(parents=True)
+        sentinel = "SENTINEL-SECRET-OUTSIDE-ROOT"
+        target = self.root / "outside-target.txt"
+        target.write_text(sentinel, encoding="utf-8")
+        link = self.results_root / "run-20260731-070000-abcdef"
+        link.symlink_to(target)
+
+        comparisons = build_comparisons(self.results_root)
+        self.assertEqual(
+            comparisons["unattributed_exclusions"],
+            [
+                {
+                    "run_dir_name": link.name,
+                    "health": "UNRECOGNIZED",
+                    "reason": "unrecognized_entry",
+                }
+            ],
+        )
+        rendered = render_comparisons_index(comparisons)
+        self.assertNotIn(sentinel, rendered)
+
+    def test_hostile_directory_name_is_unrecognized_and_never_leaks(self) -> None:
+        self.results_root.mkdir(parents=True)
+        hostile_name = '<script>alert(1)>-"quoted\''
+        hostile_dir = self.results_root / hostile_name
+        hostile_dir.mkdir()
+
+        comparisons = build_comparisons(self.results_root)
+        self.assertEqual(
+            comparisons["unattributed_exclusions"],
+            [
+                {
+                    "run_dir_name": "(unrecognized entry)",
+                    "health": "UNRECOGNIZED",
+                    "reason": "unrecognized_entry",
+                }
+            ],
+        )
+        rendered = render_comparisons_index(comparisons)
+        self.assertNotIn(hostile_name, rendered)
+        self.assertNotIn("<script", rendered.lower())
+
+    def test_record_fields_are_exact_and_no_extra_content_leaks(self) -> None:
+        run_dir = make_unsupported_schema(self.root)
+        comparisons = build_comparisons(self.results_root)
+        records = comparisons["unattributed_exclusions"]
+        self.assertEqual(len(records), 1)
+        self.assertEqual(
+            set(records[0]), {"run_dir_name", "health", "reason"}
+        )
+        rendered = render_comparisons_index(comparisons)
+        # health_detail text from classify_bundle must never leak in.
+        self.assertNotIn("plan_schema_unsupported", rendered)
+        # The bundle's real run_dir_name IS the expected safe display value
+        # here (it matches SAFE_RUN_ID), so it legitimately appears.
+        self.assertIn(run_dir.name, rendered)
+
+    def test_unattributed_ordering_stable_regardless_of_creation_order(
+        self,
+    ) -> None:
+        # Reverse-alphabetical creation order; assert sorted output anyway.
+        unsupported_dir = make_unsupported_schema(self.root)
+        missing_plan_dir = make_missing_plan(self.root)
+
+        comparisons = build_comparisons(self.results_root)
+        names = [r["run_dir_name"] for r in comparisons["unattributed_exclusions"]]
+        expected = sorted(
+            [missing_plan_dir.name, unsupported_dir.name],
+            key=lambda name: (
+                "UNREADABLE" if name == missing_plan_dir.name else "UNSUPPORTED_SCHEMA",
+                name,
+            ),
+        )
+        self.assertEqual(names, expected)
 
 
 class ComparisonHtmlTests(unittest.TestCase):
@@ -228,6 +377,21 @@ class ComparisonHtmlTests(unittest.TestCase):
         for path in self.results_root.rglob("*"):
             self.assertFalse(path.name.endswith(".html"))
 
+    def test_write_browser_unattributed_exclusions_count_and_no_scope_leak(
+        self,
+    ) -> None:
+        _two_sealed(self.root)
+        missing_plan_dir = make_missing_plan(self.root)
+        result = write_browser(self.results_root, self.output_root)
+        self.assertEqual(result["unattributed_exclusions"], 1)
+        index_page = (self.output_root / "comparisons" / "index.html").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(missing_plan_dir.name, index_page)
+        self.assertIn("Unattributed exclusions", index_page)
+        for path in self.output_root.rglob("*"):
+            self.assertTrue(str(path).startswith(str(self.output_root)))
+
     def test_pages_have_no_script_or_network_references(self) -> None:
         _two_sealed(self.root)
         make_corrupt(self.root, comparison_id=COMPARISON_ID)
@@ -271,13 +435,25 @@ class ComparisonHtmlTests(unittest.TestCase):
 
     def test_missing_root_and_empty_index_pages_render(self) -> None:
         missing = render_comparisons_index(
-            {"results_root": "/nope", "missing_root": True, "groups": []}
+            {
+                "results_root": "/nope",
+                "missing_root": True,
+                "groups": [],
+                "unattributed_exclusions": [],
+            }
         )
         self.assertIn("does not exist", missing)
+        self.assertIn("No unattributed exclusions", missing)
         empty = render_comparisons_index(
-            {"results_root": "/empty", "missing_root": False, "groups": []}
+            {
+                "results_root": "/empty",
+                "missing_root": False,
+                "groups": [],
+                "unattributed_exclusions": [],
+            }
         )
         self.assertIn("No comparison groups", empty)
+        self.assertIn("No unattributed exclusions", empty)
 
 
 if __name__ == "__main__":

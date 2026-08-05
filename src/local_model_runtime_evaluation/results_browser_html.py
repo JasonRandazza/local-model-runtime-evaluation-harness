@@ -443,12 +443,18 @@ def render_comparisons_index(comparisons: dict) -> str:
     ]
     if comparisons["missing_root"]:
         body.append(f"<p>Results root does not exist: {root_text}.</p>")
+        body.append(
+            _render_unattributed_exclusions(comparisons["unattributed_exclusions"])
+        )
         return _page("Cross-Run Comparisons", "\n".join(body))
     groups = comparisons["groups"]
     if not groups:
         body.append(
             f"<p>Results root: {root_text}. "
             "No comparison groups were found beneath this results root.</p>"
+        )
+        body.append(
+            _render_unattributed_exclusions(comparisons["unattributed_exclusions"])
         )
         return _page("Cross-Run Comparisons", "\n".join(body))
     header = "".join(
@@ -473,7 +479,36 @@ def render_comparisons_index(comparisons: dict) -> str:
         + "".join(rows)
         + "</table>"
     )
+    body.append(_render_unattributed_exclusions(comparisons["unattributed_exclusions"]))
     return _page("Cross-Run Comparisons", "\n".join(body))
+
+
+def _render_unattributed_exclusions(records: list) -> str:
+    parts = ["<h2>Unattributed exclusions</h2>"]
+    if not records:
+        parts.append("<p>No unattributed exclusions (0).</p>")
+        return "\n".join(parts)
+    parts.append(
+        f"<p>{len(records)} entr"
+        + ("y" if len(records) == 1 else "ies")
+        + " could not be attributed to a vetted comparison identity. "
+        "These records contribute no comparison data and cannot be "
+        "assigned to any group.</p>"
+    )
+    header = "".join(
+        f'<th scope="col">{html.escape(label)}</th>'
+        for label in ("Run directory", "Health", "Reason")
+    )
+    rows = "".join(
+        "<tr>"
+        f"<td>{_cell(record['run_dir_name'])}</td>"
+        f"<td>{_cell(record['health'])}</td>"
+        f"<td>{_cell(record['reason'])}</td>"
+        "</tr>"
+        for record in records
+    )
+    parts.append(f"<table><tr>{header}</tr>{rows}</table>")
+    return "\n".join(parts)
 
 
 def render_comparison_group(group: dict) -> str:
@@ -576,4 +611,5 @@ def write_browser(results_root: Path, output_root: Path) -> dict:
         "pages": pages,
         "comparison_index": str(comparison_index_path),
         "comparisons": len(comparisons["groups"]),
+        "unattributed_exclusions": len(comparisons["unattributed_exclusions"]),
     }
