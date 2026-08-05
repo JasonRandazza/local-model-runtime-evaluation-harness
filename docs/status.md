@@ -17,6 +17,21 @@ inference. An offline `lmre doctor` command reports static local readiness
 every runtime, provider, credential, memory, and inference fact
 `NOT_CHECKED_LIVE`; it grants no live authority.
 
+## Controlled Expansion Contract (Non-Live, 2026-08-05)
+
+- `lmre plan --comparison-class <id>` binds a checked-in same-family class
+  while preserving the ordered native baseline and baseline overhead pairs.
+- Managed plan schema `1.1.0` records the class and baseline identity; legacy
+  `1.0.0` plans remain readable and hash-verifiable without rewriting.
+- Expansion cells must be checked-in native-server cells. Arbitrary paths,
+  cross-family mixes, custom endpoints, and automatic route generation remain
+  refused.
+- Class duration must meet a conservative request-count-scaled minimum and
+  still pass the adopted policy's exact time and request ceilings.
+- Verification: 488 retained tests passed with one environment skip; all six
+  dry-config commands and a non-live class-bound managed plan passed. No live
+  runtime, provider, credential, or model was contacted.
+
 ## Managed Live Acceptance (2026-07-31)
 
 The managed path was accepted with a sealed local run:
@@ -63,6 +78,8 @@ and is intentionally not committed.
 - read-only sealed-results browser with sealed cross-run comparison
   ([results-browser.md](results-browser.md))
 - offline readiness doctor ([doctor.md](doctor.md))
+- checked-in controlled comparison classes bound into immutable managed plans
+  ([controlled-expansion contract](superpowers/specs/2026-08-05-controlled-expansion-comparison-class.md))
 
 ## Open Risks
 
@@ -77,6 +94,9 @@ and is intentionally not committed.
   pages (metadata and verbatim statuses only, sealed verified members
   only). Richer metric comparison and open-mix comparison remain deferred.
 - No external plugin lifecycle is managed by this repository cleanup.
+- The controlled-expansion mechanism is shipped, but the only checked-in
+  class currently declares the existing Gemma native baseline. No additional
+  model build is claimed available or validated yet.
 
 ## Machine State
 

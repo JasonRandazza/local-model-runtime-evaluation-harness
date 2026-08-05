@@ -21,7 +21,7 @@ authority, no JavaScript, no network, no new scoring.
    contribute metrics and never leak withheld report content.
 4. **Comparability dimensions.** Accepted members must agree on the portable
    immutable plan dimensions: `schema_version`, `family_id`, `recipe_id`,
-   `matrix_mode`, `steps`, `cell_ids`, `pair_ids`, and `input_hashes`
+   `comparison_class_id`, `matrix_mode`, `steps`, `cell_ids`, `pair_ids`, and `input_hashes`
    (relative path → sha256; this is the portable suite/campaign/corpus
    identity). `campaign_path`, `suite_paths`, `cells_root`, `pairs_root`,
    and `rag_corpus_path` are machine paths and are never compared as

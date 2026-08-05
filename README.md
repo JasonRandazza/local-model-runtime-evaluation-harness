@@ -8,6 +8,7 @@ The active product is managed-run led:
 ```text
 adopt reviewed local policy
   -> create and inspect an immutable plan
+  -> optionally bind a checked-in same-family comparison class
   -> manage exact local runtime leases
   -> run the native quality sequence
   -> seal or safely resume honest evidence
@@ -74,6 +75,7 @@ Operator documentation:
 
 - [Discovery](docs/discovery.md)
 - [Managed local runs](docs/managed-runs.md)
+- [Controlled expansion](docs/superpowers/specs/2026-08-05-controlled-expansion-comparison-class.md)
 - [Native matrix](docs/matrix.md)
 - [Preference](docs/preference.md)
 - [RAG](docs/rag.md)

@@ -372,7 +372,13 @@ class Campaign:
         )
 
     @classmethod
-    def load(cls, path: Path) -> Campaign:
+    def load(
+        cls,
+        path: Path,
+        *,
+        repository_root: Path = REPOSITORY_ROOT,
+        families_root: Path | None = None,
+    ) -> Campaign:
         data = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             raise MatrixError("campaign must be a JSON object")
@@ -383,7 +389,7 @@ class Campaign:
         family_id = str(data["family_id"])
         if not family_id:
             raise MatrixError("family_id is invalid")
-        family = load_family(family_id)
+        family = load_family(family_id, families_root=families_root)
         if data["on_cell_failure"] != "continue":
             raise MatrixError("on_cell_failure is invalid")
         ports = data["ports"]
@@ -401,19 +407,22 @@ class Campaign:
             raise MatrixError("campaign must list exactly three native cells")
         if len(set(cells)) != len(cells):
             raise MatrixError("campaign cell paths must be unique")
-        cell_paths = tuple(_resolve_repo_path(str(item)) for item in cells)
+        cell_paths = tuple(
+            _resolve_repo_path(str(item), repository_root)
+            for item in cells
+        )
         loaded = tuple(Cell.load(path, family=family) for path in cell_paths)
         seen_quants = {cell.quant for cell in loaded}
-        if seen_quants != set(family.quants):
-            raise MatrixError("campaign must include exactly one cell per family quant")
-        if len(family.quants) != 3:
-            raise MatrixError("family must declare exactly three quants")
+        if len(seen_quants) != 3:
+            raise MatrixError("campaign must include three distinct baseline quants")
+        if {cell.server for cell in loaded} != ALLOWED_SERVERS:
+            raise MatrixError("campaign must include one native cell per server")
         return cls(
             campaign_id,
             family_id,
             family,
-            _resolve_repo_path(str(data["suite_path"])),
-            _resolve_repo_path(str(data["results_root"])),
+            _resolve_repo_path(str(data["suite_path"]), repository_root),
+            _resolve_repo_path(str(data["results_root"]), repository_root),
             int(data["memory_floor_percent"]),
             int(data["ready_timeout_seconds"]),
             int(data["request_timeout_seconds"]),

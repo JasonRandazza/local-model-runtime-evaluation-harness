@@ -178,6 +178,7 @@ def _command_plan(
         comparison_id=args.comparison,
         parent_run_id=args.parent,
         results_root=args.results_dir,
+        comparison_class_id=args.comparison_class,
         machine_profile_path=machine_profile_path,
     )
     authorize(adopted.policy, plan.policy_request())
@@ -192,6 +193,7 @@ def _command_plan(
     )
     return {
         "comparison_id": plan.identity.comparison_id,
+        "comparison_class_id": plan.comparison_class_id,
         "ok": True,
         "plan_hash": plan.plan_hash,
         "request_count": plan.request_count,
@@ -341,6 +343,12 @@ def build_parser() -> argparse.ArgumentParser:
     plan.add_argument("--recipe", type=Path, required=True)
     plan.add_argument("--name")
     plan.add_argument("--comparison")
+    plan.add_argument(
+        "--comparison-class",
+        help=(
+            "Checked-in controlled-expansion class ID; no arbitrary cell list"
+        ),
+    )
     plan.add_argument("--parent")
 
     run = commands.add_parser("run", help="Execute one previously saved plan")

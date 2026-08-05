@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0.0",
+  "comparison_class_id": "gemma-native-baseline-v1",
+  "revision": "1",
+  "family_id": "gemma-4-12b-qat",
+  "baseline_campaign_path": "config/matrix/gemma-4-12b-qat-campaign.json",
+  "extra_cell_ids": [],
+  "estimated_minutes": 90,
+  "notes": "Declared managed comparison class for the retained Gemma native baseline. Add only reviewed same-family native-server cells in a new versioned class."
+}

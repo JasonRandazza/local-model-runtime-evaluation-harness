@@ -37,8 +37,8 @@ A malformed bundle never hides other valid runs.
 
 ## What It Shows
 
-- **Index:** run name, run ID, comparison ID, family, recipe, attempt, run
-  status, created timestamp, and health, newest first.
+- **Index:** run name, run ID, comparison ID, family, recipe, comparison class,
+  attempt, run status, created timestamp, and health, newest first.
 - **Run detail:** plan identity (no credentials exist in bundle files; the
   policy section renders a fixed allowlist of policy fields), run summary,
   per-step states with report availability, preserved attempt history
@@ -80,7 +80,7 @@ index. The contract (frozen in
   content.
 - A shared comparison ID is necessary but not sufficient. Accepted members
   must agree on the portable immutable plan dimensions (schema version,
-  family, recipe, matrix mode, steps, cell IDs, pair IDs, and the
+  family, recipe, comparison class, matrix mode, steps, cell IDs, pair IDs, and the
   `input_hashes` content identity). Machine paths are never compared as
   identities.
 - Group verdicts: `COMPARABLE` (two or more accepted members, all

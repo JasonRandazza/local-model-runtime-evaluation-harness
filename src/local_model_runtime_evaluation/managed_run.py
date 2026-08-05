@@ -15,6 +15,7 @@ from .artifact_profile import (
     ArtifactRoots,
     load_artifact_roots,
 )
+from .comparison_class import ComparisonClass
 from .credentials import (
     OSAURUS_KEYCHAIN_SERVICE,
     KeychainCredentialProvider,
@@ -65,6 +66,32 @@ def _repo_path(value: str) -> Path:
     return REPOSITORY_ROOT / value
 
 
+def _campaign_for_plan(
+    plan: ManagedRunPlan,
+    artifact_roots: ArtifactRoots,
+) -> Campaign:
+    baseline = Campaign.load(_repo_path(plan.campaign_path))
+    baseline_ids = tuple(cell.cell_id for cell in baseline.cells)
+    if baseline_ids != plan.baseline_cell_ids:
+        raise RuntimeError("managed plan baseline campaign mismatch")
+    if plan.comparison_class_id is None:
+        if plan.comparison_class_path is not None or plan.cell_ids != baseline_ids:
+            raise RuntimeError("managed plan native baseline is invalid")
+        return baseline.resolve(artifact_roots)
+    if plan.comparison_class_path is None:
+        raise RuntimeError("managed plan comparison class path is missing")
+    definition = ComparisonClass.load(_repo_path(plan.comparison_class_path))
+    if (
+        definition.comparison_class_id != plan.comparison_class_id
+        or definition.family_id != plan.family_id
+        or definition.baseline_campaign_path != _repo_path(plan.campaign_path).resolve()
+        or definition.baseline_cell_ids != plan.baseline_cell_ids
+        or definition.cell_ids != plan.cell_ids
+    ):
+        raise RuntimeError("managed plan comparison class mismatch")
+    return definition.materialize_campaign().resolve(artifact_roots)
+
+
 def default_collector_hooks(
     plan: ManagedRunPlan,
     runtime_manager: RuntimeManager,
@@ -75,7 +102,7 @@ def default_collector_hooks(
     """Bind the retained collectors to one immutable managed plan."""
 
     artifact_roots = load_artifact_roots(machine_profile_path)
-    campaign = Campaign.load(_repo_path(plan.campaign_path)).resolve(artifact_roots)
+    campaign = _campaign_for_plan(plan, artifact_roots)
     cells_root = _repo_path(plan.cells_root)
     pairs_root = _repo_path(plan.pairs_root)
     preference_path = _repo_path(plan.suite_path(ManagedStep.PREFERENCE))
@@ -89,9 +116,7 @@ def default_collector_hooks(
             candidate,
             machine_profile_path=machine_profile_path,
         )
-        loaded_campaign = Campaign.load(
-            _repo_path(candidate.campaign_path)
-        ).resolve(artifact_roots)
+        loaded_campaign = _campaign_for_plan(candidate, artifact_roots)
         MatrixSuite.load(_repo_path(candidate.suite_path(ManagedStep.MATRIX)))
         PreferenceSuite.load(
             _repo_path(candidate.suite_path(ManagedStep.PREFERENCE))
@@ -150,6 +175,7 @@ def default_collector_hooks(
         return {
             "campaign_id": loaded_campaign.campaign_id,
             "cell_count": len(candidate.cell_ids),
+            "comparison_class_id": candidate.comparison_class_id,
             "free_memory_percent": free_memory,
             "rag_suite_id": rag_suite.suite_id,
             "request_count": candidate.request_count,
