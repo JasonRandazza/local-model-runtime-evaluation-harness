@@ -37,6 +37,7 @@ See [docs/history.md](docs/history.md) for the historical lane summary and
 | `./bin/lmre-rag` | Run oracle or keyword RAG evaluation |
 | `./bin/lmre-overhead` | Compare direct and Osaurus-routed latency for native backends |
 | `./bin/lmre browse` | Generate the read-only static HTML browser for sealed evidence |
+| `./bin/lmre doctor` | Report offline readiness of local config, artifacts, and policy |
 
 For a complete managed run, start with:
 
@@ -78,6 +79,7 @@ Operator documentation:
 - [RAG](docs/rag.md)
 - [Routing overhead](docs/overhead.md)
 - [Results browser](docs/results-browser.md)
+- [Offline doctor](docs/doctor.md)
 - [Architecture](docs/architecture.md)
 
 ## Safety Boundary
