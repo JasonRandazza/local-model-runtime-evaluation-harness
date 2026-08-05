@@ -12,7 +12,10 @@ provider, or credential authority.
 Committed model configuration is now machine-portable. A strict, gitignored
 `.lmre/machine-profile.json` supplies the two approved local artifact roots;
 new managed plans checksum that profile so changed mappings fail before
-inference. Fable's separate `lmre doctor` work is not part of this slice.
+inference. An offline `lmre doctor` command reports static local readiness
+(profile, configuration, resolved artifacts, adopted policy) and labels
+every runtime, provider, credential, memory, and inference fact
+`NOT_CHECKED_LIVE`; it grants no live authority.
 
 ## Managed Live Acceptance (2026-07-31)
 
@@ -58,6 +61,7 @@ and is intentionally not committed.
 - oracle and keyword RAG
 - direct-versus-Osaurus overhead
 - read-only sealed-results browser ([results-browser.md](results-browser.md))
+- offline readiness doctor ([doctor.md](doctor.md))
 
 ## Open Risks
 

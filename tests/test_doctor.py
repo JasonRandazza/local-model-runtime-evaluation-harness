@@ -527,6 +527,40 @@ class DoctorTests(unittest.TestCase):
         # a missing campaign file) is not reported as a "family:" problem.
         self.assertNotIn("family:", good_finding["detail"] or "")
 
+    def test_pathologically_nested_family_json_degrades_one_finding(self) -> None:
+        # RecursionError from json.loads must become one ACTION_REQUIRED
+        # finding, not abort the diagnostic (review-wave regression).
+        synthetic = self.root / "repo"
+        _write_recipe(synthetic, "recipe-one")
+        families_dir = synthetic / "config" / "matrix" / "families"
+        families_dir.mkdir(parents=True, exist_ok=True)
+        depth = 200_000
+        (families_dir / "bad-family.json").write_text(
+            "[" * depth + "]" * depth
+        )
+        profile = _write_real_machine_profile(self.root / "machine")
+        state_root = self.root / "state"
+        _adopt_valid_policy(self.root, state_root, now=FIXED_NOW)
+
+        result = doctor.run_diagnostics(
+            machine_profile_path=profile,
+            state_root=state_root,
+            repository_root=synthetic,
+            which=_fake_which(),
+            now=FIXED_NOW,
+        )
+
+        findings = {
+            finding["check"]: finding for finding in _all_findings(result)
+        }
+        self.assertEqual(
+            findings["configuration.family.bad-family"]["status"],
+            doctor.STATUS_ACTION_REQUIRED,
+        )
+        # Unrelated sections stayed visible.
+        self.assertIn("policy.adopted", findings)
+        self.assertIn("configuration.recipe.recipe-one", findings)
+
     def test_empty_config_tree_fails_closed(self) -> None:
         # A gutted install (no recipes, no families) must not aggregate to
         # OFFLINE_READY on harness checks alone.

@@ -37,6 +37,7 @@ ownership of the local active-run lock.
 | `resources.py` | Host memory and resource-floor checks |
 | `measurement.py` / `token_counter.py` | Qualified timing and token evidence |
 | `results_browser.py` / `results_browser_html.py` | Read-only sealed-evidence interpretation and static HTML presentation |
+| `doctor.py` | Offline static-readiness diagnostics over existing validators; no live contact |
 
 ## Native-Diagonal Contract
 

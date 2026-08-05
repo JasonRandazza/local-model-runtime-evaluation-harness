@@ -81,6 +81,9 @@ _LOADER_ERRORS = (
     ValueError,
     KeyError,
     TypeError,
+    # json.loads raises RecursionError on pathologically nested documents;
+    # one corrupt file must degrade to one finding, not abort the diagnostic.
+    RecursionError,
 )
 
 
