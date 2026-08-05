@@ -60,7 +60,8 @@ and is intentionally not committed.
 - pairwise preference
 - oracle and keyword RAG
 - direct-versus-Osaurus overhead
-- read-only sealed-results browser ([results-browser.md](results-browser.md))
+- read-only sealed-results browser with sealed cross-run comparison
+  ([results-browser.md](results-browser.md))
 - offline readiness doctor ([doctor.md](doctor.md))
 
 ## Open Risks
@@ -72,8 +73,9 @@ and is intentionally not committed.
   authorizing the exact plan.
 - Resolved artifacts remain machine-local and may be missing even when the
   portable committed templates and machine profile are structurally valid.
-- The results browser defers cross-run comparison; sealed runs are rendered
-  individually only.
+- The results browser now includes read-only sealed cross-run comparison
+  pages (metadata and verbatim statuses only, sealed verified members
+  only). Richer metric comparison and open-mix comparison remain deferred.
 - No external plugin lifecycle is managed by this repository cleanup.
 
 ## Machine State
