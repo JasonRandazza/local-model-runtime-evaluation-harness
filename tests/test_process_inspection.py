@@ -176,10 +176,25 @@ class ProcessInspectionTests(unittest.TestCase):
             "-sTCP:LISTEN",
             "-Fpn",
         )
-        inspector = ProcessInspector(
-            runner=FakeRunner({command: (1, "", "")})
-        )
+        inspector = ProcessInspector(runner=FakeRunner({command: (1, "", "")}))
         self.assertIsNone(inspector.inspect_listener("127.0.0.1", 8100))
+
+    def test_listener_process_vanishing_during_identity_lookup_returns_none(
+        self,
+    ) -> None:
+        outputs = _outputs()
+        outputs[("/bin/ps", "-ww", "-p", "321", "-o", "comm=")] = (
+            1,
+            "",
+            "",
+        )
+        outputs[("/bin/ps", "-p", "321", "-o", "pid=")] = (1, "", "")
+
+        identity = ProcessInspector(runner=FakeRunner(outputs)).inspect_listener(
+            "127.0.0.1", 8100
+        )
+
+        self.assertIsNone(identity)
 
     def test_wildcard_listener_fails_closed(self) -> None:
         runner = FakeRunner(_outputs(listener="p321\nn*:8100\n"))
@@ -195,12 +210,7 @@ class ProcessInspectionTests(unittest.TestCase):
 
     def test_multiple_listener_processes_fail_closed(self) -> None:
         runner = FakeRunner(
-            _outputs(
-                listener=(
-                    "p321\nn127.0.0.1:8100\n"
-                    "p654\nn127.0.0.1:8100\n"
-                )
-            )
+            _outputs(listener=("p321\nn127.0.0.1:8100\np654\nn127.0.0.1:8100\n"))
         )
         with self.assertRaises(ProcessInspectionError) as context:
             ProcessInspector(runner=runner).inspect_listener(
@@ -250,15 +260,11 @@ class ProcessInspectionTests(unittest.TestCase):
             listener_port=8100,
         )
         self.assertTrue(
-            ProcessInspector(runner=FakeRunner(_outputs())).still_matches(
-                expected
-            )
+            ProcessInspector(runner=FakeRunner(_outputs())).still_matches(expected)
         )
         changed = _outputs(started="Thu Jul 30 18:01:00 2026\n")
         self.assertFalse(
-            ProcessInspector(runner=FakeRunner(changed)).still_matches(
-                expected
-            )
+            ProcessInspector(runner=FakeRunner(changed)).still_matches(expected)
         )
 
     def test_process_is_alive_matches_identity_without_a_listener(self) -> None:
@@ -280,6 +286,36 @@ class ProcessInspectionTests(unittest.TestCase):
         inspector = ProcessInspector(runner=FakeRunner(_outputs()))
 
         self.assertTrue(inspector.process_is_alive(expected))
+
+    def test_process_exit_during_identity_lookup_is_not_an_error(self) -> None:
+        expected = ProcessIdentity(
+            pid=321,
+            ppid=100,
+            executable="/Users/test/.venv/bin/python3.11",
+            argv=("omlx-server", "--host", "127.0.0.1", "--port", "8100"),
+            started_at="Thu Jul 30 18:00:00 2026",
+            listener_host="127.0.0.1",
+            listener_port=8100,
+        )
+        outputs = _outputs()
+        presence = ("/bin/ps", "-p", "321", "-o", "pid=")
+        comm = ("/bin/ps", "-ww", "-p", "321", "-o", "comm=")
+        presence_calls = 0
+
+        def runner(command: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
+            nonlocal presence_calls
+            if command == presence:
+                presence_calls += 1
+                if presence_calls == 1:
+                    return subprocess.CompletedProcess(command, 0, "321\n", "")
+                return subprocess.CompletedProcess(command, 1, "", "")
+            if command == comm:
+                return subprocess.CompletedProcess(command, 1, "", "")
+            value = outputs[command]
+            assert isinstance(value, str)
+            return subprocess.CompletedProcess(command, 0, value, "")
+
+        self.assertFalse(ProcessInspector(runner=runner).process_is_alive(expected))
 
     def test_rejects_non_loopback_request_before_command(self) -> None:
         runner = FakeRunner({})
