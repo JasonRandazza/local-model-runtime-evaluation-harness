@@ -76,7 +76,20 @@ every runtime, provider, credential, memory, and inference fact
   Binding adoption alone still grants no inference or lifecycle authority.
 - The results browser exposes binding identity and treats its hashes as
   comparability dimensions.
-- Verification and authorized live acceptance are in progress on this branch.
+- Verification: 525 retained tests and all six dry-config commands pass.
+- Authorized two-cell Gemma acceptance is currently **blocked**, not accepted.
+  Four sealed attempts (`run-20260805-233948-4d5cf5`,
+  `run-20260805-234409-41000e`, `run-20260805-234703-be6713`, and
+  `run-20260805-235031-d2ba34`) preserved PASS preflight and Osaurus matrix
+  evidence but failed before the direct oMLX lane. The first exposed an
+  Osaurus child-process cleanup gap, which is fixed and covered by exact-PID
+  lifecycle tests. The next three failed closed on `runtime executable lookup
+  failed` while observing port 8100 after verified Osaurus release, including
+  after a bounded identity reinspection window.
+- Each attempt sealed honestly as `FAIL`; no oMLX, preference, RAG, or overhead
+  PASS is claimed. Post-run inspection found no matching listener or model
+  server process. Further live retries are paused pending a deterministic port
+  8100 identity trace.
 
 ## Managed Live Acceptance (2026-07-31)
 

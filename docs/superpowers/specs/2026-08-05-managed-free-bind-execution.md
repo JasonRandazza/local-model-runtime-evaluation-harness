@@ -1,6 +1,7 @@
 # Managed Free-Bind Execution and Sealing (2026-08-05)
 
-**Status:** Implemented live-capable managed-plan contract.
+**Status:** Implemented; authorized live acceptance blocked at the port 8100
+identity boundary.
 **Live authority:** An adopted binding is review intent, not inference
 authority. A live run still requires an explicit current-session request and
 an adopted operator policy authorizing the exact immutable plan.
@@ -76,3 +77,26 @@ the original immutable plan.
 - model downloads, conversions, moves, or deletion;
 - parallel model residency;
 - heterogeneous/open-mix scheduling and comparison semantics.
+
+## Live acceptance record
+
+The first authorized acceptance window used binding
+`gemma-osaurus-omlx-live-v1` (Osaurus JANG plus direct oMLX oQ4), 54 planned
+requests, and one reviewed overhead pair. Four immutable attempts were created
+and sealed as `FAIL`:
+
+- `run-20260805-233948-4d5cf5` exposed an owned Osaurus child process that
+  remained after `osaurus stop`. Exact-PID cleanup was repaired to use bounded
+  `SIGINT` and policy-gated `SIGTERM`; the recorded process exited on `SIGINT`.
+- `run-20260805-234409-41000e`, `run-20260805-234703-be6713`, and
+  `run-20260805-235031-d2ba34` completed the Osaurus matrix lane and exact
+  cleanup, then failed closed before oMLX start with
+  `runtime executable lookup failed` while inspecting port 8100.
+
+The process inspector now handles a process that demonstrably exits during
+identity collection, and runtime adapters use a bounded three-observation
+window for transient lookup races. The failure remained after both changes,
+so further live retries are paused until a deterministic trace can identify
+the port 8100 listener without weakening exact identity checks. No oMLX,
+preference, RAG, or overhead result from this acceptance window is represented
+as PASS. Post-run listener and process inspection was clean.
