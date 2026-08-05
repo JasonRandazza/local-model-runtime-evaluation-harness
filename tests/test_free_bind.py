@@ -21,6 +21,7 @@ from local_model_runtime_evaluation.free_bind import (
     load_adopted_binding,
     propose_binding,
     show_binding_proposal,
+    validate_adopted_binding,
     validate_binding_proposal,
 )
 from local_model_runtime_evaluation.managed_run_cli import main as managed_main
@@ -195,6 +196,27 @@ class FreeBindTests(unittest.TestCase):
             **self._kwargs(),
         )
         self.assertEqual(shown["adoption"], record)
+        self.assertEqual(
+            validate_adopted_binding(
+                "fixture-binding-v1",
+                **self._kwargs(),
+            ),
+            record,
+        )
+
+    def test_adopted_binding_rejects_changed_sources_before_planning(self) -> None:
+        self._propose()
+        adopt_binding("fixture-binding-v1", **self._kwargs())
+        path = self.cells / f"{self.cell_ids[0]}.json"
+        body = json.loads(path.read_text(encoding="utf-8"))
+        body["notes"] = "changed after adoption"
+        path.write_text(json.dumps(body), encoding="utf-8")
+        with self.assertRaises(FreeBindError) as context:
+            validate_adopted_binding(
+                "fixture-binding-v1",
+                **self._kwargs(),
+            )
+        self.assertEqual(context.exception.code, "free_bind_stale")
 
     def test_missing_artifact_is_action_required_and_blocks_adoption(self) -> None:
         (self.artifacts / "gamma").rmdir()

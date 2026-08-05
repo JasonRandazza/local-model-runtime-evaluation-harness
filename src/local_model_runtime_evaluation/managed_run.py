@@ -6,7 +6,7 @@ import json
 import os
 import re
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Callable
 
@@ -21,7 +21,14 @@ from .credentials import (
     KeychainCredentialProvider,
 )
 from .evidence_bundle import EvidenceBundle, resume_is_allowed
-from .matrix_config import REPOSITORY_ROOT, Campaign, Cell, MatrixSuite, load_family
+from .matrix_config import (
+    REPOSITORY_ROOT,
+    Campaign,
+    Cell,
+    MatrixError,
+    MatrixSuite,
+    load_family,
+)
 from .matrix_runner import run_campaign
 from .matrix_servers import ServerHandle
 from .managed_run_types import (
@@ -74,8 +81,45 @@ def _campaign_for_plan(
     baseline_ids = tuple(cell.cell_id for cell in baseline.cells)
     if baseline_ids != plan.baseline_cell_ids:
         raise RuntimeError("managed plan baseline campaign mismatch")
+    if plan.binding_id is not None:
+        if (
+            plan.comparison_class_id is not None
+            or plan.comparison_class_path is not None
+            or plan.binding_revision is None
+            or plan.binding_hash is None
+            or plan.binding_proposal_hash is None
+        ):
+            raise RuntimeError("managed plan binding metadata is invalid")
+        cell_paths = tuple(
+            _repo_path(plan.cells_root) / f"{cell_id}.json" for cell_id in plan.cell_ids
+        )
+        try:
+            cells = tuple(
+                Cell.load(
+                    path,
+                    family=baseline.family,
+                    require_native_server=True,
+                )
+                for path in cell_paths
+            )
+        except (MatrixError, OSError, ValueError, KeyError, TypeError) as error:
+            raise RuntimeError("managed plan binding cells are invalid") from error
+        if tuple(cell.cell_id for cell in cells) != plan.cell_ids:
+            raise RuntimeError("managed plan binding cell order is invalid")
+        return replace(
+            baseline,
+            campaign_id=f"{baseline.campaign_id}--{plan.binding_id}",
+            cell_paths=cell_paths,
+            cells=cells,
+        ).resolve(artifact_roots)
     if plan.comparison_class_id is None:
-        if plan.comparison_class_path is not None or plan.cell_ids != baseline_ids:
+        if (
+            plan.comparison_class_path is not None
+            or plan.binding_revision is not None
+            or plan.binding_hash is not None
+            or plan.binding_proposal_hash is not None
+            or plan.cell_ids != baseline_ids
+        ):
             raise RuntimeError("managed plan native baseline is invalid")
         return baseline.resolve(artifact_roots)
     if plan.comparison_class_path is None:
@@ -118,9 +162,7 @@ def default_collector_hooks(
         )
         loaded_campaign = _campaign_for_plan(candidate, artifact_roots)
         MatrixSuite.load(_repo_path(candidate.suite_path(ManagedStep.MATRIX)))
-        PreferenceSuite.load(
-            _repo_path(candidate.suite_path(ManagedStep.PREFERENCE))
-        )
+        PreferenceSuite.load(_repo_path(candidate.suite_path(ManagedStep.PREFERENCE)))
         rag_suite = RagSuite.load(
             _repo_path(candidate.suite_path(ManagedStep.RAG_ORACLE))
         )
@@ -139,12 +181,8 @@ def default_collector_hooks(
             if not artifact.exists():
                 missing_artifacts.append(cell.cell_id)
             executable = cell.start_command[0]
-            if (
-                Path(executable).is_absolute()
-                and not Path(executable).is_file()
-            ) or (
-                not Path(executable).is_absolute()
-                and shutil.which(executable) is None
+            if (Path(executable).is_absolute() and not Path(executable).is_file()) or (
+                not Path(executable).is_absolute() and shutil.which(executable) is None
             ):
                 missing_executables.append(executable)
         for pair_id in candidate.pair_ids:
@@ -169,12 +207,11 @@ def default_collector_hooks(
             )
         free_memory = HostResourceProbe().free_memory_percent()
         if free_memory < candidate.memory_floor_percent:
-            raise RuntimeError(
-                "free memory is below the managed run floor"
-            )
+            raise RuntimeError("free memory is below the managed run floor")
         return {
             "campaign_id": loaded_campaign.campaign_id,
             "cell_count": len(candidate.cell_ids),
+            "binding_id": candidate.binding_id,
             "comparison_class_id": candidate.comparison_class_id,
             "free_memory_percent": free_memory,
             "rag_suite_id": rag_suite.suite_id,
@@ -256,9 +293,7 @@ def default_collector_hooks(
     def routed_models(candidate: ManagedRunPlan) -> tuple[str, ...]:
         nonlocal route_handle
         base_url = "http://127.0.0.1:1337/v1"
-        credential = KeychainCredentialProvider(
-            service=OSAURUS_KEYCHAIN_SERVICE
-        ).get()
+        credential = KeychainCredentialProvider(service=OSAURUS_KEYCHAIN_SERVICE).get()
         transport = LoopbackTransport(set(candidate.endpoints))
         if route_handle is None:
             family_template = load_family(candidate.family_id)
@@ -312,9 +347,7 @@ def default_collector_hooks(
         preflight=preflight,
         matrix=matrix,
         preference=preference,
-        rag_oracle=lambda candidate, root, build: rag(
-            "oracle", candidate, root, build
-        ),
+        rag_oracle=lambda candidate, root, build: rag("oracle", candidate, root, build),
         rag_keyword=lambda candidate, root, build: rag(
             "keyword", candidate, root, build
         ),
@@ -375,10 +408,7 @@ def _run_relative(bundle: EvidenceBundle, output: Path) -> str:
 
 def _stop_pending(bundle: EvidenceBundle) -> None:
     for record in bundle.state.steps:
-        if (
-            record.state is StepState.PENDING
-            and record.step is not ManagedStep.SEAL
-        ):
+        if record.state is StepState.PENDING and record.step is not ManagedStep.SEAL:
             bundle.transition_step(record.step, StepState.STOPPED)
 
 
@@ -393,6 +423,8 @@ def _summary(
     body: dict[str, object] = {
         "attempt": plan.identity.attempt if attempt is None else attempt,
         "comparison_id": plan.identity.comparison_id,
+        "binding_id": plan.binding_id,
+        "comparison_class_id": plan.comparison_class_id,
         "run_id": plan.identity.run_id,
         "run_name": plan.identity.run_name,
         "status": status.value,
@@ -416,9 +448,7 @@ def _seal_after_cleanup(
         return False
     bundle.mark_cleanup_complete()
     seal_record = next(
-        record
-        for record in bundle.state.steps
-        if record.step is ManagedStep.SEAL
+        record for record in bundle.state.steps if record.step is ManagedStep.SEAL
     )
     if seal_record.state is StepState.PENDING:
         bundle.transition_step(ManagedStep.SEAL, StepState.RUNNING)
@@ -526,9 +556,7 @@ def execute_managed_run(
         terminal = RunSummaryState.STOPPED
         failure = error
         if current is not None:
-            record = next(
-                item for item in bundle.state.steps if item.step is current
-            )
+            record = next(item for item in bundle.state.steps if item.step is current)
             if record.state is StepState.RUNNING:
                 bundle.transition_step(
                     current,
@@ -539,9 +567,7 @@ def execute_managed_run(
         terminal = RunSummaryState.FAIL
         failure = error
         if current is not None:
-            record = next(
-                item for item in bundle.state.steps if item.step is current
-            )
+            record = next(item for item in bundle.state.steps if item.step is current)
             if record.state is StepState.RUNNING:
                 bundle.transition_step(
                     current,
@@ -607,9 +633,7 @@ def resume_managed_run(
         bundle.verify()
         state = bundle.state
         if not resume_is_allowed(state):
-            raise RuntimeError(
-                "only a sealed overhead-only retry may resume"
-            )
+            raise RuntimeError("only a sealed overhead-only retry may resume")
         verify_plan_hash(bundle.plan)
         verify_plan_inputs(
             bundle.plan,
@@ -662,8 +686,7 @@ def resume_managed_run(
         )
         if missing:
             error = RuntimeError(
-                "required routed models are still missing: "
-                + ", ".join(missing)
+                "required routed models are still missing: " + ", ".join(missing)
             )
             bundle.transition_step(ManagedStep.OVERHEAD, StepState.RUNNING)
             bundle.transition_step(

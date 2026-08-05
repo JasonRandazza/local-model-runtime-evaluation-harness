@@ -9,8 +9,7 @@ The active product is managed-run led:
 adopt reviewed local policy
   -> inspect checked-in comparison-class and artifact readiness
   -> optionally propose, validate, and adopt an offline free binding
-  -> create and inspect an immutable plan
-  -> optionally bind a checked-in same-family comparison class
+  -> create and inspect an immutable baseline, comparison-class, or binding plan
   -> manage exact local runtime leases
   -> run the native quality sequence
   -> seal or safely resume honest evidence
@@ -81,6 +80,7 @@ Operator documentation:
 - [Controlled expansion](docs/superpowers/specs/2026-08-05-controlled-expansion-comparison-class.md)
 - [Offline comparison-class inspection](docs/superpowers/specs/2026-08-05-comparison-class-offline-inspection.md)
 - [Managed free-bind declarations](docs/superpowers/specs/2026-08-05-managed-free-bind-declarations.md)
+- [Managed free-bind execution](docs/superpowers/specs/2026-08-05-managed-free-bind-execution.md)
 - [Native matrix](docs/matrix.md)
 - [Preference](docs/preference.md)
 - [RAG](docs/rag.md)

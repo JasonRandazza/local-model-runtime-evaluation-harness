@@ -81,9 +81,7 @@ def _policy_payload(adopted: AdoptedPolicy) -> dict[str, object]:
         "lifecycle_authority": {
             "exact_reclaim": policy.allow_exact_reclaim,
             "start": policy.allow_start,
-            "terminate_after_interrupt": (
-                policy.allow_terminate_after_interrupt
-            ),
+            "terminate_after_interrupt": (policy.allow_terminate_after_interrupt),
         },
         "ok": True,
         "policy_hash": adopted.policy_hash,
@@ -137,9 +135,7 @@ def _build_runtime_manager(
     state = bundle.state
     catalog_attempt = state.attempt + 1 if state.sealed else state.attempt
     catalog_root = (
-        bundle.run_dir
-        / "runtime-catalogs"
-        / f"attempt-{catalog_attempt:03d}"
+        bundle.run_dir / "runtime-catalogs" / f"attempt-{catalog_attempt:03d}"
     )
     context = RuntimeContext(
         log_dir=log_dir,
@@ -186,6 +182,8 @@ def _command_plan(
         parent_run_id=args.parent,
         results_root=args.results_dir,
         comparison_class_id=args.comparison_class,
+        binding_id=args.binding,
+        binding_state_dir=args.state_dir,
         machine_profile_path=machine_profile_path,
     )
     authorize(adopted.policy, plan.policy_request())
@@ -200,6 +198,7 @@ def _command_plan(
     )
     return {
         "comparison_id": plan.identity.comparison_id,
+        "binding_id": plan.binding_id,
         "comparison_class_id": plan.comparison_class_id,
         "ok": True,
         "plan_hash": plan.plan_hash,
@@ -389,11 +388,14 @@ def build_parser() -> argparse.ArgumentParser:
     plan.add_argument("--recipe", type=Path, required=True)
     plan.add_argument("--name")
     plan.add_argument("--comparison")
-    plan.add_argument(
+    declaration = plan.add_mutually_exclusive_group()
+    declaration.add_argument(
         "--comparison-class",
-        help=(
-            "Checked-in controlled-expansion class ID; no arbitrary cell list"
-        ),
+        help=("Checked-in controlled-expansion class ID; no arbitrary cell list"),
+    )
+    declaration.add_argument(
+        "--binding",
+        help="Explicitly adopted offline binding ID; no arbitrary cell list",
     )
     plan.add_argument("--parent")
 
@@ -526,9 +528,7 @@ def main(
         _emit(
             {
                 "error": {
-                    "kind": str(
-                        getattr(error, "code", error.__class__.__name__)
-                    ),
+                    "kind": str(getattr(error, "code", error.__class__.__name__)),
                     "message": _sanitize_error(str(error)),
                 },
                 "ok": False,

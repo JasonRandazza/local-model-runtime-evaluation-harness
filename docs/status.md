@@ -21,8 +21,9 @@ every runtime, provider, credential, memory, and inference fact
 
 - `lmre plan --comparison-class <id>` binds a checked-in same-family class
   while preserving the ordered native baseline and baseline overhead pairs.
-- Managed plan schema `1.1.0` records the class and baseline identity; legacy
-  `1.0.0` plans remain readable and hash-verifiable without rewriting.
+- Comparison-class plan schema `1.1.0` records the class and baseline identity;
+  those fields remain in current schema `1.2.0`, while legacy `1.0.0` plans
+  remain readable and hash-verifiable without rewriting.
 - Expansion cells must be checked-in native-server cells. Arbitrary paths,
   cross-family mixes, custom endpoints, and automatic route generation remain
   refused.
@@ -57,11 +58,25 @@ every runtime, provider, credential, memory, and inference fact
   `STALE_INPUTS`, and only a current `READY_FOR_ADOPTION` proposal can be
   explicitly adopted.
 - Proposal and adoption records are create-only, gitignored, and explicitly
-  carry `live_authority: false` and `NOT_CHECKED_LIVE`. The managed planner does
-  not consume them in this slice.
+  carry `live_authority: false` and `NOT_CHECKED_LIVE`.
 - Verification: 512 retained non-live tests passed, all six dry-config
   commands passed, and focused tripwires confirmed that the binding module
   imports no live runtime, transport, process, resource, or credential code.
+
+## Managed Free-Bind Execution and Sealing (2026-08-05)
+
+- `lmre plan --binding <id>` revalidates one explicitly adopted declaration
+  and binds its ordered cells, provenance hashes, supported overhead pairs,
+  selected runtimes, endpoints, request count, and duration into an immutable
+  plan.
+- Plan schema `1.2.0` adds binding identity while retaining read compatibility
+  for sealed `1.0.0` and comparison-class `1.1.0` plans.
+- Execution reuses the accepted one-lane runtime manager, retained collectors,
+  provider-reconnect resume, exact cleanup, and checksummed evidence bundle.
+  Binding adoption alone still grants no inference or lifecycle authority.
+- The results browser exposes binding identity and treats its hashes as
+  comparability dimensions.
+- Verification and authorized live acceptance are in progress on this branch.
 
 ## Managed Live Acceptance (2026-07-31)
 
@@ -116,6 +131,8 @@ and is intentionally not committed.
 - offline managed free-bind declaration, validation, and non-authorizing
   adoption
   ([free-bind contract](superpowers/specs/2026-08-05-managed-free-bind-declarations.md))
+- managed free-bind planning, execution, resume, and sealing
+  ([execution contract](superpowers/specs/2026-08-05-managed-free-bind-execution.md))
 
 ## Open Risks
 
@@ -133,9 +150,8 @@ and is intentionally not committed.
 - The controlled-expansion mechanism is shipped, but the only checked-in
   class currently declares the existing Gemma native baseline. No additional
   model build is claimed available or validated yet.
-- Adopted free-bind declarations are not executable yet. Managed-plan binding,
-  policy calculation, collector execution, and sealed evidence are the next
-  separately reviewed live-capable slice.
+- Managed free-bind execution remains same-family and native-server-only;
+  heterogeneous/open-mix scheduling is still deferred.
 
 ## Machine State
 

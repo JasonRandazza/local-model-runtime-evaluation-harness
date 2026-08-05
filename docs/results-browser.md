@@ -80,9 +80,9 @@ index. The contract (frozen in
   content.
 - A shared comparison ID is necessary but not sufficient. Accepted members
   must agree on the portable immutable plan dimensions (schema version,
-  family, recipe, comparison class, matrix mode, steps, cell IDs, pair IDs, and the
-  `input_hashes` content identity). Machine paths are never compared as
-  identities.
+  family, recipe, comparison class, managed binding ID and hashes, matrix
+  mode, steps, cell IDs, pair IDs, and the `input_hashes` content identity).
+  Machine paths are never compared as identities.
 - Group verdicts: `COMPARABLE` (two or more accepted members, all
   dimensions agree), `INCOMPARABLE` with a stable
   `plan_dimension_mismatch: ...` reason (no metrics are aggregated or

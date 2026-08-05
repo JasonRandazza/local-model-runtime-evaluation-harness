@@ -1,9 +1,10 @@
 # Managed Free-Bind Declarations (2026-08-05)
 
-**Status:** Implemented offline declaration and validation contract.
+**Status:** Implemented offline declaration and validation foundation.
 **Live authority:** None. Proposal, validation, inspection, and adoption do not
 create a managed plan, contact a runtime, authorize inference, or permit process
-lifecycle actions. Binding execution is a separate deferred slice.
+lifecycle actions. The separately governed managed execution contract consumes
+an adopted declaration only during an explicit plan request.
 
 ## Purpose
 
@@ -65,11 +66,15 @@ Existing proposal or adoption records are never overwritten.
    or invoke transports, runtime adapters, process inspection, credentials,
    resource checks, provider configuration, or inference code.
 
-## Explicitly deferred
+## Execution boundary
 
-- binding an adopted declaration into a new immutable managed-plan schema;
-- policy request calculation for the selected cells;
-- managed collector routing, lifecycle, resume, evidence, and sealing;
+Binding an adopted declaration into immutable planning, policy calculation,
+collector execution, lifecycle, resume, and sealed evidence is implemented by
+the [managed free-bind execution contract](2026-08-05-managed-free-bind-execution.md).
+Adoption itself still grants no planning or live authority.
+
+The following remain deferred:
+
 - non-native-server cell remapping;
 - cross-family, cross-size, or heterogeneous/open-mix comparison;
 - arbitrary endpoints, commands, model paths, provider edits, or downloads.

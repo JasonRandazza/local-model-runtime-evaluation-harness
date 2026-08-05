@@ -12,9 +12,14 @@ from .operator_policy import PolicyRequest
 
 
 LEGACY_MANAGED_PLAN_SCHEMA_VERSION = "1.0.0"
-MANAGED_PLAN_SCHEMA_VERSION = "1.1.0"
+COMPARISON_CLASS_PLAN_SCHEMA_VERSION = "1.1.0"
+MANAGED_PLAN_SCHEMA_VERSION = "1.2.0"
 SUPPORTED_MANAGED_PLAN_SCHEMA_VERSIONS = frozenset(
-    {LEGACY_MANAGED_PLAN_SCHEMA_VERSION, MANAGED_PLAN_SCHEMA_VERSION}
+    {
+        LEGACY_MANAGED_PLAN_SCHEMA_VERSION,
+        COMPARISON_CLASS_PLAN_SCHEMA_VERSION,
+        MANAGED_PLAN_SCHEMA_VERSION,
+    }
 )
 SHA256_HEX = re.compile(r"[0-9a-f]{64}")
 SAFE_COMPARISON_CLASS_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -110,6 +115,10 @@ class ManagedRunPlan:
     family_id: str
     comparison_class_id: str | None
     comparison_class_path: str | None
+    binding_id: str | None
+    binding_revision: str | None
+    binding_hash: str | None
+    binding_proposal_hash: str | None
     baseline_cell_ids: tuple[str, ...]
     steps: tuple[ManagedStep, ...]
     cell_ids: tuple[str, ...]
@@ -160,6 +169,13 @@ class ManagedRunPlan:
                 comparison_class_path=self.comparison_class_path,
                 baseline_cell_ids=list(self.baseline_cell_ids),
             )
+        if self.schema_version == MANAGED_PLAN_SCHEMA_VERSION:
+            body.update(
+                binding_id=self.binding_id,
+                binding_revision=self.binding_revision,
+                binding_hash=self.binding_hash,
+                binding_proposal_hash=self.binding_proposal_hash,
+            )
         if include_hash:
             body["plan_hash"] = self.plan_hash
         return body
@@ -190,19 +206,26 @@ class ManagedRunPlan:
             "created_at",
             "plan_hash",
         }
-        current_expected = legacy_expected | {
+        comparison_class_expected = legacy_expected | {
             "comparison_class_id",
             "comparison_class_path",
             "baseline_cell_ids",
         }
+        current_expected = comparison_class_expected | {
+            "binding_id",
+            "binding_revision",
+            "binding_hash",
+            "binding_proposal_hash",
+        }
         schema_version = data.get("schema_version")
         if schema_version not in SUPPORTED_MANAGED_PLAN_SCHEMA_VERSIONS:
             raise ValueError("managed run plan schema_version is invalid")
-        expected = (
-            legacy_expected
-            if schema_version == LEGACY_MANAGED_PLAN_SCHEMA_VERSION
-            else current_expected
-        )
+        if schema_version == LEGACY_MANAGED_PLAN_SCHEMA_VERSION:
+            expected = legacy_expected
+        elif schema_version == COMPARISON_CLASS_PLAN_SCHEMA_VERSION:
+            expected = comparison_class_expected
+        else:
+            expected = current_expected
         if set(data) != expected:
             raise ValueError("managed run plan fields are invalid")
         identity = data["identity"]
@@ -266,12 +289,16 @@ class ManagedRunPlan:
             steps = tuple(ManagedStep(value) for value in data["steps"])
         except (TypeError, ValueError) as error:
             raise ValueError("managed run plan step is invalid") from error
-        for field in ("cell_ids", "pair_ids", "endpoints", "runtimes"):
-            if not all(isinstance(value, str) for value in data[field]):
-                raise ValueError(f"managed run plan {field} is invalid")
+        for field_name in ("cell_ids", "pair_ids", "endpoints", "runtimes"):
+            if not all(isinstance(value, str) for value in data[field_name]):
+                raise ValueError(f"managed run plan {field_name} is invalid")
         if schema_version == LEGACY_MANAGED_PLAN_SCHEMA_VERSION:
             comparison_class_id = None
             comparison_class_path = None
+            binding_id = None
+            binding_revision = None
+            binding_hash = None
+            binding_proposal_hash = None
             baseline_cell_ids = tuple(data["cell_ids"])
         else:
             comparison_class_id = data["comparison_class_id"]
@@ -296,20 +323,63 @@ class ManagedRunPlan:
                 len(baseline_cell_ids) != 3
                 or len(set(baseline_cell_ids)) != 3
                 or not all(
-                    isinstance(value, str) and value
-                    for value in baseline_cell_ids
+                    isinstance(value, str) and value for value in baseline_cell_ids
                 )
             ):
                 raise ValueError("managed run baseline_cell_ids is invalid")
-            if (
-                tuple(data["cell_ids"][: len(baseline_cell_ids)])
-                != baseline_cell_ids
-            ):
-                raise ValueError("managed run baseline cells must be preserved in order")
-            if (
-                comparison_class_id is None
-                and tuple(data["cell_ids"]) != baseline_cell_ids
-            ):
+            if schema_version == COMPARISON_CLASS_PLAN_SCHEMA_VERSION:
+                binding_id = None
+                binding_revision = None
+                binding_hash = None
+                binding_proposal_hash = None
+            else:
+                binding_id = data["binding_id"]
+                binding_revision = data["binding_revision"]
+                binding_hash = data["binding_hash"]
+                binding_proposal_hash = data["binding_proposal_hash"]
+                binding_values = (
+                    binding_id,
+                    binding_revision,
+                    binding_hash,
+                    binding_proposal_hash,
+                )
+                if any(value is None for value in binding_values) and not all(
+                    value is None for value in binding_values
+                ):
+                    raise ValueError("managed run binding fields are invalid")
+                if binding_id is not None and (
+                    not isinstance(binding_id, str)
+                    or len(binding_id) > 80
+                    or not SAFE_COMPARISON_CLASS_ID.fullmatch(binding_id)
+                    or not isinstance(binding_revision, str)
+                    or not binding_revision.isdecimal()
+                    or int(binding_revision) < 1
+                    or not isinstance(binding_hash, str)
+                    or not SHA256_HEX.fullmatch(binding_hash)
+                    or not isinstance(binding_proposal_hash, str)
+                    or not SHA256_HEX.fullmatch(binding_proposal_hash)
+                ):
+                    raise ValueError("managed run binding fields are invalid")
+            if comparison_class_id is not None and binding_id is not None:
+                raise ValueError("managed run declarations are mutually exclusive")
+            if comparison_class_id is not None:
+                if (
+                    tuple(data["cell_ids"][: len(baseline_cell_ids)])
+                    != baseline_cell_ids
+                ):
+                    raise ValueError(
+                        "managed run baseline cells must be preserved in order"
+                    )
+            elif binding_id is not None:
+                selected = tuple(data["cell_ids"])
+                if (
+                    len(selected) < 2
+                    or len(selected) > 9
+                    or len(set(selected)) != len(selected)
+                    or not all(isinstance(value, str) and value for value in selected)
+                ):
+                    raise ValueError("managed run binding cells are invalid")
+            elif tuple(data["cell_ids"]) != baseline_cell_ids:
                 raise ValueError("managed run undeclared cells are invalid")
         return cls(
             schema_version=data["schema_version"],
@@ -318,6 +388,10 @@ class ManagedRunPlan:
             family_id=data["family_id"],
             comparison_class_id=comparison_class_id,
             comparison_class_path=comparison_class_path,
+            binding_id=binding_id,
+            binding_revision=binding_revision,
+            binding_hash=binding_hash,
+            binding_proposal_hash=binding_proposal_hash,
             baseline_cell_ids=baseline_cell_ids,
             steps=steps,
             cell_ids=tuple(data["cell_ids"]),
@@ -325,8 +399,7 @@ class ManagedRunPlan:
             matrix_mode=data["matrix_mode"],
             campaign_path=data["campaign_path"],
             suite_paths=tuple(
-                (str(key), str(value))
-                for key, value in sorted(suite_paths.items())
+                (str(key), str(value)) for key, value in sorted(suite_paths.items())
             ),
             rag_corpus_path=data["rag_corpus_path"],
             cells_root=data["cells_root"],

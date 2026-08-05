@@ -1,18 +1,23 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from local_model_runtime_evaluation.managed_run_types import (
+    COMPARISON_CLASS_PLAN_SCHEMA_VERSION,
     LEGACY_MANAGED_PLAN_SCHEMA_VERSION,
     ManagedRunPlan,
     ManagedStep,
     RunSummaryState,
     StepState,
 )
+from local_model_runtime_evaluation.free_bind import adopt_binding, propose_binding
+from local_model_runtime_evaluation.artifact_profile import load_artifact_roots
+from local_model_runtime_evaluation.managed_run import _campaign_for_plan
 from local_model_runtime_evaluation.run_identity import (
     MACHINE_PROFILE_INPUT,
     RunIdentityError,
@@ -29,6 +34,47 @@ from tests.artifact_profile_fixtures import write_machine_profile
 
 ROOT = Path(__file__).resolve().parents[1]
 RECIPE = ROOT / "config" / "managed-runs" / "complete-native-quality-v1.json"
+
+
+def _adopt_test_binding(
+    root: Path,
+    profile: Path,
+    *,
+    binding_id: str,
+    cell_ids: tuple[str, ...],
+) -> Path:
+    profile_body = json.loads(profile.read_text(encoding="utf-8"))
+    roots = profile_body["artifact_roots"]
+    for base, suffix in (
+        (roots["local_models"], "gemma-4-12B-it-qat-JANG_4M"),
+        (
+            roots["huggingface_hub"],
+            "avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
+        ),
+        (
+            roots["huggingface_hub"],
+            "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+        ),
+    ):
+        (Path(base) / suffix).mkdir(parents=True, exist_ok=True)
+    state_dir = root / ".lmre"
+    propose_binding(
+        binding_id=binding_id,
+        revision="1",
+        family_id="gemma-4-12b-qat",
+        cell_ids=cell_ids,
+        notes="test binding",
+        state_dir=state_dir,
+        machine_profile_path=profile,
+        now=_fixed_time(),
+    )
+    adopt_binding(
+        binding_id,
+        state_dir=state_dir,
+        machine_profile_path=profile,
+        now=_fixed_time(),
+    )
+    return state_dir
 
 
 def _fixed_time() -> datetime:
@@ -202,6 +248,110 @@ class RunIdentityTests(unittest.TestCase):
             "gemma-4-12b-qat-gemma-native-baseline-v1",
         )
 
+    def test_adopted_free_binding_is_bound_into_plan(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            profile = write_machine_profile(root / "machine")
+            state_dir = _adopt_test_binding(
+                root,
+                profile,
+                binding_id="gemma-free-bind-v1",
+                cell_ids=(
+                    "jang_4m__osaurus",
+                    "oq4_fp16__omlx",
+                    "optiq_4bit__optiq",
+                ),
+            )
+            plan = build_plan(
+                RECIPE,
+                family_id="gemma-4-12b-qat",
+                run_name=None,
+                comparison_id=None,
+                parent_run_id=None,
+                results_root=root / "results",
+                binding_id="gemma-free-bind-v1",
+                binding_state_dir=state_dir,
+                now=_fixed_time(),
+                entropy="a1b2c3",
+                machine_profile_path=profile,
+            )
+            materialized = _campaign_for_plan(
+                plan,
+                load_artifact_roots(profile),
+            )
+        self.assertEqual(plan.schema_version, "1.2.0")
+        self.assertEqual(plan.binding_id, "gemma-free-bind-v1")
+        self.assertEqual(plan.binding_revision, "1")
+        self.assertIsNotNone(plan.binding_hash)
+        self.assertIsNotNone(plan.binding_proposal_hash)
+        self.assertIsNone(plan.comparison_class_id)
+        self.assertEqual(plan.request_count, 93)
+        self.assertEqual(plan.estimated_minutes, 90)
+        self.assertEqual(plan.runtimes, frozenset({"osaurus", "omlx", "optiq"}))
+        self.assertEqual(
+            ManagedRunPlan.from_dict(plan.to_dict()).to_dict(),
+            plan.to_dict(),
+        )
+        self.assertEqual(
+            tuple(cell.cell_id for cell in materialized.cells),
+            plan.cell_ids,
+        )
+
+    def test_two_cell_binding_filters_runtime_and_overhead_scope(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            profile = write_machine_profile(root / "machine")
+            state_dir = _adopt_test_binding(
+                root,
+                profile,
+                binding_id="gemma-two-cell-v1",
+                cell_ids=("jang_4m__osaurus", "oq4_fp16__omlx"),
+            )
+            plan = build_plan(
+                RECIPE,
+                family_id="gemma-4-12b-qat",
+                run_name=None,
+                comparison_id=None,
+                parent_run_id=None,
+                results_root=root / "results",
+                binding_id="gemma-two-cell-v1",
+                binding_state_dir=state_dir,
+                now=_fixed_time(),
+                entropy="a1b2c3",
+                machine_profile_path=profile,
+            )
+        self.assertEqual(
+            plan.cell_ids,
+            ("jang_4m__osaurus", "oq4_fp16__omlx"),
+        )
+        self.assertEqual(plan.pair_ids, ("oq4_fp16",))
+        self.assertEqual(plan.runtimes, frozenset({"osaurus", "omlx"}))
+        self.assertEqual(
+            plan.endpoints,
+            (
+                "http://127.0.0.1:1337/v1",
+                "http://127.0.0.1:8100/v1",
+            ),
+        )
+        self.assertEqual(plan.request_count, 54)
+        self.assertEqual(plan.estimated_minutes, 53)
+
+    def test_plan_rejects_competing_class_and_binding(self) -> None:
+        with TemporaryDirectory() as tmp:
+            profile = write_machine_profile(Path(tmp) / "machine")
+            with self.assertRaises(RunIdentityError):
+                build_plan(
+                    RECIPE,
+                    family_id="gemma-4-12b-qat",
+                    run_name=None,
+                    comparison_id=None,
+                    parent_run_id=None,
+                    results_root=Path(tmp) / "results",
+                    comparison_class_id="gemma-native-baseline-v1",
+                    binding_id="gemma-free-bind-v1",
+                    machine_profile_path=profile,
+                )
+
     def test_legacy_plan_shape_remains_hash_verifiable(self) -> None:
         with TemporaryDirectory() as tmp:
             profile = write_machine_profile(Path(tmp) / "machine")
@@ -233,6 +383,36 @@ class RunIdentityTests(unittest.TestCase):
         loaded = ManagedRunPlan.from_dict(payload)
         verify_plan_hash(loaded)
         self.assertEqual(loaded.baseline_cell_ids, loaded.cell_ids)
+
+    def test_comparison_class_plan_v1_1_remains_hash_verifiable(self) -> None:
+        with TemporaryDirectory() as tmp:
+            profile = write_machine_profile(Path(tmp) / "machine")
+            current = build_plan(
+                RECIPE,
+                family_id="gemma-4-12b-qat",
+                run_name=None,
+                comparison_id=None,
+                parent_run_id=None,
+                results_root=Path(tmp),
+                comparison_class_id="gemma-native-baseline-v1",
+                now=_fixed_time(),
+                entropy="a1b2c3",
+                machine_profile_path=profile,
+            )
+        prior = dataclasses.replace(
+            current,
+            schema_version=COMPARISON_CLASS_PLAN_SCHEMA_VERSION,
+            plan_hash="",
+        )
+        prior = dataclasses.replace(
+            prior,
+            plan_hash=_canonical_plan_hash(prior),
+        )
+        payload = prior.to_dict()
+        self.assertNotIn("binding_id", payload)
+        loaded = ManagedRunPlan.from_dict(payload)
+        verify_plan_hash(loaded)
+        self.assertEqual(loaded.comparison_class_id, "gemma-native-baseline-v1")
 
     def test_all_retained_families_build_valid_plans(self) -> None:
         families = (
@@ -339,14 +519,17 @@ class RunIdentityTests(unittest.TestCase):
             legacy = dataclasses.replace(
                 plan,
                 input_hashes=tuple(
-                    item for item in plan.input_hashes
+                    item
+                    for item in plan.input_hashes
                     if item[0] != MACHINE_PROFILE_INPUT
                 ),
             )
             verify_plan_inputs(legacy, machine_profile_path=Path("/missing"))
 
     def test_shared_state_values_match_evidence_contract(self) -> None:
-        self.assertEqual(StepState.BLOCKED_PROVIDER_RECONNECT.value, "BLOCKED_PROVIDER_RECONNECT")
+        self.assertEqual(
+            StepState.BLOCKED_PROVIDER_RECONNECT.value, "BLOCKED_PROVIDER_RECONNECT"
+        )
         self.assertEqual(RunSummaryState.PARTIAL_BLOCKED.value, "PARTIAL_BLOCKED")
 
 

@@ -40,10 +40,11 @@ accepting arbitrary paths, or opening heterogeneous model mixes.
 8. Execution remains sequential (`max_parallel_models = 1`) and subject to
    the existing memory floor, request ceiling, runtime identity, reclaim
    notice, loopback, credential, provider, and cleanup rules.
-9. Plan schema `1.1.0` records `comparison_class_id`, the repository-relative
-   class path, and `baseline_cell_ids`. Its input hashes bind the class, family,
-   campaign, every selected cell, suites, pairs, corpus, recipe, and machine
-   profile before inference.
+9. Comparison-class fields were introduced in plan schema `1.1.0` and remain in
+   current schema `1.2.0`: `comparison_class_id`, the repository-relative class
+   path, and `baseline_cell_ids`. Input hashes bind the class, family, campaign,
+   every selected cell, suites, pairs, corpus, recipe, and machine profile
+   before inference.
 10. Legacy plan schema `1.0.0` remains readable and hash-verifiable. It is
    interpreted as an undeclared native-baseline plan; its serialized shape and
    original hash are not rewritten.
