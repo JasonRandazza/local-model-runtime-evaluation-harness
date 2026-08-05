@@ -5,18 +5,20 @@ from __future__ import annotations
 import hashlib
 import os
 import signal
-import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Protocol
-from urllib.parse import urlparse
 
 from ..credentials import Credential
 from ..managed_run_types import Ownership
 from ..matrix_config import Cell
 from ..matrix_lifecycle import ManagedProcess, run_stop_command, spawn_pinned
 from ..operator_policy import OperatorPolicy, PolicyRequest
-from ..process_inspection import ProcessIdentity, ProcessInspector
+from ..process_inspection import (
+    ProcessIdentity,
+    ProcessInspectionError,
+    ProcessInspector,
+)
 
 
 class RuntimeAdapterError(RuntimeError):
@@ -141,13 +143,14 @@ class RuntimeLease:
         pid = (
             identity.pid
             if identity is not None
-            else process.pid if process is not None else 0
+            else process.pid
+            if process is not None
+            else 0
         )
         started_at = "" if identity is None else identity.started_at
         digest = hashlib.sha256(
             (
-                f"{requirement.runtime}\0{requirement.cell_id}\0"
-                f"{pid}\0{started_at}"
+                f"{requirement.runtime}\0{requirement.cell_id}\0{pid}\0{started_at}"
             ).encode("utf-8")
         ).hexdigest()[:12]
         return cls(
@@ -218,9 +221,7 @@ class LoopbackRuntimeAdapter:
         self._inspector = inspector
         self._spawner = spawn_pinned if spawner is None else spawner
         self._signaler = os.kill if signaler is None else signaler
-        self._stop_runner = (
-            run_stop_command if stop_runner is None else stop_runner
-        )
+        self._stop_runner = run_stop_command if stop_runner is None else stop_runner
 
     def requirement_from_cell(self, cell: Cell) -> RuntimeRequirement:
         if cell.server != self.runtime:
@@ -229,9 +230,7 @@ class LoopbackRuntimeAdapter:
             )
         expected_url = f"http://127.0.0.1:{self.port}/v1"
         if cell.base_url != expected_url:
-            raise RuntimeAdapterError(
-                f"{self.runtime} requires {expected_url}"
-            )
+            raise RuntimeAdapterError(f"{self.runtime} requires {expected_url}")
         if not Path(cell.artifact_path).is_absolute():
             raise RuntimeAdapterError("model artifact path must be absolute")
         self.validate_start_command(cell)
@@ -265,13 +264,21 @@ class LoopbackRuntimeAdapter:
         requirement: RuntimeRequirement,
         context: RuntimeContext,
     ) -> RuntimeObservation:
-        try:
-            identity = self._inspector.inspect_listener(
-                "127.0.0.1",
-                self.port,
-            )
-        except Exception as error:
-            raise RuntimeAdapterError(str(error)) from error
+        inspection_error: ProcessInspectionError | None = None
+        for attempt in range(3):
+            try:
+                identity = self._inspector.inspect_listener(
+                    "127.0.0.1",
+                    self.port,
+                )
+                break
+            except ProcessInspectionError as error:
+                inspection_error = error
+                if attempt < 2:
+                    context.sleep(context.poll_seconds)
+        else:
+            assert inspection_error is not None
+            raise RuntimeAdapterError(str(inspection_error)) from inspection_error
         if identity is None:
             return RuntimeObservation(
                 identity=None,
@@ -399,9 +406,7 @@ class LoopbackRuntimeAdapter:
     ) -> None:
         del context
         if lease.process is None:
-            raise RuntimeAdapterError(
-                "owned runtime lease has no managed process"
-            )
+            raise RuntimeAdapterError("owned runtime lease has no managed process")
         try:
             if lease.requirement.stop_command:
                 self._stop_runner(lease.requirement.stop_command)

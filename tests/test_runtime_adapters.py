@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 from local_model_runtime_evaluation.credentials import Credential
 from local_model_runtime_evaluation.matrix_config import Cell
 from local_model_runtime_evaluation.process_inspection import ProcessIdentity
+from local_model_runtime_evaluation.process_inspection import ProcessInspectionError
 from local_model_runtime_evaluation.omlx_catalog import OMLX_CATALOG_TOKEN
 from local_model_runtime_evaluation.runtime_adapters.base import (
     RuntimeAdapterError,
@@ -47,6 +48,22 @@ class FakeInspector:
         port: int,
     ) -> ProcessIdentity | None:
         return self.identity
+
+
+class SequencedInspector:
+    def __init__(self, outcomes: list[ProcessIdentity | None | Exception]) -> None:
+        self.outcomes = list(outcomes)
+
+    def inspect_listener(
+        self,
+        host: str,
+        port: int,
+    ) -> ProcessIdentity | None:
+        del host, port
+        outcome = self.outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
 
 
 class FakeTransport:
@@ -284,6 +301,42 @@ class RuntimeAdapterTests(unittest.TestCase):
         self.assertEqual(observation.reason, "listener_absent")
         transport.list_models.assert_not_called()
 
+    def test_transient_identity_lookup_error_is_retried_to_absent(self) -> None:
+        sleeps: list[float] = []
+        context = RuntimeContext.for_test(
+            log_dir=Path("/tmp/logs"),
+            credential=None,
+            transport=FakeTransport(()),
+            sleep=sleeps.append,
+        )
+        adapter = OsaurusAdapter(
+            inspector=SequencedInspector(
+                [ProcessInspectionError("runtime executable lookup failed"), None]
+            ),
+            spawner=MagicMock(),
+        )
+
+        observation = adapter.inspect(
+            adapter.requirement_from_cell(_osaurus()),
+            context,
+        )
+
+        self.assertIsNone(observation.identity)
+        self.assertEqual(sleeps, [context.poll_seconds])
+
+    def test_persistent_identity_lookup_error_still_fails_closed(self) -> None:
+        error = ProcessInspectionError("runtime executable lookup failed")
+        adapter = OsaurusAdapter(
+            inspector=SequencedInspector([error, error, error]),
+            spawner=MagicMock(),
+        )
+
+        with self.assertRaises(RuntimeAdapterError):
+            adapter.inspect(
+                adapter.requirement_from_cell(_osaurus()),
+                _context(FakeTransport(())),
+            )
+
     def test_owned_osaurus_release_uses_fixed_stop_command(self) -> None:
         process = MagicMock()
         process.pid = 222
@@ -373,9 +426,7 @@ class RuntimeAdapterTests(unittest.TestCase):
             )
             self.assertNotIn(OMLX_CATALOG_TOKEN, seen[0])
             self.assertIn(str(context.catalog_root), seen[0])
-            self.assertTrue(
-                (context.catalog_root / cell.model_id).is_symlink()
-            )
+            self.assertTrue((context.catalog_root / cell.model_id).is_symlink())
             adapter.release(lease, context)
             process.stop.assert_called_once()
             self.assertFalse(context.catalog_root.exists())
