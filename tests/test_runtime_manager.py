@@ -12,6 +12,7 @@ from local_model_runtime_evaluation.operator_policy import (
 )
 from local_model_runtime_evaluation.process_inspection import ProcessIdentity
 from local_model_runtime_evaluation.runtime_adapters.base import (
+    RuntimeAdapterError,
     RuntimeContext,
     RuntimeLease,
     RuntimeObservation,
@@ -120,7 +121,7 @@ class FakeAdapter:
         observations: list[RuntimeObservation],
         *,
         started_identity: ProcessIdentity | None = None,
-        process_alive: list[bool] | None = None,
+        process_alive: list[bool | Exception] | None = None,
     ) -> None:
         self.observations = list(observations)
         self.started_identity = started_identity or _identity(pid=900)
@@ -183,7 +184,10 @@ class FakeAdapter:
         self.process_checks.append(identity)
         if not self.process_alive:
             return False
-        return self.process_alive.pop(0)
+        result = self.process_alive.pop(0)
+        if isinstance(result, Exception):
+            raise result
+        return result
 
 
 def _context(
@@ -191,6 +195,7 @@ def _context(
     notices: list[str] | None = None,
     sleeps: list[float] | None = None,
     lifecycle: list[tuple[str, str, dict[str, object]]] | None = None,
+    interrupt_checks: int = 1,
     terminate_checks: int = 1,
 ) -> RuntimeContext:
     notice_list = [] if notices is None else notices
@@ -207,7 +212,7 @@ def _context(
         lifecycle_sink=lambda runtime, action, payload: lifecycle_list.append(
             (runtime, action, payload)
         ),
-        interrupt_checks=1,
+        interrupt_checks=interrupt_checks,
         terminate_checks=terminate_checks,
     )
 
@@ -449,6 +454,66 @@ class RuntimeManagerTests(unittest.TestCase):
         self.assertEqual(adapter.interrupted, [new])
         self.assertEqual(adapter.terminated, [])
         self.assertIn("cleanup_interrupt_sent", [item[1] for item in lifecycle])
+
+    def test_owned_release_retries_transient_inspection_during_process_exit(
+        self,
+    ) -> None:
+        new = _identity(pid=900)
+        sleeps: list[float] = []
+        lifecycle: list[tuple[str, str, dict[str, object]]] = []
+        adapter = FakeAdapter(
+            [
+                _absent(),
+                _observation(new, compatible=True),
+                _observation(new, compatible=True),
+                _absent(),
+            ],
+            process_alive=[
+                True,
+                RuntimeAdapterError("runtime executable lookup failed"),
+                False,
+            ],
+        )
+        manager = RuntimeManager({"omlx": adapter})
+        context = _context(
+            sleeps=sleeps,
+            lifecycle=lifecycle,
+            interrupt_checks=2,
+        )
+        lease = manager.prepare(_requirement(), context)
+
+        manager.release(lease, context)
+
+        self.assertEqual(adapter.process_checks, [new, new, new])
+        self.assertEqual(adapter.interrupted, [new])
+        self.assertEqual(adapter.terminated, [])
+        self.assertEqual(sleeps, [context.poll_seconds])
+        self.assertIn("released", [item[1] for item in lifecycle])
+
+    def test_owned_release_fails_closed_on_persistent_inspection_error(
+        self,
+    ) -> None:
+        new = _identity(pid=900)
+        error = RuntimeAdapterError("runtime executable lookup failed")
+        adapter = FakeAdapter(
+            [
+                _absent(),
+                _observation(new, compatible=True),
+                _observation(new, compatible=True),
+                _absent(),
+            ],
+            process_alive=[True, error, error],
+        )
+        manager = RuntimeManager({"omlx": adapter})
+        context = _context(interrupt_checks=2)
+        lease = manager.prepare(_requirement(), context)
+
+        with self.assertRaises(RuntimeManagerError) as raised:
+            manager.release(lease, context)
+
+        self.assertEqual(raised.exception.code, "runtime_cleanup_failed")
+        self.assertEqual(adapter.interrupted, [new])
+        self.assertEqual(adapter.terminated, [])
 
     def test_owned_release_terminates_exact_process_after_bounded_interrupt(
         self,
