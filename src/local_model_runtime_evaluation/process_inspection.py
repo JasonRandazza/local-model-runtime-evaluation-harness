@@ -119,9 +119,7 @@ class ProcessInspector:
             if line.startswith("p") and line[1:].isdigit()
         }
         names = [
-            line[1:]
-            for line in listener.stdout.splitlines()
-            if line.startswith("n")
+            line[1:] for line in listener.stdout.splitlines() if line.startswith("n")
         ]
         if len(pids) != 1:
             raise ProcessInspectionError(
@@ -135,10 +133,15 @@ class ProcessInspector:
                 code="runtime_listener_not_loopback",
             )
         pid = next(iter(pids))
-        executable = self._executable(pid)
-        ppid = self._integer_ps(pid, "ppid")
-        started_at = self._text_ps(pid, "lstart")
-        command = self._text_ps(pid, "command")
+        try:
+            executable = self._executable(pid)
+            ppid = self._integer_ps(pid, "ppid")
+            started_at = self._text_ps(pid, "lstart")
+            command = self._text_ps(pid, "command")
+        except ProcessInspectionError:
+            if not self._pid_is_present(pid):
+                return None
+            raise
         try:
             argv = tuple(shlex.split(command))
         except ValueError as error:
@@ -183,14 +186,10 @@ class ProcessInspector:
         if result.returncode != 0:
             raise ProcessInspectionError("runtime executable lookup failed")
         paths = [
-            line[1:]
-            for line in result.stdout.splitlines()
-            if line.startswith("n")
+            line[1:] for line in result.stdout.splitlines() if line.startswith("n")
         ]
         if not paths:
-            raise ProcessInspectionError(
-                "runtime executable lookup failed"
-            )
+            raise ProcessInspectionError("runtime executable lookup failed")
         if Path(comm).is_absolute():
             if comm not in paths:
                 try:
@@ -230,9 +229,7 @@ class ProcessInspector:
                 f"runtime process {field} is invalid"
             ) from error
         if parsed < 0:
-            raise ProcessInspectionError(
-                f"runtime process {field} is invalid"
-            )
+            raise ProcessInspectionError(f"runtime process {field} is invalid")
         return parsed
 
     def _text_ps(self, pid: int, field: str) -> str:
@@ -246,9 +243,7 @@ class ProcessInspector:
         result = self._run(command)
         value = result.stdout.strip()
         if result.returncode != 0 or not value:
-            raise ProcessInspectionError(
-                f"runtime process {field} lookup failed"
-            )
+            raise ProcessInspectionError(f"runtime process {field} lookup failed")
         return value
 
     def still_matches(self, expected: ProcessIdentity) -> bool:
@@ -256,31 +251,21 @@ class ProcessInspector:
             expected.listener_host,
             expected.listener_port,
         )
-        return (
-            current is not None
-            and current.fingerprint() == expected.fingerprint()
-        )
+        return current is not None and current.fingerprint() == expected.fingerprint()
 
     def process_is_alive(self, expected: ProcessIdentity) -> bool:
-        presence = self._run(
-            (
-                "/bin/ps",
-                "-p",
-                str(expected.pid),
-                "-o",
-                "pid=",
-            )
-        )
-        if presence.returncode != 0 or not presence.stdout.strip():
+        if not self._pid_is_present(expected.pid):
             return False
-        if presence.stdout.strip() != str(expected.pid):
-            raise ProcessInspectionError("runtime process lookup is ambiguous")
         try:
             executable = self._executable(expected.pid)
             ppid = self._integer_ps(expected.pid, "ppid")
             started_at = self._text_ps(expected.pid, "lstart")
             command = self._text_ps(expected.pid, "command")
             argv = tuple(shlex.split(command))
+        except ProcessInspectionError:
+            if not self._pid_is_present(expected.pid):
+                return False
+            raise
         except ValueError as error:
             raise ProcessInspectionError(
                 "runtime process command is not parseable"
@@ -293,3 +278,19 @@ class ProcessInspector:
             and argv == expected.argv
             and started_at == expected.started_at
         )
+
+    def _pid_is_present(self, pid: int) -> bool:
+        presence = self._run(
+            (
+                "/bin/ps",
+                "-p",
+                str(pid),
+                "-o",
+                "pid=",
+            )
+        )
+        if presence.returncode != 0 or not presence.stdout.strip():
+            return False
+        if presence.stdout.strip() != str(pid):
+            raise ProcessInspectionError("runtime process lookup is ambiguous")
+        return True

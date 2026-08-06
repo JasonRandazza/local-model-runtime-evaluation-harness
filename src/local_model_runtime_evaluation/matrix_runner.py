@@ -245,6 +245,7 @@ def run_campaign(
     probe: HostResourceProbe | None = None,
     port_free: PortFree | None = None,
     credential_for: CredentialFor | None = None,
+    lifecycle_managed: bool = False,
 ) -> Path:
     if mode not in MODES:
         raise MatrixRunnerError(f"unknown mode {mode!r}")
@@ -328,7 +329,7 @@ def run_campaign(
                     handle.stop()
                 except (ServerError, OSError, PermissionError):
                     pass
-                if cell.server != "osaurus":
+                if not lifecycle_managed and cell.server != "osaurus":
                     _verify_port_free(_port_from_base_url(cell.base_url), check_port)
                 previous = handle
                 _persist(datetime.now(timezone.utc).isoformat())
@@ -344,7 +345,7 @@ def run_campaign(
                 handle.stop()
             except (ServerError, OSError, PermissionError):
                 pass
-            if cell.server != "osaurus":
+            if not lifecycle_managed and cell.server != "osaurus":
                 _verify_port_free(_port_from_base_url(cell.base_url), check_port)
             previous = handle
             _persist(datetime.now(timezone.utc).isoformat())

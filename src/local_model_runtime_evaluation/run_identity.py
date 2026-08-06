@@ -9,14 +9,13 @@ import secrets
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
-
 from .artifact_profile import DEFAULT_MACHINE_PROFILE_PATH, load_artifact_roots
 from .comparison_class import (
     DEFAULT_COMPARISON_CLASSES_ROOT,
     ComparisonClassError,
     load_comparison_class,
 )
+from .free_bind import FreeBindError, validate_adopted_binding
 from .managed_run_types import (
     MANAGED_PLAN_SCHEMA_VERSION,
     ManagedRunPlan,
@@ -26,6 +25,7 @@ from .managed_run_types import (
 from .matrix_config import (
     REPOSITORY_ROOT,
     Campaign,
+    Cell,
     MatrixError,
     MatrixSuite,
 )
@@ -47,14 +47,16 @@ from .rag_config import (
 )
 
 
-RECIPE_FIELDS = frozenset({
-    "schema_version",
-    "recipe_id",
-    "steps",
-    "matrix_mode",
-    "estimated_minutes",
-    "memory_floor_percent",
-})
+RECIPE_FIELDS = frozenset(
+    {
+        "schema_version",
+        "recipe_id",
+        "steps",
+        "matrix_mode",
+        "estimated_minutes",
+        "memory_floor_percent",
+    }
+)
 EXPECTED_STEP_ORDER = (
     ManagedStep.PREFLIGHT,
     ManagedStep.MATRIX,
@@ -70,9 +72,7 @@ SAFE_RUN_ID = re.compile(r"run-\d{8}-\d{6}-[0-9a-f]{6}")
 DEFAULT_PREFERENCE_SUITE = (
     REPOSITORY_ROOT / "suites" / "multi-family-preference-v1.json"
 )
-DEFAULT_RAG_SUITE = (
-    REPOSITORY_ROOT / "suites" / "multi-family-rag-oracle-v1.json"
-)
+DEFAULT_RAG_SUITE = REPOSITORY_ROOT / "suites" / "multi-family-rag-oracle-v1.json"
 DEFAULT_RAG_CORPUS = REPOSITORY_ROOT / "corpora" / "rag-oracle-v1"
 DEFAULT_CELLS_ROOT = REPOSITORY_ROOT / "config" / "matrix" / "cells"
 MACHINE_PROFILE_INPUT = ".lmre/machine-profile.json"
@@ -161,19 +161,12 @@ def _sha256(path: Path) -> str:
             for chunk in iter(lambda: source.read(1024 * 1024), b""):
                 digest.update(chunk)
     except OSError as error:
-        raise RunIdentityError(
-            f"managed plan input is unreadable: {path}"
-        ) from error
+        raise RunIdentityError(f"managed plan input is unreadable: {path}") from error
     return digest.hexdigest()
 
 
 def _hash_inputs(paths: set[Path]) -> tuple[tuple[str, str], ...]:
-    return tuple(
-        sorted(
-            (_repo_relative(path), _sha256(path))
-            for path in paths
-        )
-    )
+    return tuple(sorted((_repo_relative(path), _sha256(path)) for path in paths))
 
 
 def verify_plan_hash(plan: ManagedRunPlan) -> None:
@@ -278,10 +271,7 @@ def _native_recipes(
             pair = OverheadPair.load(DEFAULT_PAIRS_ROOT / f"{pair_id}.json")
         except (OverheadError, OSError) as error:
             raise RunIdentityError("managed overhead pair is invalid") from error
-        if (
-            pair.direct_cell_id not in cell_ids
-            or pair.backend_cell_id not in cell_ids
-        ):
+        if pair.direct_cell_id not in cell_ids or pair.backend_cell_id not in cell_ids:
             raise RunIdentityError("managed overhead pair is outside native triple")
     return cell_ids, pair_ids
 
@@ -296,9 +286,9 @@ def _request_count(
 ) -> int:
     matrix_requests = cell_count * len(matrix_suite.workloads)
     preference_collect_requests = cell_count * len(preference_suite.prompts)
-    preference_judge_requests = (
-        cell_count * (cell_count - 1) // 2
-    ) * len(preference_suite.prompts)
+    preference_judge_requests = (cell_count * (cell_count - 1) // 2) * len(
+        preference_suite.prompts
+    )
     rag_requests = 2 * cell_count * len(rag_suite.questions)
     overhead_requests = 2 * pair_count * len(matrix_suite.workloads)
     return (
@@ -329,6 +319,8 @@ def build_plan(
     parent_run_id: str | None,
     results_root: Path,
     comparison_class_id: str | None = None,
+    binding_id: str | None = None,
+    binding_state_dir: Path = Path(".lmre"),
     now: datetime | None = None,
     entropy: str | None = None,
     machine_profile_path: Path = DEFAULT_MACHINE_PROFILE_PATH,
@@ -338,8 +330,15 @@ def build_plan(
     load_artifact_roots(machine_profile_path)
     recipe = _load_recipe(recipe_path)
     campaign_path, campaign = _campaign_for_family(family_id)
-    baseline_cell_ids, pair_ids = _native_recipes(family_id, campaign)
+    baseline_cell_ids, baseline_pair_ids = _native_recipes(family_id, campaign)
+    pair_ids = baseline_pair_ids
+    if comparison_class_id is not None and binding_id is not None:
+        raise RunIdentityError(
+            "managed comparison class and binding are mutually exclusive"
+        )
     comparison_class = None
+    binding_record: dict[str, object] | None = None
+    selected_cells: tuple[Cell, ...]
     if comparison_class_id is not None:
         try:
             comparison_class = load_comparison_class(
@@ -358,8 +357,58 @@ def build_plan(
         if comparison_class.baseline_cell_ids != baseline_cell_ids:
             raise RunIdentityError("managed comparison class baseline mismatch")
         cell_ids = comparison_class.cell_ids
+        selected_cells = comparison_class.cells
+    elif binding_id is not None:
+        try:
+            binding_record = validate_adopted_binding(
+                binding_id,
+                state_dir=binding_state_dir,
+                machine_profile_path=machine_profile_path,
+            )
+        except FreeBindError as error:
+            raise RunIdentityError(str(error), code=error.code) from error
+        binding = binding_record["binding"]
+        if not isinstance(binding, dict):
+            raise RunIdentityError("managed binding declaration is invalid")
+        if binding.get("family_id") != family_id:
+            raise RunIdentityError("managed binding family mismatch")
+        raw_cell_ids = binding.get("cell_ids")
+        if not isinstance(raw_cell_ids, list):
+            raise RunIdentityError("managed binding cells are invalid")
+        cell_ids = tuple(str(value) for value in raw_cell_ids)
+        try:
+            selected_cells = tuple(
+                Cell.load(
+                    DEFAULT_CELLS_ROOT / f"{cell_id}.json",
+                    family=campaign.family,
+                    require_native_server=True,
+                )
+                for cell_id in cell_ids
+            )
+        except (MatrixError, OSError, ValueError, KeyError, TypeError) as error:
+            raise RunIdentityError("managed binding cells are invalid") from error
+        selected_servers = {cell.server for cell in selected_cells}
+        if "osaurus" not in selected_servers:
+            raise RunIdentityError(
+                "managed binding requires an Osaurus cell for routed overhead"
+            )
+        selected_ids = frozenset(cell_ids)
+        selected_pair_ids: list[str] = []
+        for pair_id in baseline_pair_ids:
+            pair = OverheadPair.load(DEFAULT_PAIRS_ROOT / f"{pair_id}.json")
+            if (
+                pair.direct_cell_id in selected_ids
+                and pair.backend_cell_id in selected_ids
+            ):
+                selected_pair_ids.append(pair_id)
+        pair_ids = tuple(selected_pair_ids)
+        if not pair_ids:
+            raise RunIdentityError(
+                "managed binding requires at least one supported overhead backend"
+            )
     else:
         cell_ids = baseline_cell_ids
+        selected_cells = campaign.cells
     try:
         matrix_suite = MatrixSuite.load(campaign.suite_path)
         preference_suite = PreferenceSuite.load(DEFAULT_PREFERENCE_SUITE)
@@ -370,7 +419,7 @@ def build_plan(
         raise RunIdentityError("recipe and campaign memory floors must agree")
     baseline_request_count = _request_count(
         cell_count=len(baseline_cell_ids),
-        pair_count=len(pair_ids),
+        pair_count=len(baseline_pair_ids),
         matrix_suite=matrix_suite,
         preference_suite=preference_suite,
         rag_suite=rag_suite,
@@ -396,41 +445,44 @@ def build_plan(
                 "the request-scaled minimum"
             )
         estimated_minutes = comparison_class.estimated_minutes
+    elif binding_record is not None:
+        estimated_minutes = _scaled_estimated_minutes(
+            baseline_minutes,
+            baseline_request_count,
+            request_count,
+        )
     input_paths = {
         recipe_path,
         campaign_path,
         campaign.suite_path,
         DEFAULT_PREFERENCE_SUITE,
         DEFAULT_RAG_SUITE,
-        REPOSITORY_ROOT
-        / "config"
-        / "matrix"
-        / "families"
-        / f"{family_id}.json",
+        REPOSITORY_ROOT / "config" / "matrix" / "families" / f"{family_id}.json",
         REPOSITORY_ROOT / "config" / "preference" / "family-cells.json",
         REPOSITORY_ROOT / "config" / "rag" / "family-cells.json",
         REPOSITORY_ROOT / "config" / "overhead" / "family-pairs.json",
         *campaign.cell_paths,
-        *(
-            DEFAULT_PAIRS_ROOT / f"{pair_id}.json"
-            for pair_id in pair_ids
-        ),
-        *(
-            path
-            for path in DEFAULT_RAG_CORPUS.rglob("*")
-            if path.is_file()
-        ),
+        *(DEFAULT_PAIRS_ROOT / f"{pair_id}.json" for pair_id in pair_ids),
+        *(path for path in DEFAULT_RAG_CORPUS.rglob("*") if path.is_file()),
     }
     if comparison_class is not None:
         input_paths.add(comparison_class.path)
         input_paths.update(comparison_class.cell_paths)
+    elif binding_record is not None:
+        input_paths.update(
+            DEFAULT_CELLS_ROOT / f"{cell_id}.json" for cell_id in cell_ids
+        )
 
     recipe_id = str(recipe["recipe_id"])
     resolved_name = (
         (
             f"{family_id}-{comparison_class.comparison_class_id}"
             if comparison_class is not None
-            else f"{family_id}-{recipe_id.removesuffix('-v1')}"
+            else (
+                f"{family_id}-{binding_id}"
+                if binding_record is not None
+                else f"{family_id}-{recipe_id.removesuffix('-v1')}"
+            )
         )
         if run_name is None
         else run_name
@@ -444,11 +496,20 @@ def build_plan(
         entropy=entropy,
     )
     steps = tuple(ManagedStep(value) for value in recipe["steps"])  # type: ignore[arg-type]
-    endpoints = (
-        "http://127.0.0.1:1337/v1",
-        "http://127.0.0.1:8100/v1",
-        "http://127.0.0.1:8080/v1",
+    selected_servers = frozenset(cell.server for cell in selected_cells)
+    endpoint_by_server = (
+        ("osaurus", "http://127.0.0.1:1337/v1"),
+        ("omlx", "http://127.0.0.1:8100/v1"),
+        ("optiq", "http://127.0.0.1:8080/v1"),
     )
+    endpoints = tuple(
+        endpoint
+        for server, endpoint in endpoint_by_server
+        if server in selected_servers
+    )
+    binding = binding_record["binding"] if binding_record is not None else None
+    if binding is not None and not isinstance(binding, dict):
+        raise RunIdentityError("managed binding declaration is invalid")
     plan = ManagedRunPlan(
         schema_version=MANAGED_PLAN_SCHEMA_VERSION,
         identity=identity,
@@ -463,6 +524,14 @@ def build_plan(
             _repo_relative(comparison_class.path)
             if comparison_class is not None
             else None
+        ),
+        binding_id=binding_id if binding_record is not None else None,
+        binding_revision=(str(binding["revision"]) if binding is not None else None),
+        binding_hash=(
+            str(binding_record["binding_hash"]) if binding_record is not None else None
+        ),
+        binding_proposal_hash=(
+            str(binding_record["proposal_hash"]) if binding_record is not None else None
         ),
         baseline_cell_ids=baseline_cell_ids,
         steps=steps,
@@ -483,12 +552,16 @@ def build_plan(
         rag_corpus_path=_repo_relative(DEFAULT_RAG_CORPUS),
         cells_root=_repo_relative(DEFAULT_CELLS_ROOT),
         pairs_root=_repo_relative(DEFAULT_PAIRS_ROOT),
-        input_hashes=tuple(sorted((
-            *_hash_inputs(input_paths),
-            (MACHINE_PROFILE_INPUT, _sha256(machine_profile_path)),
-        ))),
+        input_hashes=tuple(
+            sorted(
+                (
+                    *_hash_inputs(input_paths),
+                    (MACHINE_PROFILE_INPUT, _sha256(machine_profile_path)),
+                )
+            )
+        ),
         endpoints=endpoints,
-        runtimes=frozenset({"osaurus", "omlx", "optiq"}),
+        runtimes=selected_servers,
         request_count=request_count,
         estimated_minutes=estimated_minutes,
         memory_floor_percent=int(recipe["memory_floor_percent"]),

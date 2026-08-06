@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from local_model_runtime_evaluation.evidence_bundle import EvidenceBundle
+from local_model_runtime_evaluation.free_bind import adopt_binding, propose_binding
 from local_model_runtime_evaluation.managed_run_cli import (
     _build_runtime_manager,
     main as _main,
@@ -23,12 +24,7 @@ from tests.artifact_profile_fixtures import write_machine_profile
 
 ROOT = Path(__file__).resolve().parents[1]
 RECIPE = ROOT / "config" / "managed-runs" / "complete-native-quality-v1.json"
-POLICY = (
-    ROOT
-    / "config"
-    / "operator-policies"
-    / "local-managed-v1.example.json"
-)
+POLICY = ROOT / "config" / "operator-policies" / "local-managed-v1.example.json"
 
 
 def _main_json(argv: list[str]) -> tuple[int, dict[str, object]]:
@@ -60,8 +56,7 @@ class ManagedRunCliTests(unittest.TestCase):
 
     def _adopt(self) -> dict[str, object]:
         code, payload = _main_json(
-            self._global()
-            + ["policy", "adopt", "--from", str(POLICY)]
+            self._global() + ["policy", "adopt", "--from", str(POLICY)]
         )
         self.assertEqual(code, 0)
         return payload
@@ -102,12 +97,15 @@ class ManagedRunCliTests(unittest.TestCase):
         )
 
     def test_policy_adopt_then_plan_writes_no_live_activity(self) -> None:
-        with patch(
-            "local_model_runtime_evaluation.managed_run_cli.execute_managed_run",
-            side_effect=AssertionError("planning must not execute"),
-        ), patch(
-            "local_model_runtime_evaluation.matrix_lifecycle.spawn_pinned",
-            side_effect=AssertionError("planning must not spawn"),
+        with (
+            patch(
+                "local_model_runtime_evaluation.managed_run_cli.execute_managed_run",
+                side_effect=AssertionError("planning must not execute"),
+            ),
+            patch(
+                "local_model_runtime_evaluation.matrix_lifecycle.spawn_pinned",
+                side_effect=AssertionError("planning must not spawn"),
+            ),
         ):
             adopted = self._adopt()
             planned = self._plan()
@@ -115,11 +113,7 @@ class ManagedRunCliTests(unittest.TestCase):
         self.assertEqual(adopted["reclaim_grace_seconds"], 60)
         self.assertIn("run_id", planned)
         self.assertTrue(
-            (
-                self.results_root
-                / str(planned["run_id"])
-                / "plan.json"
-            ).is_file()
+            (self.results_root / str(planned["run_id"]) / "plan.json").is_file()
         )
 
     def test_plan_binds_checked_in_comparison_class_without_live_activity(self) -> None:
@@ -145,12 +139,64 @@ class ManagedRunCliTests(unittest.TestCase):
             payload["comparison_class_id"],
             "gemma-native-baseline-v1",
         )
-        bundle = EvidenceBundle.load(
-            self.results_root / str(payload["run_id"])
-        )
+        bundle = EvidenceBundle.load(self.results_root / str(payload["run_id"]))
         self.assertEqual(
             bundle.plan.comparison_class_id,
             "gemma-native-baseline-v1",
+        )
+
+    def test_plan_binds_explicitly_adopted_free_binding_without_live_activity(
+        self,
+    ) -> None:
+        profile = write_machine_profile(self.state_root / "machine-profile")
+        profile_body = json.loads(profile.read_text(encoding="utf-8"))
+        roots = profile_body["artifact_roots"]
+        for base, suffix in (
+            (roots["local_models"], "gemma-4-12B-it-qat-JANG_4M"),
+            (
+                roots["huggingface_hub"],
+                "avneetsb/gemma-4-12B-it-qat-oQ4-fp16",
+            ),
+        ):
+            (Path(base) / suffix).mkdir(parents=True, exist_ok=True)
+        propose_binding(
+            binding_id="gemma-cli-binding-v1",
+            revision="1",
+            family_id="gemma-4-12b-qat",
+            cell_ids=("jang_4m__osaurus", "oq4_fp16__omlx"),
+            notes="CLI plan fixture",
+            state_dir=self.state_root,
+            machine_profile_path=profile,
+        )
+        adopt_binding(
+            "gemma-cli-binding-v1",
+            state_dir=self.state_root,
+            machine_profile_path=profile,
+        )
+        self._adopt()
+        with patch(
+            "local_model_runtime_evaluation.managed_run_cli.execute_managed_run",
+            side_effect=AssertionError("planning must not execute"),
+        ):
+            code, payload = _main_json(
+                self._global()
+                + [
+                    "plan",
+                    "--family",
+                    "gemma-4-12b-qat",
+                    "--recipe",
+                    str(RECIPE),
+                    "--binding",
+                    "gemma-cli-binding-v1",
+                ]
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(payload["binding_id"], "gemma-cli-binding-v1")
+        bundle = EvidenceBundle.load(self.results_root / str(payload["run_id"]))
+        self.assertEqual(bundle.plan.binding_id, "gemma-cli-binding-v1")
+        self.assertEqual(
+            bundle.plan.runtimes,
+            frozenset({"osaurus", "omlx"}),
         )
 
     def test_comparison_class_inspect_is_non_live_and_read_only(self) -> None:
@@ -166,8 +212,7 @@ class ManagedRunCliTests(unittest.TestCase):
                 return_value=inspection,
             ) as inspect,
             patch(
-                "local_model_runtime_evaluation.managed_run_cli."
-                "execute_managed_run",
+                "local_model_runtime_evaluation.managed_run_cli.execute_managed_run",
                 side_effect=AssertionError("inspection must not execute"),
             ),
         ):
@@ -186,15 +231,26 @@ class ManagedRunCliTests(unittest.TestCase):
     def test_runtime_catalog_root_is_attempt_specific(self) -> None:
         self._adopt()
         planned = self._plan()
-        bundle = EvidenceBundle.load(
-            self.results_root / str(planned["run_id"])
-        )
+        bundle = EvidenceBundle.load(self.results_root / str(planned["run_id"]))
         adopted = load_adopted_policy(self.state_root)
 
-        first = _build_runtime_manager(bundle.plan, adopted, bundle)
+        first = _build_runtime_manager(
+            bundle.plan,
+            adopted,
+            bundle,
+            state_dir=self.state_root,
+        )
         self.assertEqual(
             first._context_template.catalog_root,
             bundle.run_dir / "runtime-catalogs" / "attempt-001",
+        )
+        self.assertEqual(
+            first._context_template.omlx_base_root,
+            self.state_root
+            / "runtime-state"
+            / bundle.plan.identity.run_id
+            / "attempt-001"
+            / "omlx",
         )
 
         for record in bundle.state.steps:
@@ -210,10 +266,23 @@ class ManagedRunCliTests(unittest.TestCase):
         bundle.write_summary({"status": "PARTIAL_BLOCKED"})
         bundle.seal()
 
-        second = _build_runtime_manager(bundle.plan, adopted, bundle)
+        second = _build_runtime_manager(
+            bundle.plan,
+            adopted,
+            bundle,
+            state_dir=self.state_root,
+        )
         self.assertEqual(
             second._context_template.catalog_root,
             bundle.run_dir / "runtime-catalogs" / "attempt-002",
+        )
+        self.assertEqual(
+            second._context_template.omlx_base_root,
+            self.state_root
+            / "runtime-state"
+            / bundle.plan.identity.run_id
+            / "attempt-002"
+            / "omlx",
         )
 
     def test_status_and_report_read_sealed_evidence(self) -> None:
@@ -227,12 +296,8 @@ class ManagedRunCliTests(unittest.TestCase):
         bundle.write_summary({"status": "STOPPED"})
         bundle.seal()
 
-        status_code, status = _main_json(
-            self._global() + ["status", run_id]
-        )
-        report_code, report = _main_json(
-            self._global() + ["report", run_id]
-        )
+        status_code, status = _main_json(self._global() + ["status", run_id])
+        report_code, report = _main_json(self._global() + ["report", run_id])
         self.assertEqual((status_code, report_code), (0, 0))
         self.assertEqual(status["summary_state"], "STOPPED")
         self.assertEqual(report["status"], "STOPPED")
@@ -254,16 +319,17 @@ class ManagedRunCliTests(unittest.TestCase):
         bundle.mark_cleanup_complete()
         bundle.write_summary({"status": "PARTIAL_BLOCKED"})
         bundle.seal()
-        with patch(
-            "local_model_runtime_evaluation.managed_run_cli.resume_managed_run",
-            return_value={"status": "PASS"},
-        ) as resume, patch(
-            "local_model_runtime_evaluation.managed_run_cli._build_runtime_manager",
-            return_value=object(),
+        with (
+            patch(
+                "local_model_runtime_evaluation.managed_run_cli.resume_managed_run",
+                return_value={"status": "PASS"},
+            ) as resume,
+            patch(
+                "local_model_runtime_evaluation.managed_run_cli._build_runtime_manager",
+                return_value=object(),
+            ),
         ):
-            code, payload = _main_json(
-                self._global() + ["resume", run_id]
-            )
+            code, payload = _main_json(self._global() + ["resume", run_id])
         self.assertEqual(code, 0)
         self.assertEqual(payload["status"], "PASS")
         resume.assert_called_once()
@@ -288,13 +354,10 @@ class ManagedRunCliTests(unittest.TestCase):
             encoding="utf-8",
         )
         with patch(
-            "local_model_runtime_evaluation.managed_run_cli."
-            "execute_managed_run",
+            "local_model_runtime_evaluation.managed_run_cli.execute_managed_run",
             return_value={"status": "PASS"},
         ) as execute:
-            code, payload = _main_json(
-                self._global() + ["run", str(planned["run_id"])]
-            )
+            code, payload = _main_json(self._global() + ["run", str(planned["run_id"])])
 
         self.assertEqual(code, 1)
         self.assertIn(

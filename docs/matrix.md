@@ -71,6 +71,8 @@ Routing overhead procedure: [overhead.md](overhead.md).
 
   Model exposure (routing oMLX into Osaurus) is separate from auth — inventory can list models and still reject a bad key. Osaurus may list routed ids such as `omlx/...` that differ from direct native ids.
 - oMLX: the managed workflow creates a per-run temporary catalog and uses
+  an attempt-specific, harness-controlled base path so oMLX cannot persist
+  temporary catalog settings into the user's normal configuration. It uses
   exact attach/start/reclaim ownership. Direct `lmre-matrix` remains a
   low-level surface and does not reclaim an incompatible listener.
 - OptiQ cells start with `--no-auth`. OptiQ inventory ids are the absolute `--model` paths; use the `:no-think` variant so streams put visible text in `delta.content` (default/`:think` stream into `delta.reasoning`, which the harness treats as empty).

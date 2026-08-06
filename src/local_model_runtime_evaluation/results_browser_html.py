@@ -72,6 +72,10 @@ _IDENTITY_LABELS = {
     "family_id": "Family",
     "recipe_id": "Recipe",
     "comparison_class_id": "Comparison class",
+    "binding_id": "Managed binding",
+    "binding_revision": "Binding revision",
+    "binding_hash": "Binding hash",
+    "binding_proposal_hash": "Binding proposal hash",
     "matrix_mode": "Matrix mode",
     "schema_version": "Plan schema version",
     "plan_hash": "Plan hash",
@@ -91,6 +95,7 @@ _INDEX_COLUMNS = (
     ("family_id", "Family"),
     ("recipe_id", "Recipe"),
     ("comparison_class_id", "Comparison class"),
+    ("binding_id", "Managed binding"),
     ("attempt", "Attempt"),
     ("run_status", "Run status"),
     ("created_at", "Created"),
@@ -153,12 +158,11 @@ def render_index(index: dict) -> str:
         return _page("Results Browser", "\n".join(body))
 
     header = "".join(
-        f'<th scope="col">{html.escape(label)}</th>'
-        for _key, label in _INDEX_COLUMNS
+        f'<th scope="col">{html.escape(label)}</th>' for _key, label in _INDEX_COLUMNS
     )
     rows = []
     for entry in entries:
-        link = f'runs/{html.escape(str(entry["run_dir_name"]))}.html'
+        link = f"runs/{html.escape(str(entry['run_dir_name']))}.html"
         cells = []
         for key, _label in _INDEX_COLUMNS:
             if key == "run_id":
@@ -171,9 +175,7 @@ def render_index(index: dict) -> str:
     table = (
         "<table>"
         f"<caption>{caption}</caption>"
-        f"<tr>{header}</tr>"
-        + "".join(rows)
-        + "</table>"
+        f"<tr>{header}</tr>" + "".join(rows) + "</table>"
     )
     body.append(table)
     return _page("Results Browser", "\n".join(body))
@@ -184,8 +186,7 @@ def _kv_table(data: dict, labels: dict[str, str] | None = None) -> str:
     for key, value in data.items():
         label = (labels or {}).get(key, key.replace("_", " "))
         rows.append(
-            f'<tr><th scope="row">{html.escape(label)}</th>'
-            f"<td>{_cell(value)}</td></tr>"
+            f'<tr><th scope="row">{html.escape(label)}</th><td>{_cell(value)}</td></tr>'
         )
     return "<table>" + "".join(rows) + "</table>"
 
@@ -248,10 +249,11 @@ def _lifecycle_section(lifecycle: dict) -> str:
     else:
         header = "".join(
             f'<th scope="col">{label}</th>'
-            for label in ("Runtime", "Ownership", "Terminal action")
+            for label in ("Attempt", "Runtime", "Ownership", "Terminal action")
         )
         rows = "".join(
             "<tr>"
+            f"<td>{_cell(lease['attempt'])}</td>"
             f"<td>{_cell(lease['runtime'])}</td>"
             f"<td>{_cell(lease['ownership'])}</td>"
             f"<td>{_cell(lease['terminal_action'])}</td>"
@@ -261,8 +263,7 @@ def _lifecycle_section(lifecycle: dict) -> str:
         body = f"<table><tr>{header}</tr>{rows}</table>"
     if lifecycle["unparsed_lines"] > 0:
         body += (
-            f"<p>Unparsed lifecycle journal lines: "
-            f"{lifecycle['unparsed_lines']}.</p>"
+            f"<p>Unparsed lifecycle journal lines: {lifecycle['unparsed_lines']}.</p>"
         )
     return body
 
@@ -282,9 +283,7 @@ def _split_row(line: str) -> list[str]:
 
 def _is_separator_row(cells: list[str]) -> bool:
     non_empty = [cell for cell in cells if cell]
-    return bool(non_empty) and all(
-        _SEPARATOR_CELL_RE.match(cell) for cell in non_empty
-    )
+    return bool(non_empty) and all(_SEPARATOR_CELL_RE.match(cell) for cell in non_empty)
 
 
 def _render_table(lines: list[str]) -> str:
@@ -404,8 +403,7 @@ def render_run(view: dict) -> str:
     parts.append("<h2>Step reports</h2>")
     if health != HEALTH_SEALED_VERIFIED:
         parts.append(
-            "<p>Step reports are withheld: this bundle is not verified "
-            "evidence.</p>"
+            "<p>Step reports are withheld: this bundle is not verified evidence.</p>"
         )
     elif not view["step_reports"]:
         parts.append("<p>No step reports are available for this bundle.</p>")
@@ -465,7 +463,7 @@ def render_comparisons_index(comparisons: dict) -> str:
     )
     rows = []
     for group in groups:
-        link = f'{html.escape(group["comparison_id"])}.html'
+        link = f"{html.escape(group['comparison_id'])}.html"
         rows.append(
             "<tr>"
             f'<td><a href="{link}">{_cell(group["comparison_id"])}</a></td>'
@@ -534,30 +532,23 @@ def render_comparison_group(group: dict) -> str:
 
     parts.append("<h2>Shared plan dimensions</h2>")
     if group["dimensions"] is None:
-        parts.append(
-            "<p>Shared dimensions are shown only for comparable groups.</p>"
-        )
+        parts.append("<p>Shared dimensions are shown only for comparable groups.</p>")
     else:
         parts.append(_kv_table(group["dimensions"]))
 
     parts.append("<h2>Members</h2>")
     header = "".join(
-        f'<th scope="col">{html.escape(label)}</th>'
-        for _key, label in _MEMBER_COLUMNS
+        f'<th scope="col">{html.escape(label)}</th>' for _key, label in _MEMBER_COLUMNS
     )
     rows = []
     for member in group["members"]:
-        link = f'../runs/{html.escape(str(member["run_dir_name"]))}.html'
+        link = f"../runs/{html.escape(str(member['run_dir_name']))}.html"
         cells = []
         for key, _label in _MEMBER_COLUMNS:
             if key == "run_id":
-                cells.append(
-                    f'<td><a href="{link}">{_cell(member[key])}</a></td>'
-                )
+                cells.append(f'<td><a href="{link}">{_cell(member[key])}</a></td>')
             elif key == "exclusion_reason":
-                standing = (
-                    "accepted" if member["accepted"] else member[key]
-                )
+                standing = "accepted" if member["accepted"] else member[key]
                 cells.append(f"<td>{_cell(standing)}</td>")
             else:
                 cells.append(f"<td>{_cell(member[key])}</td>")

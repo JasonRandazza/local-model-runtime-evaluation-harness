@@ -222,6 +222,42 @@ class RunOverheadTests(unittest.TestCase):
             self.assertGreaterEqual(len(stop_calls), 1)
             self.assertEqual(len(build_calls), 2)
 
+    def test_managed_lifecycle_attaches_without_stopping_busy_omlx(self) -> None:
+        build_calls: list[Cell] = []
+        stop_runner = MagicMock()
+
+        def fake_build(
+            cell: Cell,
+            transport: object,
+            log_dir: Path,
+            credential: object | None,
+        ) -> FakeHandle:
+            del transport, log_dir, credential
+            build_calls.append(cell)
+            return FakeHandle()
+
+        with TemporaryDirectory() as tmp:
+            out = run_overhead(
+                ("oq4_fp16",),
+                ROOT / "config/overhead/pairs",
+                ROOT / "config/matrix/cells",
+                ROOT / "suites/gemma-matrix-v1.json",
+                Path(tmp),
+                artifact_roots=ROOTS,
+                build_server=fake_build,
+                measure_cell=MagicMock(return_value=_pass_result(1.1)),
+                probe=FakeProbe([80] * 10),
+                port_free=lambda port: False,
+                stop_runner=stop_runner,
+                credential_for=lambda server: None,
+                lifecycle_managed=True,
+            )
+            raw = json.loads((out / "raw.json").read_text(encoding="utf-8"))
+            self.assertEqual(raw["pairs"][0]["direct"]["status"], "PASS")
+            self.assertEqual(raw["pairs"][0]["routed"]["status"], "PASS")
+            self.assertEqual(len(build_calls), 2)
+            stop_runner.assert_not_called()
+
     def test_busy_optiq_port_stays_na(self) -> None:
         build_server = MagicMock()
 

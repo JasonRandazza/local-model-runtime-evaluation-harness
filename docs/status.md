@@ -21,8 +21,9 @@ every runtime, provider, credential, memory, and inference fact
 
 - `lmre plan --comparison-class <id>` binds a checked-in same-family class
   while preserving the ordered native baseline and baseline overhead pairs.
-- Managed plan schema `1.1.0` records the class and baseline identity; legacy
-  `1.0.0` plans remain readable and hash-verifiable without rewriting.
+- Comparison-class plan schema `1.1.0` records the class and baseline identity;
+  those fields remain in current schema `1.2.0`, while legacy `1.0.0` plans
+  remain readable and hash-verifiable without rewriting.
 - Expansion cells must be checked-in native-server cells. Arbitrary paths,
   cross-family mixes, custom endpoints, and automatic route generation remain
   refused.
@@ -57,11 +58,86 @@ every runtime, provider, credential, memory, and inference fact
   `STALE_INPUTS`, and only a current `READY_FOR_ADOPTION` proposal can be
   explicitly adopted.
 - Proposal and adoption records are create-only, gitignored, and explicitly
-  carry `live_authority: false` and `NOT_CHECKED_LIVE`. The managed planner does
-  not consume them in this slice.
+  carry `live_authority: false` and `NOT_CHECKED_LIVE`.
 - Verification: 512 retained non-live tests passed, all six dry-config
   commands passed, and focused tripwires confirmed that the binding module
   imports no live runtime, transport, process, resource, or credential code.
+
+## Managed Free-Bind Execution and Sealing (2026-08-05)
+
+- `lmre plan --binding <id>` revalidates one explicitly adopted declaration
+  and binds its ordered cells, provenance hashes, supported overhead pairs,
+  selected runtimes, endpoints, request count, and duration into an immutable
+  plan.
+- Plan schema `1.2.0` adds binding identity while retaining read compatibility
+  for sealed `1.0.0` and comparison-class `1.1.0` plans.
+- Execution reuses the accepted one-lane runtime manager, retained collectors,
+  provider-reconnect resume, exact cleanup, and checksummed evidence bundle.
+  Binding adoption alone still grants no inference or lifecycle authority.
+- The results browser exposes binding identity and treats its hashes as
+  comparability dimensions.
+- Verification: 525 retained tests and all six dry-config commands pass.
+- Authorized two-cell Gemma acceptance is currently **blocked**, not accepted.
+  Four sealed attempts (`run-20260805-233948-4d5cf5`,
+  `run-20260805-234409-41000e`, `run-20260805-234703-be6713`, and
+  `run-20260805-235031-d2ba34`) preserved PASS preflight and Osaurus matrix
+  evidence but failed before the direct oMLX lane. The first exposed an
+  Osaurus child-process cleanup gap, which is fixed and covered by exact-PID
+  lifecycle tests. The next three failed closed on `runtime executable lookup
+  failed` while observing port 8100 after verified Osaurus release, including
+  after a bounded identity reinspection window.
+- Each attempt sealed honestly as `FAIL`; no oMLX, preference, RAG, or overhead
+  PASS is claimed. Post-run inspection found no matching listener or model
+  server process.
+- Follow-up against installed oMLX `0.5.7` identified a release-compatibility
+  boundary introduced in oMLX `0.5.4`: explicit non-secret serve settings are
+  persisted. The prior managed command passed its temporary model catalog but
+  did not isolate oMLX's base directory, allowing a run-specific catalog path
+  to enter the user's normal oMLX settings. Managed starts now use a fixed,
+  attempt-specific base under `.lmre/runtime-state/`; recipes cannot override
+  it, credentials remain memory-only, and existing user settings are not
+  modified by the repair. Non-live verification is complete; live oMLX
+  acceptance remains required before this branch can be merged.
+- A fifth sealed attempt, `run-20260806-002938-b557ee`, proved that installed
+  oMLX `0.5.7` passed exact process identity, authentication, model inventory,
+  readiness, and matrix inference while attached as operator-owned. It then
+  failed after the oMLX lane because the retained matrix collector required
+  port 8100 to become free even after the managed runtime layer correctly
+  recorded the attached oMLX process as `untouched`. Managed matrix execution
+  now delegates release verification solely to the exact-ownership runtime
+  manager. Managed overhead execution likewise bypasses the legacy pre-start
+  `omlX stop` and port-free checks; low-level collector behavior is unchanged.
+  A new sealed end-to-end acceptance attempt remains required.
+- Attempt `run-20260806-003419-0c7c3e` sealed `FAIL` after its matrix step
+  passed because a managed-only lifecycle argument was wired to the preference
+  collector. That argument placement is corrected and covered by an
+  integration-level hook test.
+- Attempt `run-20260806-003703-52efe7` completed matrix, preference, RAG oracle,
+  and RAG keyword as `PASS`, including 9/9 successful, contract-valid oMLX
+  matrix observations. It reached the expected provider-reconnect boundary
+  because Osaurus did not expose the routed oMLX model. Final sealing then
+  failed closed because repeated attachments to the same app reused a
+  process-derived lease ID. The run remains truthfully `EXECUTED_UNSEALED`.
+  Runtime-manager lease IDs now include a unique acquisition sequence, with
+  matching evidence tests. A new run must prove sealed `PARTIAL_BLOCKED` or
+  `PASS`; the unsealed attempt will not be promoted.
+- Attempt `run-20260806-004836-920a93` is the sealed acceptance for this repair.
+  Preflight, matrix, preference, RAG oracle, RAG keyword, cleanup, and sealing
+  are `PASS`; oMLX produced 9/9 successful and contract-valid matrix
+  observations. The checksum manifest verifies in full, and the originally
+  attached Osaurus and oMLX PIDs remained unchanged. Attempt 1 sealed
+  `PARTIAL_BLOCKED` because Osaurus did not expose the routed oMLX model.
+  After the operator reconnected that provider, attempt 2 completed both
+  direct and routed overhead as `PASS` and the run sealed with terminal
+  `PASS`. Direct median total latency was about `1.769s`; routed was about
+  `1.910s` (`+0.140s`), with median TTFT about `0.682s` direct and `0.730s`
+  routed (`+0.048s`).
+- The first attempt-2 seal exposed that process-derived lease IDs can repeat
+  across resume attempts even though each attempt's acquire/terminal pairs are
+  complete. Evidence validation and browser summaries now scope lease IDs by
+  recorded attempt. The completed overhead evidence was reviewed, cleanup was
+  complete, both app identities were unchanged, and only the failed seal
+  operation was retried before the final checksum verification.
 
 ## Managed Live Acceptance (2026-07-31)
 
@@ -116,6 +192,8 @@ and is intentionally not committed.
 - offline managed free-bind declaration, validation, and non-authorizing
   adoption
   ([free-bind contract](superpowers/specs/2026-08-05-managed-free-bind-declarations.md))
+- managed free-bind planning, execution, resume, and sealing
+  ([execution contract](superpowers/specs/2026-08-05-managed-free-bind-execution.md))
 
 ## Open Risks
 
@@ -133,9 +211,8 @@ and is intentionally not committed.
 - The controlled-expansion mechanism is shipped, but the only checked-in
   class currently declares the existing Gemma native baseline. No additional
   model build is claimed available or validated yet.
-- Adopted free-bind declarations are not executable yet. Managed-plan binding,
-  policy calculation, collector execution, and sealed evidence are the next
-  separately reviewed live-capable slice.
+- Managed free-bind execution remains same-family and native-server-only;
+  heterogeneous/open-mix scheduling is still deferred.
 
 ## Machine State
 

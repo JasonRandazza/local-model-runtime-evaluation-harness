@@ -76,6 +76,9 @@ _COMPARISON_DIMENSIONS = (
     "family_id",
     "recipe_id",
     "comparison_class_id",
+    "binding_id",
+    "binding_hash",
+    "binding_proposal_hash",
     "matrix_mode",
     "steps",
     "cell_ids",
@@ -148,6 +151,7 @@ def _index_entry(run_dir: Path) -> dict:
         "family_id": None,
         "recipe_id": None,
         "comparison_class_id": None,
+        "binding_id": None,
         "attempt": None,
         "run_status": None,
         "created_at": None,
@@ -168,6 +172,7 @@ def _index_entry(run_dir: Path) -> dict:
         family_id=plan.family_id,
         recipe_id=plan.recipe_id,
         comparison_class_id=plan.comparison_class_id,
+        binding_id=plan.binding_id,
         created_at=plan.created_at,
     )
     try:
@@ -209,6 +214,10 @@ def _identity_dict(plan: ManagedRunPlan) -> dict:
         "family_id": plan.family_id,
         "recipe_id": plan.recipe_id,
         "comparison_class_id": plan.comparison_class_id,
+        "binding_id": plan.binding_id,
+        "binding_revision": plan.binding_revision,
+        "binding_hash": plan.binding_hash,
+        "binding_proposal_hash": plan.binding_proposal_hash,
         "matrix_mode": plan.matrix_mode,
         "schema_version": plan.schema_version,
         "plan_hash": plan.plan_hash,
@@ -295,7 +304,9 @@ def _attempts_list(run_dir: Path) -> list:
                 for s in step_records
             ]
         except (KeyError, TypeError):
-            results.append({"attempt": number, "error": "attempt snapshot step is invalid"})
+            results.append(
+                {"attempt": number, "error": "attempt snapshot step is invalid"}
+            )
             continue
         results.append(
             {
@@ -310,7 +321,7 @@ def _attempts_list(run_dir: Path) -> list:
 
 def _lifecycle_summary(run_dir: Path) -> dict:
     path = run_dir / "lifecycle.jsonl"
-    leases: dict[str, dict] = {}
+    leases: dict[tuple[int, str], dict] = {}
     unparsed = 0
     try:
         text = path.read_text(encoding="utf-8") if path.is_file() else ""
@@ -347,14 +358,20 @@ def _lifecycle_summary(run_dir: Path) -> dict:
             if not isinstance(lease_id, str) or not lease_id:
                 unparsed += 1
                 continue
+            attempt = entry.get("attempt")
+            if type(attempt) is not int or attempt < 1:
+                unparsed += 1
+                continue
+            lease_key = (attempt, lease_id)
             if action == "lease_acquired":
                 ownership = payload.get("ownership")
                 if not isinstance(ownership, str):
                     unparsed += 1
                     continue
                 lease = leases.setdefault(
-                    lease_id,
+                    lease_key,
                     {
+                        "attempt": attempt,
                         "runtime": runtime,
                         "lease_id": lease_id,
                         "ownership": ownership,
@@ -365,8 +382,9 @@ def _lifecycle_summary(run_dir: Path) -> dict:
                 lease["ownership"] = ownership
             else:
                 lease = leases.setdefault(
-                    lease_id,
+                    lease_key,
                     {
+                        "attempt": attempt,
                         "runtime": runtime,
                         "lease_id": lease_id,
                         "ownership": "unresolved",
@@ -375,7 +393,10 @@ def _lifecycle_summary(run_dir: Path) -> dict:
                 )
                 lease["terminal_action"] = action
     return {
-        "leases": sorted(leases.values(), key=lambda lease: lease["lease_id"]),
+        "leases": sorted(
+            leases.values(),
+            key=lambda lease: (lease["attempt"], lease["lease_id"]),
+        ),
         "unparsed_lines": unparsed,
     }
 
@@ -444,6 +465,9 @@ def _plan_dimensions(plan: ManagedRunPlan) -> dict:
         "family_id": plan.family_id,
         "recipe_id": plan.recipe_id,
         "comparison_class_id": plan.comparison_class_id,
+        "binding_id": plan.binding_id,
+        "binding_hash": plan.binding_hash,
+        "binding_proposal_hash": plan.binding_proposal_hash,
         "matrix_mode": plan.matrix_mode,
         "steps": [step.value for step in plan.steps],
         "cell_ids": list(plan.cell_ids),
@@ -453,9 +477,7 @@ def _plan_dimensions(plan: ManagedRunPlan) -> dict:
 
 
 _EXCLUSION_REASONS = {
-    HEALTH_SEALED_CORRUPT: (
-        "excluded: sealed but failed checksum verification"
-    ),
+    HEALTH_SEALED_CORRUPT: ("excluded: sealed but failed checksum verification"),
     HEALTH_UNSEALED: "excluded: bundle is not sealed",
 }
 
@@ -532,7 +554,12 @@ def _comparison_scan(run_dir: Path) -> tuple:
         member["run_status"] = bundle.state.summary_state.value
     except EvidenceError:
         pass
-    return ("group", comparison_id, member, _plan_dimensions(plan) if accepted else None)
+    return (
+        "group",
+        comparison_id,
+        member,
+        _plan_dimensions(plan) if accepted else None,
+    )
 
 
 def build_comparisons(results_root: Path) -> dict:

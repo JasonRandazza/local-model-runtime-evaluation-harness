@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import threading
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -181,6 +180,27 @@ class MatrixRunnerTest(unittest.TestCase):
             self.assertEqual(len(raw["cells"]), 1)
             self.assertEqual(raw["cells"][0]["cell_id"], "oq4_fp16__omlx")
             build_server.assert_called_once()
+
+    def test_managed_lifecycle_does_not_require_attached_port_to_free(self) -> None:
+        campaign = self._campaign()
+        cell = _omlx()
+        handle = MagicMock()
+        with TemporaryDirectory() as tmp:
+            out = run_campaign(
+                campaign,
+                "screen",
+                Path(tmp),
+                cells=(cell,),
+                build_server=MagicMock(return_value=handle),
+                measure_cell=MagicMock(return_value=_pass_result(cell)),
+                probe=FakeProbe([80, 80]),
+                port_free=lambda port: False,
+                credential_for=lambda server: None,
+                lifecycle_managed=True,
+            )
+            raw = json.loads((out / "raw.json").read_text())
+            self.assertEqual(raw["cells"][0]["status"], "PASS")
+            handle.stop.assert_called_once()
 
 
 if __name__ == "__main__":

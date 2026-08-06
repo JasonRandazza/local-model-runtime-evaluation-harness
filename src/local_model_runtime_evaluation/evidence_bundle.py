@@ -8,8 +8,6 @@ import re
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
-from typing import Any
-
 from .managed_run_types import (
     ManagedRunPlan,
     ManagedRunState,
@@ -441,8 +439,8 @@ class EvidenceBundle:
         path = self.run_dir / "lifecycle.jsonl"
         if not path.is_file():
             return True
-        acquired: dict[str, Ownership] = {}
-        terminal: dict[str, str] = {}
+        acquired: dict[tuple[int, str], Ownership] = {}
+        terminal: dict[tuple[int, str], str] = {}
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
             for line in lines:
@@ -456,24 +454,28 @@ class EvidenceBundle:
                 lease_id = payload.get("lease_id")
                 if not isinstance(lease_id, str) or not lease_id:
                     continue
+                attempt = entry.get("attempt")
+                if type(attempt) is not int or attempt < 1:
+                    return False
+                lease_key = (attempt, lease_id)
                 if action == "lease_acquired":
                     ownership = payload.get("ownership")
-                    if lease_id in acquired or not isinstance(ownership, str):
+                    if lease_key in acquired or not isinstance(ownership, str):
                         return False
-                    acquired[lease_id] = Ownership(ownership)
+                    acquired[lease_key] = Ownership(ownership)
                 elif action in {"released", "untouched"}:
-                    if lease_id in terminal:
+                    if lease_key in terminal:
                         return False
-                    terminal[lease_id] = action
+                    terminal[lease_key] = action
         except (OSError, json.JSONDecodeError, ValueError):
             return False
-        for lease_id, ownership in acquired.items():
+        for lease_key, ownership in acquired.items():
             expected = (
                 "untouched"
                 if ownership is Ownership.ATTACHED
                 else "released"
             )
-            if terminal.get(lease_id) != expected:
+            if terminal.get(lease_key) != expected:
                 return False
         return not (set(terminal) - set(acquired))
 

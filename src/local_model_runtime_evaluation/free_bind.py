@@ -646,3 +646,58 @@ def load_adopted_binding(
             code="free_bind_hash_mismatch",
         )
     return record
+
+
+def validate_adopted_binding(
+    binding_id: str,
+    *,
+    state_dir: Path,
+    machine_profile_path: Path = DEFAULT_MACHINE_PROFILE_PATH,
+    repository_root: Path = REPOSITORY_ROOT,
+    families_root: Path = DEFAULT_FAMILIES_ROOT,
+    cells_root: Path | None = None,
+) -> dict[str, object]:
+    """Revalidate an adopted declaration before immutable planning."""
+
+    resolved_id = _safe_binding_id(binding_id)
+    record = load_adopted_binding(resolved_id, state_dir=state_dir)
+    proposal = _load_proposal(_proposal_path(state_dir, resolved_id))
+    binding = record["binding"]
+    if not isinstance(binding, dict):
+        raise FreeBindError("adopted binding declaration is invalid")
+    if record["proposal_hash"] != proposal["proposal_hash"] or binding != _binding_body(
+        proposal
+    ):
+        raise FreeBindError(
+            "adopted binding no longer matches its proposal",
+            code="free_bind_adoption_mismatch",
+        )
+    selection = _selection(
+        binding["binding_id"],
+        binding["revision"],
+        binding["family_id"],
+        binding["cell_ids"],
+        binding["notes"],
+    )
+    resolved_cells_root = cells_root or repository_root / "config" / "matrix" / "cells"
+    _, cells, source_hashes = _load_cells(
+        selection,
+        repository_root=repository_root,
+        families_root=families_root,
+        cells_root=resolved_cells_root,
+    )
+    roots = load_artifact_roots(machine_profile_path)
+    if binding["source_hashes"] != source_hashes or binding[
+        "machine_profile_hash"
+    ] != _sha256(machine_profile_path):
+        raise FreeBindError(
+            "adopted binding inputs changed; create and adopt a new version",
+            code="free_bind_stale",
+        )
+    findings = _artifact_findings(cells, roots)
+    if not all(item["status"] == "PRESENT" for item in findings):
+        raise FreeBindError(
+            "adopted binding artifacts are not ready",
+            code="free_bind_not_ready",
+        )
+    return record

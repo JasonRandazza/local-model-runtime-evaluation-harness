@@ -79,14 +79,21 @@ class RuntimeManager:
             str,
             tuple[RuntimeLease, RuntimeContext],
         ] = {}
+        self._lease_sequence = 0
 
     def _activate(
         self,
         lease: RuntimeLease,
         context: RuntimeContext,
     ) -> RuntimeLease:
-        self._active[lease.lease_id] = (lease, context)
-        return lease
+        self._lease_sequence += 1
+        activated = replace(
+            lease,
+            lease_id=f"{lease.lease_id}-{self._lease_sequence:04d}",
+        )
+        self._record_lease(activated, context)
+        self._active[activated.lease_id] = (activated, context)
+        return activated
 
     def _adapter(self, runtime: str) -> RuntimeAdapter:
         try:
@@ -187,7 +194,6 @@ class RuntimeManager:
                 pass
             raise
         verified = replace(verified, ownership=ownership)
-        self._record_lease(verified, context)
         return verified
 
     def _wait_absent(
@@ -283,7 +289,6 @@ class RuntimeManager:
                 )
             if observation.compatible:
                 lease = adapter.attach(requirement, observation)
-                self._record_lease(lease, context)
                 return self._activate(lease, context)
 
             original = observation.identity
@@ -388,18 +393,9 @@ class RuntimeManager:
                 code="runtime_verification_failed",
             )
         current = adapter.inspect(lease.requirement, context)
-        if current.identity is None:
-            context.lifecycle_sink(
-                lease.requirement.runtime,
-                "released",
-                {
-                    "lease_id": lease.lease_id,
-                    "already_absent": True,
-                },
-            )
-            self._active.pop(lease.lease_id, None)
-            return
-        _same_identity(lease.identity, current.identity)
+        listener_already_absent = current.identity is None
+        if current.identity is not None:
+            _same_identity(lease.identity, current.identity)
         try:
             adapter.release(lease, context)
         except RuntimeAdapterError as error:
@@ -407,7 +403,7 @@ class RuntimeManager:
                 str(error),
                 code="runtime_cleanup_failed",
             ) from error
-        if not self._wait_absent(
+        if not listener_already_absent and not self._wait_absent(
             adapter,
             lease.requirement,
             context,
@@ -418,12 +414,59 @@ class RuntimeManager:
                 "owned runtime listener remained after cleanup",
                 code="runtime_cleanup_failed",
             )
-        if not self._wait_process_exit(
+        process_exited = self._wait_process_exit(
             adapter,
             context,
             lease.identity,
             checks=context.terminate_checks,
-        ):
+        )
+        if not process_exited:
+            try:
+                adapter.interrupt(lease.identity)
+            except RuntimeAdapterError as error:
+                raise RuntimeManagerError(
+                    str(error),
+                    code="runtime_cleanup_failed",
+                ) from error
+            context.lifecycle_sink(
+                lease.requirement.runtime,
+                "cleanup_interrupt_sent",
+                {"identity": _identity_payload(lease.identity)},
+            )
+            process_exited = self._wait_process_exit(
+                adapter,
+                context,
+                lease.identity,
+                checks=context.interrupt_checks,
+            )
+        if not process_exited:
+            if (
+                context.policy is None
+                or not context.policy.allow_terminate_after_interrupt
+            ):
+                raise RuntimeManagerError(
+                    "owned runtime remained after cleanup interrupt",
+                    code="runtime_cleanup_failed",
+                )
+            try:
+                adapter.terminate(lease.identity)
+            except RuntimeAdapterError as error:
+                raise RuntimeManagerError(
+                    str(error),
+                    code="runtime_cleanup_failed",
+                ) from error
+            context.lifecycle_sink(
+                lease.requirement.runtime,
+                "cleanup_terminate_sent",
+                {"identity": _identity_payload(lease.identity)},
+            )
+            process_exited = self._wait_process_exit(
+                adapter,
+                context,
+                lease.identity,
+                checks=context.terminate_checks,
+            )
+        if not process_exited:
             raise RuntimeManagerError(
                 "owned runtime process remained after cleanup",
                 code="runtime_cleanup_failed",
@@ -431,7 +474,10 @@ class RuntimeManager:
         context.lifecycle_sink(
             lease.requirement.runtime,
             "released",
-            {"lease_id": lease.lease_id},
+            {
+                "lease_id": lease.lease_id,
+                "listener_already_absent": listener_already_absent,
+            },
         )
         self._active.pop(lease.lease_id, None)
 

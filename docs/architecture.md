@@ -70,8 +70,11 @@ live authority.
 `lmre binding propose|show|validate|adopt` provides a separate offline path for
 an operator-selected order of existing same-family native cells. Its create-only
 local records bind the family, cells, and fixed machine profile by hash and
-never grant live authority. The current managed planner does not consume these
-records; execution and sealing are a separate contract.
+never grant live authority. `lmre plan --binding <id>` explicitly consumes a
+current adopted record, revalidates its provenance and artifacts, and persists
+the binding identity and hashes in plan schema `1.2.0`. Execution materializes
+the selected checked-in cells in their declared order and reuses the existing
+runtime manager, collectors, resume behavior, and evidence seal.
 
 Committed family, cell, and overhead configuration uses logical
 `{LMRE_ROOT:...}` and `{artifact_path}` templates. Resolution happens only at

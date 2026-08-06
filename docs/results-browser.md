@@ -43,7 +43,8 @@ A malformed bundle never hides other valid runs.
   policy section renders a fixed allowlist of policy fields), run summary,
   per-step states with report availability, preserved attempt history
   (honest earlier failures and blocks stay visible), lifecycle ownership per
-  lease (`attached`/`owned`/`reclaimed` and `released`/`untouched`), and —
+  attempt-scoped lease (`attached`/`owned`/`reclaimed` and
+  `released`/`untouched`), and —
   for verified bundles only — each step's existing `report.md` rendered
   structurally.
 - Status labels pass through verbatim: `PASS`, `FAIL`, `N/A` (with its
@@ -80,9 +81,9 @@ index. The contract (frozen in
   content.
 - A shared comparison ID is necessary but not sufficient. Accepted members
   must agree on the portable immutable plan dimensions (schema version,
-  family, recipe, comparison class, matrix mode, steps, cell IDs, pair IDs, and the
-  `input_hashes` content identity). Machine paths are never compared as
-  identities.
+  family, recipe, comparison class, managed binding ID and hashes, matrix
+  mode, steps, cell IDs, pair IDs, and the `input_hashes` content identity).
+  Machine paths are never compared as identities.
 - Group verdicts: `COMPARABLE` (two or more accepted members, all
   dimensions agree), `INCOMPARABLE` with a stable
   `plan_dimension_mismatch: ...` reason (no metrics are aggregated or

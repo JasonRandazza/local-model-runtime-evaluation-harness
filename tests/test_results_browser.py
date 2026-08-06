@@ -161,7 +161,7 @@ class BuildRunViewTests(unittest.TestCase):
         self.assertIsNotNone(identity)
         self.assertEqual(identity["run_name"], "fixture-sealed-pass")
         self.assertEqual(identity["family_id"], "gemma-4-12b-qat")
-        self.assertEqual(identity["schema_version"], "1.1.0")
+        self.assertEqual(identity["schema_version"], "1.2.0")
         for key in (
             "run_id",
             "comparison_id",
@@ -169,6 +169,10 @@ class BuildRunViewTests(unittest.TestCase):
             "attempt",
             "recipe_id",
             "comparison_class_id",
+            "binding_id",
+            "binding_revision",
+            "binding_hash",
+            "binding_proposal_hash",
             "matrix_mode",
             "plan_hash",
             "created_at",
@@ -231,7 +235,9 @@ class BuildRunViewTests(unittest.TestCase):
         run_dir = make_sealed_pass(self.root)
         view = build_run_view(run_dir)
         self.assertIn("overhead", view["step_reports"])
-        self.assertIn("N/A (optiq pair skipped: port busy)", view["step_reports"]["overhead"])
+        self.assertIn(
+            "N/A (optiq pair skipped: port busy)", view["step_reports"]["overhead"]
+        )
         self.assertIn("est.", view["step_reports"]["overhead"])
         self.assertIn("—", view["step_reports"]["overhead"])  # em dash
         self.assertIn("matrix", view["step_reports"])
@@ -291,9 +297,7 @@ class BuildRunViewTests(unittest.TestCase):
         preserved_overhead = next(
             step for step in preserved["steps"] if step["step"] == "overhead"
         )
-        self.assertEqual(
-            preserved_overhead["state"], "BLOCKED_PROVIDER_RECONNECT"
-        )
+        self.assertEqual(preserved_overhead["state"], "BLOCKED_PROVIDER_RECONNECT")
 
     def test_attempts_extraction_skips_unreadable_snapshot(self) -> None:
         run_dir = make_sealed_pass(self.root)
@@ -335,16 +339,35 @@ class BuildRunViewTests(unittest.TestCase):
                 '{"action":"initial_observation","attempt":1,"payload":{},'
                 '"runtime":"optiq","timestamp":"2026-07-31T04:05:01+00:00"}\n'
             )
+            stream.write(
+                '{"action":"lease_acquired","attempt":2,'
+                '"payload":{"lease_id":"lease-owned","ownership":"owned"},'
+                '"runtime":"omlx","timestamp":"2026-07-31T04:05:02+00:00"}\n'
+            )
+            stream.write(
+                '{"action":"released","attempt":2,'
+                '"payload":{"lease_id":"lease-owned"},'
+                '"runtime":"omlx","timestamp":"2026-07-31T04:05:03+00:00"}\n'
+            )
 
         summary = _lifecycle_summary(run_dir)
         self.assertEqual(summary["unparsed_lines"], 1)
-        leases_by_id = {lease["lease_id"]: lease for lease in summary["leases"]}
+        leases_by_id = {
+            (lease["attempt"], lease["lease_id"]): lease
+            for lease in summary["leases"]
+        }
         self.assertEqual(
-            leases_by_id["lease-unresolved"]["terminal_action"], "unresolved"
+            leases_by_id[(1, "lease-unresolved")]["terminal_action"],
+            "unresolved",
         )
-        self.assertEqual(leases_by_id["lease-owned"]["terminal_action"], "released")
         self.assertEqual(
-            leases_by_id["lease-attached"]["terminal_action"], "untouched"
+            leases_by_id[(1, "lease-owned")]["terminal_action"], "released"
+        )
+        self.assertEqual(
+            leases_by_id[(2, "lease-owned")]["terminal_action"], "released"
+        )
+        self.assertEqual(
+            leases_by_id[(1, "lease-attached")]["terminal_action"], "untouched"
         )
 
 
@@ -378,9 +401,7 @@ class ReviewRegressionTests(unittest.TestCase):
     def test_index_entry_fails_closed_for_unsupported_schema(self) -> None:
         run_dir = make_unsupported_schema(self.root)
         index = build_index(run_dir.parent)
-        entry = next(
-            e for e in index["entries"] if e["run_dir_name"] == run_dir.name
-        )
+        entry = next(e for e in index["entries"] if e["run_dir_name"] == run_dir.name)
         self.assertEqual(entry["health"], HEALTH_UNSUPPORTED_SCHEMA)
         self.assertIsNone(entry["run_name"])
         self.assertIsNone(entry["run_id"])

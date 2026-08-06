@@ -186,6 +186,33 @@ class EvidenceBundleTests(unittest.TestCase):
         self.bundle.seal()
         self.bundle.verify()
 
+    def test_lifecycle_lease_ids_are_scoped_to_attempt(self) -> None:
+        entries = [
+            {
+                "action": "lease_acquired",
+                "attempt": attempt,
+                "payload": {
+                    "lease_id": "reused-lease-id",
+                    "ownership": "attached",
+                },
+                "runtime": "omlx",
+            }
+            for attempt in (1, 2)
+        ] + [
+            {
+                "action": "untouched",
+                "attempt": attempt,
+                "payload": {"lease_id": "reused-lease-id"},
+                "runtime": "omlx",
+            }
+            for attempt in (1, 2)
+        ]
+        (self.bundle.run_dir / "lifecycle.jsonl").write_text(
+            "".join(json.dumps(entry) + "\n" for entry in entries),
+            encoding="utf-8",
+        )
+        self.assertTrue(self.bundle._lifecycle_is_closed())
+
     def test_resume_attempt_uses_new_directory_without_overwrite(self) -> None:
         self.bundle.transition_step(
             ManagedStep.OVERHEAD,

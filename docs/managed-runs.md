@@ -78,9 +78,10 @@ The CLI accepts a class ID only. Definitions are loaded from
 `config/comparison-classes/`; there is no arbitrary cell, path, endpoint,
 suite, or pair override. Every class preserves the three baseline cells in
 order, permits only same-family cells on their declared native server, and
-keeps overhead on the existing baseline pairs. Plan schema `1.1.0` binds the
-class and selected cells by hash. Legacy `1.0.0` plans remain readable without
-changing their original serialized shape or hash.
+keeps overhead on the existing baseline pairs. Comparison-class fields from
+plan schema `1.1.0` remain bound in current schema `1.2.0`; both `1.1.0` and
+legacy `1.0.0` plans remain readable without changing their original
+serialized shape or hash.
 
 The checked-in `gemma-native-baseline-v1` class intentionally has no extra
 cells. It validates the product boundary without claiming that an additional
@@ -119,7 +120,7 @@ checked-in cells:
 ./bin/lmre binding adopt gemma-curated-native-v1
 ```
 
-This workflow is non-live and cannot yet create a managed plan. It accepts
+The declaration workflow itself is non-live. It accepts
 only safe IDs for two to nine existing same-family cells, preserves their
 declared order, requires each quant's native server, and resolves artifacts
 only through the fixed machine profile. The immutable local proposal binds the
@@ -127,10 +128,26 @@ family, cells, and profile by hash. Missing artifacts block adoption; changed
 inputs make the proposal stale and require a new versioned ID.
 
 Adoption records review intent with `live_authority: false`; they do not adopt
-an operator policy or authorize inference. Binding an adopted declaration into
-the managed execution and sealed-evidence path is intentionally deferred to
-the next slice. See the
-[managed free-bind declaration contract](superpowers/specs/2026-08-05-managed-free-bind-declarations.md).
+an operator policy or authorize inference. After adoption, create an immutable
+binding plan:
+
+```bash
+./bin/lmre plan \
+  --family gemma-4-12b-qat \
+  --recipe config/managed-runs/complete-native-quality-v1.json \
+  --binding gemma-curated-native-v1 \
+  --name gemma-curated-managed-run
+```
+
+Planning revalidates the proposal/adoption linkage, hashes, selected cells,
+machine profile, and artifact readiness. It filters overhead to selected
+backends that already have reviewed pair definitions, conservatively scales
+the duration and request count, and binds all of that into plan schema `1.2.0`.
+The adopted policy must authorize the exact plan before execution. The existing
+runtime lifecycle, collectors, provider-reconnect resume, cleanup, and evidence
+sealing then apply unchanged. See the
+[declaration contract](superpowers/specs/2026-08-05-managed-free-bind-declarations.md)
+and [execution contract](superpowers/specs/2026-08-05-managed-free-bind-execution.md).
 
 Only one managed `run` or `resume` may hold `.lmre/active-run.lock` at a time.
 If a host crash leaves that file behind, first verify that its recorded PID is
@@ -179,13 +196,22 @@ Pressing `Ctrl+C` records a terminal `STOPPED` state and still attempts exact
 cleanup and evidence sealing. LMRE does not restore processes that were running
 before a run; the documented safe posture is to stop them before starting.
 
+Managed collectors do not independently stop runtimes or require attached
+ports to become free. Exact release and absence checks belong to the managed
+runtime lease. This prevents low-level matrix or overhead cleanup behavior from
+stopping an operator-owned process that the managed layer attached to.
+
 ## oMLX Catalogs and Credentials
 
 oMLX receives a per-run temporary catalog containing only the planned model.
 The catalog lives beneath the ignored run evidence, and is removed when the
-owned oMLX lease is released. The credential is injected in memory and redacted
-from lifecycle evidence. Persistent model-root catalogs are not part of the
-active workflow.
+owned oMLX lease is released. Managed starts also receive a fixed,
+attempt-specific `--base-path` beneath `.lmre/runtime-state/`. This isolates
+oMLX settings and logs from the user's normal oMLX base directory; it is
+required because current oMLX releases persist explicit non-secret serve
+settings. Recipes cannot override this path. The credential is injected in
+memory and redacted from lifecycle evidence. Persistent model-root catalogs
+are not part of the active workflow.
 
 Credentials stay in approved local stores. They must not be copied into policy,
 plan, configuration, logs, reports, or prompts.
