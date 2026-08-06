@@ -117,6 +117,38 @@ class MatrixRunnerTest(unittest.TestCase):
             self.assertIn("N/A (unloadable)", report)
             self.assertIn("PASS", report)
 
+    def test_campaign_request_timeout_configures_transport(self) -> None:
+        campaign = self._campaign()
+        campaign.request_timeout_seconds = 37
+        cell = _osaurus()
+
+        def measure(
+            measured_cell: Cell,
+            suite: object,
+            mode: str,
+            transport: object,
+            probe: object,
+            cancel: object,
+            credential: object,
+        ) -> CellResult:
+            del suite, mode, probe, cancel, credential
+            self.assertEqual(measured_cell, cell)
+            self.assertEqual(transport.timeout_seconds, 37)  # type: ignore[attr-defined]
+            return _pass_result(cell)
+
+        with TemporaryDirectory() as tmp:
+            run_campaign(
+                campaign,
+                "screen",
+                Path(tmp),
+                cells=(cell,),
+                build_server=MagicMock(return_value=MagicMock()),
+                measure_cell=measure,
+                probe=FakeProbe([80, 80]),
+                port_free=lambda port: True,
+                credential_for=lambda server: None,
+            )
+
     def test_memory_floor_stops_campaign(self) -> None:
         campaign = self._campaign()
         cells = (_osaurus(), _omlx())
