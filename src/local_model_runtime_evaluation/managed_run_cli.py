@@ -28,6 +28,7 @@ from .managed_run import (
     resume_managed_run,
 )
 from .managed_run_types import RunSummaryState
+from .open_mix_inspect import inspect_open_mix
 from .operator_policy import (
     AdoptedPolicy,
     adopt_policy,
@@ -193,6 +194,7 @@ def _command_plan(
         results_root=args.results_dir,
         comparison_class_id=args.comparison_class,
         binding_id=args.binding,
+        open_mix_id=args.open_mix,
         binding_state_dir=args.state_dir,
         machine_profile_path=machine_profile_path,
     )
@@ -210,6 +212,8 @@ def _command_plan(
         "comparison_id": plan.identity.comparison_id,
         "binding_id": plan.binding_id,
         "comparison_class_id": plan.comparison_class_id,
+        "comparison_scope": plan.comparison_scope,
+        "open_mix_id": plan.open_mix_id,
         "ok": True,
         "plan_hash": plan.plan_hash,
         "request_count": plan.request_count,
@@ -225,6 +229,10 @@ def _command_run(
 ) -> dict[str, object]:
     adopted = load_adopted_policy(args.state_dir)
     bundle = EvidenceBundle.load(_run_dir(args.results_dir, args.run_id))
+    if bundle.plan.comparison_scope == "open_mix":
+        raise RuntimeError(
+            "open-mix live execution is not implemented; review the non-live plan only"
+        )
     with _active_run_lock(args.state_dir, args.run_id):
         state = bundle.state
         if state.sealed or state.summary_state is not RunSummaryState.PENDING:
@@ -260,6 +268,10 @@ def _command_resume(
     with _active_run_lock(args.state_dir, args.run_id):
         bundle = EvidenceBundle.load(run_dir)
         bundle.verify()
+        if bundle.plan.comparison_scope == "open_mix":
+            raise RuntimeError(
+                "open-mix live resume is not implemented; review the non-live plan only"
+            )
         manager = _build_runtime_manager(
             bundle.plan,
             adopted,
@@ -341,6 +353,19 @@ def _command_comparison_class(
     }
 
 
+def _command_open_mix(
+    args: argparse.Namespace,
+    machine_profile_path: Path,
+) -> dict[str, object]:
+    return {
+        "ok": True,
+        "inspection": inspect_open_mix(
+            args.open_mix_id,
+            machine_profile_path=machine_profile_path,
+        ),
+    }
+
+
 def _command_binding(
     args: argparse.Namespace,
     machine_profile_path: Path,
@@ -404,7 +429,7 @@ def build_parser() -> argparse.ArgumentParser:
     adopt.add_argument("--from", dest="source", type=Path, required=True)
 
     plan = commands.add_parser("plan", help="Create a non-live immutable plan")
-    plan.add_argument("--family", required=True)
+    plan.add_argument("--family")
     plan.add_argument("--recipe", type=Path, required=True)
     plan.add_argument("--name")
     plan.add_argument("--comparison")
@@ -416,6 +441,10 @@ def build_parser() -> argparse.ArgumentParser:
     declaration.add_argument(
         "--binding",
         help="Explicitly adopted offline binding ID; no arbitrary cell list",
+    )
+    declaration.add_argument(
+        "--open-mix",
+        help="Checked-in heterogeneous comparison ID; no arbitrary members",
     )
     plan.add_argument("--parent")
 
@@ -480,6 +509,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     inspect.add_argument("comparison_class_id")
 
+    open_mix = commands.add_parser(
+        "open-mix",
+        help="Inspect a checked-in heterogeneous comparison without live contact",
+    )
+    open_mix_commands = open_mix.add_subparsers(
+        dest="open_mix_command",
+        required=True,
+    )
+    inspect_mix = open_mix_commands.add_parser(
+        "inspect",
+        help="Inspect members, shared suites, and static artifact readiness",
+    )
+    inspect_mix.add_argument("open_mix_id")
+
     binding = commands.add_parser(
         "binding",
         help="Propose, validate, and explicitly adopt an offline cell binding",
@@ -538,6 +581,8 @@ def main(
                 return 0
         elif args.command == "comparison-class":
             body = _command_comparison_class(args, machine_profile_path)
+        elif args.command == "open-mix":
+            body = _command_open_mix(args, machine_profile_path)
         elif args.command == "binding":
             body = _command_binding(args, machine_profile_path)
         else:

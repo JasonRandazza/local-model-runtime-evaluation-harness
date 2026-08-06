@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "open_mix_id": "qwen-ornith-capability-v1",
+  "revision": "1",
+  "members": [
+    {
+      "family_id": "qwen36-35b-a3b",
+      "cell_id": "qwen_mxfp4__osaurus"
+    },
+    {
+      "family_id": "ornith-35b",
+      "cell_id": "ornith_oq4__omlx"
+    }
+  ],
+  "suite_contract_id": "shared-capability-v1",
+  "estimated_minutes": 90,
+  "notes": "Reviewed cross-family capability collection. Member-local performance metrics only; no automatic overall winner."
+}

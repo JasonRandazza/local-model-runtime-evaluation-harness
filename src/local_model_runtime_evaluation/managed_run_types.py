@@ -14,11 +14,13 @@ from .operator_policy import PolicyRequest
 LEGACY_MANAGED_PLAN_SCHEMA_VERSION = "1.0.0"
 COMPARISON_CLASS_PLAN_SCHEMA_VERSION = "1.1.0"
 MANAGED_PLAN_SCHEMA_VERSION = "1.2.0"
+OPEN_MIX_PLAN_SCHEMA_VERSION = "1.3.0"
 SUPPORTED_MANAGED_PLAN_SCHEMA_VERSIONS = frozenset(
     {
         LEGACY_MANAGED_PLAN_SCHEMA_VERSION,
         COMPARISON_CLASS_PLAN_SCHEMA_VERSION,
         MANAGED_PLAN_SCHEMA_VERSION,
+        OPEN_MIX_PLAN_SCHEMA_VERSION,
     }
 )
 SHA256_HEX = re.compile(r"[0-9a-f]{64}")
@@ -112,7 +114,7 @@ class ManagedRunPlan:
     schema_version: str
     identity: RunIdentity
     recipe_id: str
-    family_id: str
+    family_id: str | None
     comparison_class_id: str | None
     comparison_class_path: str | None
     binding_id: str | None
@@ -138,6 +140,16 @@ class ManagedRunPlan:
     max_parallel_models: int
     created_at: str
     plan_hash: str
+    comparison_scope: str = "family"
+    open_mix_id: str | None = None
+    open_mix_revision: str | None = None
+    open_mix_path: str | None = None
+    open_mix_hash: str | None = None
+    open_mix_members: tuple[tuple[str, str], ...] = ()
+    suite_contract_id: str | None = None
+    suite_contract_revision: str | None = None
+    suite_contract_path: str | None = None
+    suite_contract_hash: str | None = None
 
     def to_dict(self, *, include_hash: bool = True) -> dict[str, object]:
         body: dict[str, object] = {
@@ -169,12 +181,31 @@ class ManagedRunPlan:
                 comparison_class_path=self.comparison_class_path,
                 baseline_cell_ids=list(self.baseline_cell_ids),
             )
-        if self.schema_version == MANAGED_PLAN_SCHEMA_VERSION:
+        if self.schema_version in {
+            MANAGED_PLAN_SCHEMA_VERSION,
+            OPEN_MIX_PLAN_SCHEMA_VERSION,
+        }:
             body.update(
                 binding_id=self.binding_id,
                 binding_revision=self.binding_revision,
                 binding_hash=self.binding_hash,
                 binding_proposal_hash=self.binding_proposal_hash,
+            )
+        if self.schema_version == OPEN_MIX_PLAN_SCHEMA_VERSION:
+            body.update(
+                comparison_scope=self.comparison_scope,
+                open_mix_id=self.open_mix_id,
+                open_mix_revision=self.open_mix_revision,
+                open_mix_path=self.open_mix_path,
+                open_mix_hash=self.open_mix_hash,
+                open_mix_members=[
+                    {"family_id": family_id, "cell_id": cell_id}
+                    for family_id, cell_id in self.open_mix_members
+                ],
+                suite_contract_id=self.suite_contract_id,
+                suite_contract_revision=self.suite_contract_revision,
+                suite_contract_path=self.suite_contract_path,
+                suite_contract_hash=self.suite_contract_hash,
             )
         if include_hash:
             body["plan_hash"] = self.plan_hash
@@ -217,6 +248,18 @@ class ManagedRunPlan:
             "binding_hash",
             "binding_proposal_hash",
         }
+        open_mix_expected = current_expected | {
+            "comparison_scope",
+            "open_mix_id",
+            "open_mix_revision",
+            "open_mix_path",
+            "open_mix_hash",
+            "open_mix_members",
+            "suite_contract_id",
+            "suite_contract_revision",
+            "suite_contract_path",
+            "suite_contract_hash",
+        }
         schema_version = data.get("schema_version")
         if schema_version not in SUPPORTED_MANAGED_PLAN_SCHEMA_VERSIONS:
             raise ValueError("managed run plan schema_version is invalid")
@@ -224,6 +267,8 @@ class ManagedRunPlan:
             expected = legacy_expected
         elif schema_version == COMPARISON_CLASS_PLAN_SCHEMA_VERSION:
             expected = comparison_class_expected
+        elif schema_version == OPEN_MIX_PLAN_SCHEMA_VERSION:
+            expected = open_mix_expected
         else:
             expected = current_expected
         if set(data) != expected:
@@ -251,7 +296,6 @@ class ManagedRunPlan:
         scalar_strings = (
             "schema_version",
             "recipe_id",
-            "family_id",
             "matrix_mode",
             "campaign_path",
             "rag_corpus_path",
@@ -262,6 +306,13 @@ class ManagedRunPlan:
         )
         if any(not isinstance(data[field], str) for field in scalar_strings):
             raise ValueError("managed run plan string field is invalid")
+        if schema_version == OPEN_MIX_PLAN_SCHEMA_VERSION:
+            if data["family_id"] is not None and not isinstance(
+                data["family_id"], str
+            ):
+                raise ValueError("managed run family_id is invalid")
+        elif not isinstance(data["family_id"], str):
+            raise ValueError("managed run family_id is invalid")
         integer_fields = (
             "request_count",
             "estimated_minutes",
@@ -300,6 +351,16 @@ class ManagedRunPlan:
             binding_hash = None
             binding_proposal_hash = None
             baseline_cell_ids = tuple(data["cell_ids"])
+            comparison_scope = "family"
+            open_mix_id = None
+            open_mix_revision = None
+            open_mix_path = None
+            open_mix_hash = None
+            open_mix_members: tuple[tuple[str, str], ...] = ()
+            suite_contract_id = None
+            suite_contract_revision = None
+            suite_contract_path = None
+            suite_contract_hash = None
         else:
             comparison_class_id = data["comparison_class_id"]
             comparison_class_path = data["comparison_class_path"]
@@ -318,8 +379,18 @@ class ManagedRunPlan:
                 != f"config/comparison-classes/{comparison_class_id}.json"
             ):
                 raise ValueError("managed run comparison class fields are invalid")
+            comparison_scope = (
+                data["comparison_scope"]
+                if schema_version == OPEN_MIX_PLAN_SCHEMA_VERSION
+                else "family"
+            )
+            if comparison_scope not in {"family", "open_mix"}:
+                raise ValueError("managed run comparison_scope is invalid")
             baseline_cell_ids = tuple(data["baseline_cell_ids"])
-            if (
+            if comparison_scope == "open_mix":
+                if baseline_cell_ids:
+                    raise ValueError("managed run open mix baseline cells are invalid")
+            elif (
                 len(baseline_cell_ids) != 3
                 or len(set(baseline_cell_ids)) != 3
                 or not all(
@@ -360,9 +431,115 @@ class ManagedRunPlan:
                     or not SHA256_HEX.fullmatch(binding_proposal_hash)
                 ):
                     raise ValueError("managed run binding fields are invalid")
+            if schema_version == OPEN_MIX_PLAN_SCHEMA_VERSION:
+                open_mix_id = data["open_mix_id"]
+                open_mix_revision = data["open_mix_revision"]
+                open_mix_path = data["open_mix_path"]
+                open_mix_hash = data["open_mix_hash"]
+                suite_contract_id = data["suite_contract_id"]
+                suite_contract_revision = data["suite_contract_revision"]
+                suite_contract_path = data["suite_contract_path"]
+                suite_contract_hash = data["suite_contract_hash"]
+                raw_members = data["open_mix_members"]
+                if not isinstance(raw_members, list):
+                    raise ValueError("managed run open_mix_members is invalid")
+                parsed_members: list[tuple[str, str]] = []
+                for member in raw_members:
+                    if (
+                        not isinstance(member, dict)
+                        or set(member) != {"family_id", "cell_id"}
+                        or not isinstance(member["family_id"], str)
+                        or not isinstance(member["cell_id"], str)
+                    ):
+                        raise ValueError("managed run open_mix_members is invalid")
+                    parsed_members.append((member["family_id"], member["cell_id"]))
+                open_mix_members = tuple(parsed_members)
+            else:
+                comparison_scope = "family"
+                open_mix_id = None
+                open_mix_revision = None
+                open_mix_path = None
+                open_mix_hash = None
+                open_mix_members = ()
+                suite_contract_id = None
+                suite_contract_revision = None
+                suite_contract_path = None
+                suite_contract_hash = None
+            if schema_version == OPEN_MIX_PLAN_SCHEMA_VERSION:
+                if comparison_scope == "open_mix":
+                    declaration_values = (
+                        comparison_class_id,
+                        comparison_class_path,
+                        binding_id,
+                        binding_revision,
+                        binding_hash,
+                        binding_proposal_hash,
+                    )
+                    identity_values = (
+                        open_mix_id,
+                        open_mix_revision,
+                        open_mix_path,
+                        open_mix_hash,
+                        suite_contract_id,
+                        suite_contract_revision,
+                        suite_contract_path,
+                        suite_contract_hash,
+                    )
+                    if data["family_id"] is not None or any(
+                        value is not None for value in declaration_values
+                    ):
+                        raise ValueError("managed run open mix declarations are invalid")
+                    if any(value is None for value in identity_values):
+                        raise ValueError("managed run open mix identity is invalid")
+                    if (
+                        not isinstance(open_mix_id, str)
+                        or not SAFE_COMPARISON_CLASS_ID.fullmatch(open_mix_id)
+                        or not isinstance(open_mix_revision, str)
+                        or not open_mix_revision.isdecimal()
+                        or not isinstance(open_mix_path, str)
+                        or open_mix_path != f"config/open-mixes/{open_mix_id}.json"
+                        or not isinstance(open_mix_hash, str)
+                        or not SHA256_HEX.fullmatch(open_mix_hash)
+                        or not isinstance(suite_contract_id, str)
+                        or not SAFE_COMPARISON_CLASS_ID.fullmatch(suite_contract_id)
+                        or not isinstance(suite_contract_revision, str)
+                        or not suite_contract_revision.isdecimal()
+                        or not isinstance(suite_contract_path, str)
+                        or suite_contract_path
+                        != (
+                            "config/open-mix-suite-contracts/"
+                            f"{suite_contract_id}.json"
+                        )
+                        or not isinstance(suite_contract_hash, str)
+                        or not SHA256_HEX.fullmatch(suite_contract_hash)
+                        or not 2 <= len(open_mix_members) <= 6
+                        or len({cell for _, cell in open_mix_members})
+                        != len(open_mix_members)
+                        or tuple(data["cell_ids"])
+                        != tuple(cell for _, cell in open_mix_members)
+                        or baseline_cell_ids
+                        or data["campaign_path"] != ""
+                    ):
+                        raise ValueError("managed run open mix identity is invalid")
+                elif any(
+                    value is not None
+                    for value in (
+                        open_mix_id,
+                        open_mix_revision,
+                        open_mix_path,
+                        open_mix_hash,
+                        suite_contract_id,
+                        suite_contract_revision,
+                        suite_contract_path,
+                        suite_contract_hash,
+                    )
+                ) or open_mix_members:
+                    raise ValueError("managed run family scope has open mix identity")
             if comparison_class_id is not None and binding_id is not None:
                 raise ValueError("managed run declarations are mutually exclusive")
-            if comparison_class_id is not None:
+            if comparison_scope == "open_mix":
+                pass
+            elif comparison_class_id is not None:
                 if (
                     tuple(data["cell_ids"][: len(baseline_cell_ids)])
                     != baseline_cell_ids
@@ -399,7 +576,7 @@ class ManagedRunPlan:
             matrix_mode=data["matrix_mode"],
             campaign_path=data["campaign_path"],
             suite_paths=tuple(
-                (str(key), str(value)) for key, value in sorted(suite_paths.items())
+                (str(key), str(value)) for key, value in suite_paths.items()
             ),
             rag_corpus_path=data["rag_corpus_path"],
             cells_root=data["cells_root"],
@@ -416,6 +593,16 @@ class ManagedRunPlan:
             max_parallel_models=data["max_parallel_models"],
             created_at=data["created_at"],
             plan_hash=data["plan_hash"],
+            comparison_scope=comparison_scope,
+            open_mix_id=open_mix_id,
+            open_mix_revision=open_mix_revision,
+            open_mix_path=open_mix_path,
+            open_mix_hash=open_mix_hash,
+            open_mix_members=open_mix_members,
+            suite_contract_id=suite_contract_id,
+            suite_contract_revision=suite_contract_revision,
+            suite_contract_path=suite_contract_path,
+            suite_contract_hash=suite_contract_hash,
         )
 
     def suite_path(self, step: ManagedStep) -> str:

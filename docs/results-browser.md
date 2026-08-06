@@ -37,8 +37,9 @@ A malformed bundle never hides other valid runs.
 
 ## What It Shows
 
-- **Index:** run name, run ID, comparison ID, family, recipe, comparison class,
-  attempt, run status, created timestamp, and health, newest first.
+- **Index:** run name, run ID, comparison ID, comparison scope, family or
+  open-mix identity, suite contract, recipe, comparison class, attempt, run
+  status, created timestamp, and health, newest first.
 - **Run detail:** plan identity (no credentials exist in bundle files; the
   policy section renders a fixed allowlist of policy fields), run summary,
   per-step states with report availability, preserved attempt history
@@ -81,7 +82,8 @@ index. The contract (frozen in
   content.
 - A shared comparison ID is necessary but not sufficient. Accepted members
   must agree on the portable immutable plan dimensions (schema version,
-  family, recipe, comparison class, managed binding ID and hashes, matrix
+  comparison scope, family or open-mix definition and ordered members, suite
+  contract, recipe, comparison class, managed binding ID and hashes, matrix
   mode, steps, cell IDs, pair IDs, and the `input_hashes` content identity).
   Machine paths are never compared as identities.
 - Group verdicts: `COMPARABLE` (two or more accepted members, all
@@ -93,8 +95,8 @@ index. The contract (frozen in
   timestamp, then run ID, then directory name.
 - Comparison pages show plan-identity metadata and recorded run statuses
   only, verbatim. No winner, delta, confidence value, ranking, or new
-  score is derived; richer metric comparison and open-mix comparison
-  remain deferred.
+  score is derived. Open-mix identity is understood and compared fail-closed,
+  but richer metric comparison remains deferred.
 
 The `browse` JSON output adds `comparison_index` and `comparisons`
 alongside the existing keys, plus `unattributed_exclusions` (the count of

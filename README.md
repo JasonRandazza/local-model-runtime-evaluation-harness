@@ -9,7 +9,8 @@ The active product is managed-run led:
 adopt reviewed local policy
   -> inspect checked-in comparison-class and artifact readiness
   -> optionally propose, validate, and adopt an offline free binding
-  -> create and inspect an immutable baseline, comparison-class, or binding plan
+  -> inspect a checked-in heterogeneous open mix when needed
+  -> create and inspect an immutable family, binding, or open-mix plan
   -> manage exact local runtime leases
   -> run the native quality sequence
   -> seal or safely resume honest evidence
@@ -41,6 +42,7 @@ See [docs/history.md](docs/history.md) for the historical lane summary and
 | `./bin/lmre browse` | Generate the read-only static HTML browser for sealed evidence |
 | `./bin/lmre doctor` | Report offline readiness of local config, artifacts, and policy |
 | `./bin/lmre binding` | Propose, inspect, validate, and adopt a non-live same-family cell declaration |
+| `./bin/lmre open-mix inspect` | Validate a checked-in heterogeneous comparison set and its local artifacts without live contact |
 
 For a complete managed run, start with:
 
@@ -81,6 +83,7 @@ Operator documentation:
 - [Offline comparison-class inspection](docs/superpowers/specs/2026-08-05-comparison-class-offline-inspection.md)
 - [Managed free-bind declarations](docs/superpowers/specs/2026-08-05-managed-free-bind-declarations.md)
 - [Managed free-bind execution](docs/superpowers/specs/2026-08-05-managed-free-bind-execution.md)
+- [Heterogeneous open-mix contract](docs/superpowers/specs/2026-08-05-heterogeneous-open-mix-contract.md)
 - [Native matrix](docs/matrix.md)
 - [Preference](docs/preference.md)
 - [RAG](docs/rag.md)
@@ -120,8 +123,12 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 ./bin/lmre-preference collect --dry-config
 ./bin/lmre-rag collect --dry-config
 ./bin/lmre-overhead run --dry-config
+./bin/lmre open-mix inspect qwen-ornith-capability-v1
 ```
 
 These checks must not contact Osaurus, oMLX, OptiQ, Keychain, or a real model.
 They read the local machine profile and report missing artifacts without
 starting services.
+Open-mix inspection and planning are implemented as non-live surfaces; `run`
+and `resume` reject open-mix plans until the separately reviewed live adapter
+slice is implemented.

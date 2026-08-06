@@ -73,12 +73,20 @@ VERDICT_NOT_APPLICABLE = "N/A"
 # are deliberately absent: input_hashes is the portable content identity.
 _COMPARISON_DIMENSIONS = (
     "schema_version",
+    "comparison_scope",
     "family_id",
     "recipe_id",
     "comparison_class_id",
     "binding_id",
     "binding_hash",
     "binding_proposal_hash",
+    "open_mix_id",
+    "open_mix_revision",
+    "open_mix_hash",
+    "open_mix_members",
+    "suite_contract_id",
+    "suite_contract_revision",
+    "suite_contract_hash",
     "matrix_mode",
     "steps",
     "cell_ids",
@@ -152,6 +160,8 @@ def _index_entry(run_dir: Path) -> dict:
         "recipe_id": None,
         "comparison_class_id": None,
         "binding_id": None,
+        "open_mix_id": None,
+        "suite_contract_id": None,
         "attempt": None,
         "run_status": None,
         "created_at": None,
@@ -173,6 +183,8 @@ def _index_entry(run_dir: Path) -> dict:
         recipe_id=plan.recipe_id,
         comparison_class_id=plan.comparison_class_id,
         binding_id=plan.binding_id,
+        open_mix_id=plan.open_mix_id,
+        suite_contract_id=plan.suite_contract_id,
         created_at=plan.created_at,
     )
     try:
@@ -212,12 +224,23 @@ def _identity_dict(plan: ManagedRunPlan) -> dict:
         "parent_run_id": plan.identity.parent_run_id,
         "attempt": plan.identity.attempt,
         "family_id": plan.family_id,
+        "comparison_scope": plan.comparison_scope,
         "recipe_id": plan.recipe_id,
         "comparison_class_id": plan.comparison_class_id,
         "binding_id": plan.binding_id,
         "binding_revision": plan.binding_revision,
         "binding_hash": plan.binding_hash,
         "binding_proposal_hash": plan.binding_proposal_hash,
+        "open_mix_id": plan.open_mix_id,
+        "open_mix_revision": plan.open_mix_revision,
+        "open_mix_hash": plan.open_mix_hash,
+        "open_mix_members": [
+            f"{family_id}/{cell_id}"
+            for family_id, cell_id in plan.open_mix_members
+        ],
+        "suite_contract_id": plan.suite_contract_id,
+        "suite_contract_revision": plan.suite_contract_revision,
+        "suite_contract_hash": plan.suite_contract_hash,
         "matrix_mode": plan.matrix_mode,
         "schema_version": plan.schema_version,
         "plan_hash": plan.plan_hash,
@@ -462,12 +485,23 @@ def build_run_view(run_dir: Path) -> dict:
 def _plan_dimensions(plan: ManagedRunPlan) -> dict:
     return {
         "schema_version": plan.schema_version,
+        "comparison_scope": plan.comparison_scope,
         "family_id": plan.family_id,
         "recipe_id": plan.recipe_id,
         "comparison_class_id": plan.comparison_class_id,
         "binding_id": plan.binding_id,
         "binding_hash": plan.binding_hash,
         "binding_proposal_hash": plan.binding_proposal_hash,
+        "open_mix_id": plan.open_mix_id,
+        "open_mix_revision": plan.open_mix_revision,
+        "open_mix_hash": plan.open_mix_hash,
+        "open_mix_members": [
+            {"family_id": family_id, "cell_id": cell_id}
+            for family_id, cell_id in plan.open_mix_members
+        ],
+        "suite_contract_id": plan.suite_contract_id,
+        "suite_contract_revision": plan.suite_contract_revision,
+        "suite_contract_hash": plan.suite_contract_hash,
         "matrix_mode": plan.matrix_mode,
         "steps": [step.value for step in plan.steps],
         "cell_ids": list(plan.cell_ids),

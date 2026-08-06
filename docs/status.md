@@ -17,6 +17,26 @@ inference. An offline `lmre doctor` command reports static local readiness
 every runtime, provider, credential, memory, and inference fact
 `NOT_CHECKED_LIVE`; it grants no live authority.
 
+## Heterogeneous Open-Mix Contract (Non-Live, 2026-08-05)
+
+- `lmre open-mix inspect <id>` strictly validates a checked-in ordered set of
+  two to six native cells from at least two families, one shared suite
+  contract, and approved-root artifact presence without live contact.
+- `lmre plan --open-mix <id>` writes plan schema `1.3.0`, binding the definition,
+  ordered members, suite contract, all executable input hashes, request and
+  duration ceilings, loopback routes, and policy-relevant lifecycle bounds.
+- Plan schemas `1.0.0` through `1.2.0` retain their original serialized shape
+  and hash behavior. The sealed-results browser exposes open-mix and suite
+  identity as exact comparability dimensions and derives no winner or score.
+- The checked-in `qwen-ornith-capability-v1` inspection reports its two local
+  artifacts as present and labels all live facts `NOT_CHECKED_LIVE`.
+- Live scheduling is deliberately deferred. `run` and `resume` reject an
+  open-mix plan before runtime-manager construction, so this slice creates no
+  runtime, provider, credential, process, or inference authority.
+- Verification: 543 retained tests passed, all six established dry-config
+  commands passed, and the seventh checked-in open-mix inspection returned
+  `READY_FOR_PLAN` with both artifacts present and `NOT_CHECKED_LIVE`.
+
 ## Controlled Expansion Contract (Non-Live, 2026-08-05)
 
 - `lmre plan --comparison-class <id>` binds a checked-in same-family class
@@ -217,6 +237,8 @@ and is intentionally not committed.
   ([free-bind contract](superpowers/specs/2026-08-05-managed-free-bind-declarations.md))
 - managed free-bind planning, execution, resume, and sealing
   ([execution contract](superpowers/specs/2026-08-05-managed-free-bind-execution.md))
+- heterogeneous open-mix inspection and immutable non-live planning
+  ([open-mix contract](superpowers/specs/2026-08-05-heterogeneous-open-mix-contract.md))
 
 ## Open Risks
 
@@ -230,14 +252,16 @@ and is intentionally not committed.
 - Resolved artifacts remain machine-local and may be missing even when the
   portable committed templates and machine profile are structurally valid.
 - The results browser now includes read-only sealed cross-run comparison
-  pages (metadata and verbatim statuses only, sealed verified members
-  only). Richer metric comparison and open-mix comparison remain deferred.
+  pages (metadata and verbatim statuses only, sealed verified members only).
+  It understands open-mix identity, but richer metric comparison remains
+  deferred.
 - No external plugin lifecycle is managed by this repository cleanup.
 - The controlled-expansion mechanism is shipped, but the only checked-in
   class currently declares the existing Gemma native baseline. No additional
   model build is claimed available or validated yet.
-- Managed free-bind execution remains same-family and native-server-only;
-  heterogeneous/open-mix scheduling is still deferred.
+- Managed free-bind execution remains same-family and native-server-only.
+  Open-mix inspection and planning are implemented; heterogeneous live
+  scheduling and collection remain deferred behind a separate review gate.
 
 ## Machine State
 
