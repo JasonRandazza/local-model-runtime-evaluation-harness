@@ -303,7 +303,10 @@ def run_campaign(
     log_dir.mkdir(parents=True, exist_ok=True)
 
     base_urls = {cell.base_url for cell in loaded_cells}
-    transport = LoopbackTransport(base_urls)
+    transport = LoopbackTransport(
+        base_urls,
+        timeout_seconds=campaign.request_timeout_seconds,
+    )
     cancel = threading.Event()
 
     started_at = datetime.now(timezone.utc).isoformat()
