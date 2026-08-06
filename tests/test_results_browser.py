@@ -339,15 +339,36 @@ class BuildRunViewTests(unittest.TestCase):
                 '{"action":"initial_observation","attempt":1,"payload":{},'
                 '"runtime":"optiq","timestamp":"2026-07-31T04:05:01+00:00"}\n'
             )
+            stream.write(
+                '{"action":"lease_acquired","attempt":2,'
+                '"payload":{"lease_id":"lease-owned","ownership":"owned"},'
+                '"runtime":"omlx","timestamp":"2026-07-31T04:05:02+00:00"}\n'
+            )
+            stream.write(
+                '{"action":"released","attempt":2,'
+                '"payload":{"lease_id":"lease-owned"},'
+                '"runtime":"omlx","timestamp":"2026-07-31T04:05:03+00:00"}\n'
+            )
 
         summary = _lifecycle_summary(run_dir)
         self.assertEqual(summary["unparsed_lines"], 1)
-        leases_by_id = {lease["lease_id"]: lease for lease in summary["leases"]}
+        leases_by_id = {
+            (lease["attempt"], lease["lease_id"]): lease
+            for lease in summary["leases"]
+        }
         self.assertEqual(
-            leases_by_id["lease-unresolved"]["terminal_action"], "unresolved"
+            leases_by_id[(1, "lease-unresolved")]["terminal_action"],
+            "unresolved",
         )
-        self.assertEqual(leases_by_id["lease-owned"]["terminal_action"], "released")
-        self.assertEqual(leases_by_id["lease-attached"]["terminal_action"], "untouched")
+        self.assertEqual(
+            leases_by_id[(1, "lease-owned")]["terminal_action"], "released"
+        )
+        self.assertEqual(
+            leases_by_id[(2, "lease-owned")]["terminal_action"], "released"
+        )
+        self.assertEqual(
+            leases_by_id[(1, "lease-attached")]["terminal_action"], "untouched"
+        )
 
 
 class ReviewRegressionTests(unittest.TestCase):

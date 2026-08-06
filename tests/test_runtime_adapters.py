@@ -364,9 +364,11 @@ class RuntimeAdapterTests(unittest.TestCase):
             spawner=MagicMock(),
         )
         requirement = adapter.requirement_from_cell(cell)
-        context = _context(
-            FakeTransport(()),
+        context = RuntimeContext.for_test(
+            log_dir=Path("/tmp/logs"),
+            transport=FakeTransport(()),
             credential=Credential("local-loopback-key"),
+            omlx_base_root=Path("/tmp/lmre-omlx-base"),
         )
         command = adapter.start_command(requirement, context)
         self.assertEqual(command[-2:], ("--api-key", "local-loopback-key"))
@@ -419,6 +421,7 @@ class RuntimeAdapterTests(unittest.TestCase):
                 credential=Credential("local-loopback-key"),
                 transport=FakeTransport(()),
                 catalog_root=root / "run" / "runtime" / "omlx-catalog",
+                omlx_base_root=root / "state" / "omlx-base",
             )
             lease = adapter.start(
                 adapter.requirement_from_cell(cell),
@@ -426,11 +429,37 @@ class RuntimeAdapterTests(unittest.TestCase):
             )
             self.assertNotIn(OMLX_CATALOG_TOKEN, seen[0])
             self.assertIn(str(context.catalog_root), seen[0])
+            self.assertEqual(
+                seen[0][seen[0].index("--base-path") + 1],
+                str(context.omlx_base_root),
+            )
             self.assertTrue((context.catalog_root / cell.model_id).is_symlink())
+            self.assertTrue(context.omlx_base_root.is_dir())
             adapter.release(lease, context)
             process.stop.assert_called_once()
             self.assertFalse(context.catalog_root.exists())
             self.assertTrue(artifact.is_dir())
+
+    def test_omlx_rejects_cell_configured_base_path(self) -> None:
+        cell = _omlx()
+        cell = Cell(
+            cell_id=cell.cell_id,
+            quant=cell.quant,
+            server=cell.server,
+            base_url=cell.base_url,
+            model_id=cell.model_id,
+            artifact_path=cell.artifact_path,
+            start_command=cell.start_command + ("--base-path", "/tmp/unsafe"),
+            stop_command=cell.stop_command,
+            health_path=cell.health_path,
+            notes=cell.notes,
+        )
+        adapter = OmlxAdapter(inspector=FakeInspector(None))
+        with self.assertRaisesRegex(
+            RuntimeAdapterError,
+            "base path is managed by the harness",
+        ):
+            adapter.requirement_from_cell(cell)
 
 
 if __name__ == "__main__":

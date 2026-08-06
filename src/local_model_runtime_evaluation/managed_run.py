@@ -229,6 +229,7 @@ def default_collector_hooks(
             output_root,
             cell_filter=candidate.cell_ids,
             build_server=build_server,
+            lifecycle_managed=True,
         )
 
     def preference(
@@ -341,6 +342,7 @@ def default_collector_hooks(
             mode=candidate.matrix_mode,
             build_server=build_server,
             memory_floor_percent=candidate.memory_floor_percent,
+            lifecycle_managed=True,
         )
 
     return ManagedCollectorHooks(

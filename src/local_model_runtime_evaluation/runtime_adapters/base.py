@@ -65,6 +65,7 @@ class RuntimeContext:
     ready_checks: int
     poll_seconds: float
     catalog_root: Path | None = None
+    omlx_base_root: Path | None = None
 
     @classmethod
     def for_test(
@@ -83,6 +84,7 @@ class RuntimeContext:
         ready_checks: int = 1,
         poll_seconds: float = 0.25,
         catalog_root: Path | None = None,
+        omlx_base_root: Path | None = None,
     ) -> RuntimeContext:
         return cls(
             log_dir=log_dir,
@@ -100,6 +102,7 @@ class RuntimeContext:
             ready_checks=ready_checks,
             poll_seconds=poll_seconds,
             catalog_root=catalog_root,
+            omlx_base_root=omlx_base_root,
         )
 
 

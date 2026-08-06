@@ -43,7 +43,8 @@ A malformed bundle never hides other valid runs.
   policy section renders a fixed allowlist of policy fields), run summary,
   per-step states with report availability, preserved attempt history
   (honest earlier failures and blocks stay visible), lifecycle ownership per
-  lease (`attached`/`owned`/`reclaimed` and `released`/`untouched`), and —
+  attempt-scoped lease (`attached`/`owned`/`reclaimed` and
+  `released`/`untouched`), and —
   for verified bundles only — each step's existing `report.md` rendered
   structurally.
 - Status labels pass through verbatim: `PASS`, `FAIL`, `N/A` (with its

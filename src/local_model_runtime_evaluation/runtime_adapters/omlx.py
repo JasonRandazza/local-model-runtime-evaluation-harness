@@ -62,6 +62,10 @@ class OmlxAdapter(LoopbackRuntimeAdapter):
             raise RuntimeAdapterError("oMLX host must be fixed loopback")
         if command[command.index("--port") + 1] != "8100":
             raise RuntimeAdapterError("oMLX port must be fixed")
+        if "--base-path" in command:
+            raise RuntimeAdapterError(
+                "oMLX base path is managed by the harness"
+            )
         if cell.stop_command:
             raise RuntimeAdapterError("oMLX stop command must be empty")
 
@@ -93,6 +97,8 @@ class OmlxAdapter(LoopbackRuntimeAdapter):
             raise RuntimeAdapterError(
                 "oMLX credential must not be stored in cell config"
             )
+        if context.omlx_base_root is None:
+            raise RuntimeAdapterError("oMLX managed base root is missing")
         credential = (
             Credential(MATRIX_OMLX_API_KEY)
             if context.credential is None
@@ -111,6 +117,8 @@ class OmlxAdapter(LoopbackRuntimeAdapter):
                 for part in command
             )
         return command + (
+            "--base-path",
+            str(context.omlx_base_root),
             "--api-key",
             credential.api_key(),
         )
@@ -122,8 +130,13 @@ class OmlxAdapter(LoopbackRuntimeAdapter):
     ) -> RuntimeLease:
         if context.catalog_root is None:
             raise RuntimeAdapterError("oMLX managed catalog root is missing")
+        if context.omlx_base_root is None:
+            raise RuntimeAdapterError("oMLX managed base root is missing")
+        if context.omlx_base_root.is_symlink():
+            raise RuntimeAdapterError("oMLX managed base root is a symlink")
         catalog: TemporaryOmlxCatalog | None = None
         try:
+            context.omlx_base_root.mkdir(parents=True, exist_ok=True)
             catalog = TemporaryOmlxCatalog.create(
                 context.catalog_root,
                 (
@@ -139,7 +152,12 @@ class OmlxAdapter(LoopbackRuntimeAdapter):
                 if context.credential is None
                 else context.credential
             )
-            command = command + ("--api-key", credential.api_key())
+            command = command + (
+                "--base-path",
+                str(context.omlx_base_root),
+                "--api-key",
+                credential.api_key(),
+            )
             process = self._spawner(
                 command,
                 context.log_dir / f"{requirement.cell_id}.log",

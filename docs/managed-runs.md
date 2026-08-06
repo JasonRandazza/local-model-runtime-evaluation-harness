@@ -196,13 +196,22 @@ Pressing `Ctrl+C` records a terminal `STOPPED` state and still attempts exact
 cleanup and evidence sealing. LMRE does not restore processes that were running
 before a run; the documented safe posture is to stop them before starting.
 
+Managed collectors do not independently stop runtimes or require attached
+ports to become free. Exact release and absence checks belong to the managed
+runtime lease. This prevents low-level matrix or overhead cleanup behavior from
+stopping an operator-owned process that the managed layer attached to.
+
 ## oMLX Catalogs and Credentials
 
 oMLX receives a per-run temporary catalog containing only the planned model.
 The catalog lives beneath the ignored run evidence, and is removed when the
-owned oMLX lease is released. The credential is injected in memory and redacted
-from lifecycle evidence. Persistent model-root catalogs are not part of the
-active workflow.
+owned oMLX lease is released. Managed starts also receive a fixed,
+attempt-specific `--base-path` beneath `.lmre/runtime-state/`. This isolates
+oMLX settings and logs from the user's normal oMLX base directory; it is
+required because current oMLX releases persist explicit non-secret serve
+settings. Recipes cannot override this path. The credential is injected in
+memory and redacted from lifecycle evidence. Persistent model-root catalogs
+are not part of the active workflow.
 
 Credentials stay in approved local stores. They must not be copied into policy,
 plan, configuration, logs, reports, or prompts.

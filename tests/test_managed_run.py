@@ -513,6 +513,46 @@ class ManagedRunTests(unittest.TestCase):
             180.0,
         )
 
+    def test_default_hooks_scope_managed_lifecycle_to_matrix_and_overhead(
+        self,
+    ) -> None:
+        manager = MagicMock()
+        build_server = MagicMock()
+        output = self.bundle.run_dir / "hook-output"
+        hooks = default_collector_hooks(self.plan, manager, self.bundle)
+        with (
+            patch(
+                "local_model_runtime_evaluation.managed_run.run_campaign",
+                return_value=output,
+            ) as matrix,
+            patch(
+                "local_model_runtime_evaluation.managed_run."
+                "run_preference_collect",
+                return_value=output,
+            ) as preference,
+            patch(
+                "local_model_runtime_evaluation.managed_run.run_review"
+            ),
+            patch(
+                "local_model_runtime_evaluation.managed_run.run_judge"
+            ),
+            patch(
+                "local_model_runtime_evaluation.managed_run.run_tally",
+                return_value=output,
+            ),
+            patch(
+                "local_model_runtime_evaluation.managed_run.run_overhead",
+                return_value=output,
+            ) as overhead,
+        ):
+            hooks.matrix(self.plan, output, build_server)
+            hooks.preference(self.plan, output, build_server)
+            hooks.overhead(self.plan, output, build_server)
+
+        self.assertTrue(matrix.call_args.kwargs["lifecycle_managed"])
+        self.assertNotIn("lifecycle_managed", preference.call_args.kwargs)
+        self.assertTrue(overhead.call_args.kwargs["lifecycle_managed"])
+
     def test_resume_runs_only_overhead_and_preserves_attempt_one(self) -> None:
         execute_managed_run(
             self.plan,

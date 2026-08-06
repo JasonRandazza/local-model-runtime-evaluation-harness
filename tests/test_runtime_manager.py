@@ -234,6 +234,36 @@ class RuntimeManagerTests(unittest.TestCase):
         self.assertEqual(adapter.released, [])
         self.assertEqual(lifecycle[-1][1], "untouched")
 
+    def test_repeated_attachment_gets_unique_acquisition_lease_ids(self) -> None:
+        existing = _identity()
+        lifecycle: list[tuple[str, str, dict[str, object]]] = []
+        adapter = FakeAdapter(
+            [
+                _observation(existing, compatible=True),
+                _observation(existing, compatible=True),
+            ]
+        )
+        manager = RuntimeManager({"omlx": adapter})
+        context = _context(lifecycle=lifecycle)
+
+        first = manager.prepare(_requirement(), context)
+        manager.release(first, context)
+        second = manager.prepare(_requirement(), context)
+        manager.release(second, context)
+
+        self.assertNotEqual(first.lease_id, second.lease_id)
+        acquired = [
+            payload["lease_id"]
+            for _, action, payload in lifecycle
+            if action == "lease_acquired"
+        ]
+        terminal = [
+            payload["lease_id"]
+            for _, action, payload in lifecycle
+            if action == "untouched"
+        ]
+        self.assertEqual(acquired, terminal)
+
     def test_user_shutdown_during_grace_starts_owned_replacement(self) -> None:
         old = _identity()
         new = _identity(pid=900)

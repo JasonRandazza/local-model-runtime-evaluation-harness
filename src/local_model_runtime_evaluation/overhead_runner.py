@@ -156,13 +156,15 @@ def _run_leg(
     check_port: PortFree,
     stop_runner: StopRunner,
     measure_credential_server: str,
+    lifecycle_managed: bool,
 ) -> CellResult:
     backend_port = _port_from_base_url(backend.base_url)
     memory_before = probe.free_memory_percent()
-    try:
-        _ensure_backend_port_ready(backend, check_port, stop_runner)
-    except OverheadError as error:
-        return _na_result(str(error), memory_before)
+    if not lifecycle_managed:
+        try:
+            _ensure_backend_port_ready(backend, check_port, stop_runner)
+        except OverheadError as error:
+            return _na_result(str(error), memory_before)
 
     backend_credential = resolve_credential(backend.server, resolve_credential_fn)
     handle = build(backend, transport, log_dir, backend_credential)
@@ -174,10 +176,11 @@ def _run_leg(
             handle.stop()
         except (ServerError, OSError, PermissionError):
             pass
-        try:
-            _verify_port_free(backend_port, check_port)
-        except OverheadError:
-            pass
+        if not lifecycle_managed:
+            try:
+                _verify_port_free(backend_port, check_port)
+            except OverheadError:
+                pass
         return _na_result(str(error), memory_before)
 
     measure_credential = resolve_credential(measure_credential_server, resolve_credential_fn)
@@ -188,10 +191,11 @@ def _run_leg(
         handle.stop()
     except (ServerError, OSError, PermissionError):
         pass
-    try:
-        _verify_port_free(backend_port, check_port)
-    except OverheadError as error:
-        return _na_result(str(error), memory_before)
+    if not lifecycle_managed:
+        try:
+            _verify_port_free(backend_port, check_port)
+        except OverheadError as error:
+            return _na_result(str(error), memory_before)
     return result
 
 
@@ -213,6 +217,7 @@ def run_overhead(
     credential_for: CredentialFor | None = None,
     ready_timeout_seconds: float = DEFAULT_READY_TIMEOUT_SECONDS,
     memory_floor_percent: int = DEFAULT_MEMORY_FLOOR_PERCENT,
+    lifecycle_managed: bool = False,
 ) -> Path:
     suite = MatrixSuite.load(suite_path)
     family_template = load_family(family_id)
@@ -299,6 +304,7 @@ def run_overhead(
                 check_port=check_port,
                 stop_runner=stop,
                 measure_credential_server=direct.server,
+                lifecycle_managed=lifecycle_managed,
             )
 
             memory_before = resource_probe.free_memory_percent()
@@ -357,6 +363,7 @@ def run_overhead(
                 check_port=check_port,
                 stop_runner=stop,
                 measure_credential_server="osaurus",
+                lifecycle_managed=lifecycle_managed,
             )
 
             pair_records.append({

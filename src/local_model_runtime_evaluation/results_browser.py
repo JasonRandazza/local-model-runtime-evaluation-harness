@@ -321,7 +321,7 @@ def _attempts_list(run_dir: Path) -> list:
 
 def _lifecycle_summary(run_dir: Path) -> dict:
     path = run_dir / "lifecycle.jsonl"
-    leases: dict[str, dict] = {}
+    leases: dict[tuple[int, str], dict] = {}
     unparsed = 0
     try:
         text = path.read_text(encoding="utf-8") if path.is_file() else ""
@@ -358,14 +358,20 @@ def _lifecycle_summary(run_dir: Path) -> dict:
             if not isinstance(lease_id, str) or not lease_id:
                 unparsed += 1
                 continue
+            attempt = entry.get("attempt")
+            if type(attempt) is not int or attempt < 1:
+                unparsed += 1
+                continue
+            lease_key = (attempt, lease_id)
             if action == "lease_acquired":
                 ownership = payload.get("ownership")
                 if not isinstance(ownership, str):
                     unparsed += 1
                     continue
                 lease = leases.setdefault(
-                    lease_id,
+                    lease_key,
                     {
+                        "attempt": attempt,
                         "runtime": runtime,
                         "lease_id": lease_id,
                         "ownership": ownership,
@@ -376,8 +382,9 @@ def _lifecycle_summary(run_dir: Path) -> dict:
                 lease["ownership"] = ownership
             else:
                 lease = leases.setdefault(
-                    lease_id,
+                    lease_key,
                     {
+                        "attempt": attempt,
                         "runtime": runtime,
                         "lease_id": lease_id,
                         "ownership": "unresolved",
@@ -386,7 +393,10 @@ def _lifecycle_summary(run_dir: Path) -> dict:
                 )
                 lease["terminal_action"] = action
     return {
-        "leases": sorted(leases.values(), key=lambda lease: lease["lease_id"]),
+        "leases": sorted(
+            leases.values(),
+            key=lambda lease: (lease["attempt"], lease["lease_id"]),
+        ),
         "unparsed_lines": unparsed,
     }
 

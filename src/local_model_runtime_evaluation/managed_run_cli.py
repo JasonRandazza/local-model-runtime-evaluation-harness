@@ -128,6 +128,8 @@ def _build_runtime_manager(
     plan,
     adopted: AdoptedPolicy,
     bundle: EvidenceBundle,
+    *,
+    state_dir: Path,
 ) -> RuntimeManager:
     inspector = ProcessInspector()
     transport = LoopbackTransport(set(plan.endpoints))
@@ -136,6 +138,13 @@ def _build_runtime_manager(
     catalog_attempt = state.attempt + 1 if state.sealed else state.attempt
     catalog_root = (
         bundle.run_dir / "runtime-catalogs" / f"attempt-{catalog_attempt:03d}"
+    )
+    omlx_base_root = (
+        state_dir
+        / "runtime-state"
+        / plan.identity.run_id
+        / f"attempt-{catalog_attempt:03d}"
+        / "omlx"
     )
     context = RuntimeContext(
         log_dir=log_dir,
@@ -151,6 +160,7 @@ def _build_runtime_manager(
         ready_checks=720,
         poll_seconds=0.25,
         catalog_root=catalog_root,
+        omlx_base_root=omlx_base_root,
     )
     return RuntimeManager(
         {
@@ -219,7 +229,12 @@ def _command_run(
         state = bundle.state
         if state.sealed or state.summary_state is not RunSummaryState.PENDING:
             raise RuntimeError("managed run is not an unstarted plan")
-        manager = _build_runtime_manager(bundle.plan, adopted, bundle)
+        manager = _build_runtime_manager(
+            bundle.plan,
+            adopted,
+            bundle,
+            state_dir=args.state_dir,
+        )
         hooks = default_collector_hooks(
             bundle.plan,
             manager,
@@ -245,7 +260,12 @@ def _command_resume(
     with _active_run_lock(args.state_dir, args.run_id):
         bundle = EvidenceBundle.load(run_dir)
         bundle.verify()
-        manager = _build_runtime_manager(bundle.plan, adopted, bundle)
+        manager = _build_runtime_manager(
+            bundle.plan,
+            adopted,
+            bundle,
+            state_dir=args.state_dir,
+        )
         hooks = default_collector_hooks(
             bundle.plan,
             manager,

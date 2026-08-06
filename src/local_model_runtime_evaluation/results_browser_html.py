@@ -249,10 +249,11 @@ def _lifecycle_section(lifecycle: dict) -> str:
     else:
         header = "".join(
             f'<th scope="col">{label}</th>'
-            for label in ("Runtime", "Ownership", "Terminal action")
+            for label in ("Attempt", "Runtime", "Ownership", "Terminal action")
         )
         rows = "".join(
             "<tr>"
+            f"<td>{_cell(lease['attempt'])}</td>"
             f"<td>{_cell(lease['runtime'])}</td>"
             f"<td>{_cell(lease['ownership'])}</td>"
             f"<td>{_cell(lease['terminal_action'])}</td>"

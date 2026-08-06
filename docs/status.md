@@ -88,8 +88,56 @@ every runtime, provider, credential, memory, and inference fact
   after a bounded identity reinspection window.
 - Each attempt sealed honestly as `FAIL`; no oMLX, preference, RAG, or overhead
   PASS is claimed. Post-run inspection found no matching listener or model
-  server process. Further live retries are paused pending a deterministic port
-  8100 identity trace.
+  server process.
+- Follow-up against installed oMLX `0.5.7` identified a release-compatibility
+  boundary introduced in oMLX `0.5.4`: explicit non-secret serve settings are
+  persisted. The prior managed command passed its temporary model catalog but
+  did not isolate oMLX's base directory, allowing a run-specific catalog path
+  to enter the user's normal oMLX settings. Managed starts now use a fixed,
+  attempt-specific base under `.lmre/runtime-state/`; recipes cannot override
+  it, credentials remain memory-only, and existing user settings are not
+  modified by the repair. Non-live verification is complete; live oMLX
+  acceptance remains required before this branch can be merged.
+- A fifth sealed attempt, `run-20260806-002938-b557ee`, proved that installed
+  oMLX `0.5.7` passed exact process identity, authentication, model inventory,
+  readiness, and matrix inference while attached as operator-owned. It then
+  failed after the oMLX lane because the retained matrix collector required
+  port 8100 to become free even after the managed runtime layer correctly
+  recorded the attached oMLX process as `untouched`. Managed matrix execution
+  now delegates release verification solely to the exact-ownership runtime
+  manager. Managed overhead execution likewise bypasses the legacy pre-start
+  `omlX stop` and port-free checks; low-level collector behavior is unchanged.
+  A new sealed end-to-end acceptance attempt remains required.
+- Attempt `run-20260806-003419-0c7c3e` sealed `FAIL` after its matrix step
+  passed because a managed-only lifecycle argument was wired to the preference
+  collector. That argument placement is corrected and covered by an
+  integration-level hook test.
+- Attempt `run-20260806-003703-52efe7` completed matrix, preference, RAG oracle,
+  and RAG keyword as `PASS`, including 9/9 successful, contract-valid oMLX
+  matrix observations. It reached the expected provider-reconnect boundary
+  because Osaurus did not expose the routed oMLX model. Final sealing then
+  failed closed because repeated attachments to the same app reused a
+  process-derived lease ID. The run remains truthfully `EXECUTED_UNSEALED`.
+  Runtime-manager lease IDs now include a unique acquisition sequence, with
+  matching evidence tests. A new run must prove sealed `PARTIAL_BLOCKED` or
+  `PASS`; the unsealed attempt will not be promoted.
+- Attempt `run-20260806-004836-920a93` is the sealed acceptance for this repair.
+  Preflight, matrix, preference, RAG oracle, RAG keyword, cleanup, and sealing
+  are `PASS`; oMLX produced 9/9 successful and contract-valid matrix
+  observations. The checksum manifest verifies in full, and the originally
+  attached Osaurus and oMLX PIDs remained unchanged. Attempt 1 sealed
+  `PARTIAL_BLOCKED` because Osaurus did not expose the routed oMLX model.
+  After the operator reconnected that provider, attempt 2 completed both
+  direct and routed overhead as `PASS` and the run sealed with terminal
+  `PASS`. Direct median total latency was about `1.769s`; routed was about
+  `1.910s` (`+0.140s`), with median TTFT about `0.682s` direct and `0.730s`
+  routed (`+0.048s`).
+- The first attempt-2 seal exposed that process-derived lease IDs can repeat
+  across resume attempts even though each attempt's acquire/terminal pairs are
+  complete. Evidence validation and browser summaries now scope lease IDs by
+  recorded attempt. The completed overhead evidence was reviewed, cleanup was
+  complete, both app identities were unchanged, and only the failed seal
+  operation was retried before the final checksum verification.
 
 ## Managed Live Acceptance (2026-07-31)
 

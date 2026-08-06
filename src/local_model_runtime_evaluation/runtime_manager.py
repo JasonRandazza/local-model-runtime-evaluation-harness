@@ -79,14 +79,21 @@ class RuntimeManager:
             str,
             tuple[RuntimeLease, RuntimeContext],
         ] = {}
+        self._lease_sequence = 0
 
     def _activate(
         self,
         lease: RuntimeLease,
         context: RuntimeContext,
     ) -> RuntimeLease:
-        self._active[lease.lease_id] = (lease, context)
-        return lease
+        self._lease_sequence += 1
+        activated = replace(
+            lease,
+            lease_id=f"{lease.lease_id}-{self._lease_sequence:04d}",
+        )
+        self._record_lease(activated, context)
+        self._active[activated.lease_id] = (activated, context)
+        return activated
 
     def _adapter(self, runtime: str) -> RuntimeAdapter:
         try:
@@ -187,7 +194,6 @@ class RuntimeManager:
                 pass
             raise
         verified = replace(verified, ownership=ownership)
-        self._record_lease(verified, context)
         return verified
 
     def _wait_absent(
@@ -283,7 +289,6 @@ class RuntimeManager:
                 )
             if observation.compatible:
                 lease = adapter.attach(requirement, observation)
-                self._record_lease(lease, context)
                 return self._activate(lease, context)
 
             original = observation.identity

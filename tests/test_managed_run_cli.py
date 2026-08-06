@@ -234,10 +234,23 @@ class ManagedRunCliTests(unittest.TestCase):
         bundle = EvidenceBundle.load(self.results_root / str(planned["run_id"]))
         adopted = load_adopted_policy(self.state_root)
 
-        first = _build_runtime_manager(bundle.plan, adopted, bundle)
+        first = _build_runtime_manager(
+            bundle.plan,
+            adopted,
+            bundle,
+            state_dir=self.state_root,
+        )
         self.assertEqual(
             first._context_template.catalog_root,
             bundle.run_dir / "runtime-catalogs" / "attempt-001",
+        )
+        self.assertEqual(
+            first._context_template.omlx_base_root,
+            self.state_root
+            / "runtime-state"
+            / bundle.plan.identity.run_id
+            / "attempt-001"
+            / "omlx",
         )
 
         for record in bundle.state.steps:
@@ -253,10 +266,23 @@ class ManagedRunCliTests(unittest.TestCase):
         bundle.write_summary({"status": "PARTIAL_BLOCKED"})
         bundle.seal()
 
-        second = _build_runtime_manager(bundle.plan, adopted, bundle)
+        second = _build_runtime_manager(
+            bundle.plan,
+            adopted,
+            bundle,
+            state_dir=self.state_root,
+        )
         self.assertEqual(
             second._context_template.catalog_root,
             bundle.run_dir / "runtime-catalogs" / "attempt-002",
+        )
+        self.assertEqual(
+            second._context_template.omlx_base_root,
+            self.state_root
+            / "runtime-state"
+            / bundle.plan.identity.run_id
+            / "attempt-002"
+            / "omlx",
         )
 
     def test_status_and_report_read_sealed_evidence(self) -> None:
