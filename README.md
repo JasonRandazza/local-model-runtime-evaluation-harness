@@ -33,7 +33,7 @@ See [docs/history.md](docs/history.md) for the historical lane summary and
 | --- | --- |
 | `./bin/lmre` | Normal managed policy, plan, run, resume, status, and report path |
 | `./bin/lmre-discover` | Discover ready native triples and execute one approved family |
-| `./bin/lmre-approach3` | Run explicit free-form recipes; live evidence remains unsealed |
+| `./bin/lmre-approach3` | Run explicit low-level recipes; output is collector evidence, not a managed seal |
 | `./bin/lmre-matrix` | Measure one family’s native control triple |
 | `./bin/lmre-preference` | Collect, review, judge, and tally pairwise preference |
 | `./bin/lmre-rag` | Run oracle or keyword RAG evaluation |

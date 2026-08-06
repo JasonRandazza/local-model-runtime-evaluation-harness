@@ -139,6 +139,28 @@ every runtime, provider, credential, memory, and inference fact
   complete, both app identities were unchanged, and only the failed seal
   operation was retried before the final checksum verification.
 
+## OptiQ and Approach 3 Evidence Closure (2026-08-05)
+
+- Managed run `run-20260806-012734-936521` used the reviewed two-cell binding
+  `gemma-osaurus-optiq-evidence-v1` and sealed terminal `PASS` on its first
+  attempt. Preflight, matrix, preference, both RAG modes, OptiQ overhead,
+  cleanup, and evidence verification all passed.
+- Direct and Osaurus-routed OptiQ each recorded 9/9 successful,
+  contract-valid measured observations. Median total latency was about
+  `1.988s` direct and `2.084s` routed (`+0.095s`); median TTFT was about
+  `0.284s` direct and `0.307s` routed (`+0.023s`). The attached Osaurus and
+  OptiQ process identities were recorded `untouched` and remained unchanged.
+- The four historical 2026-07-24 Approach 3 collector directories were
+  reviewed without modification. They contain complete collector-level
+  preference and RAG requests, direct oMLX `PASS`, routed oMLX `N/A`, and
+  direct/routed OptiQ `PASS`, but no immutable plan, policy linkage, lifecycle
+  journal, cleanup proof, input hashes, or execution-time checksum manifest.
+- The seal decision is `REVIEWED_UNSEALED`: retroactive sealing would invent
+  provenance, so the old directories remain excluded from product PASS and
+  the sealed-results browser. The exact three-cell managed acceptance plus
+  the sealed oMLX and OptiQ binding runs are the current product evidence.
+  See the [Approach 3 closure review](superpowers/verification/2026-08-05-approach3-evidence-closure-review.md).
+
 ## Managed Live Acceptance (2026-07-31)
 
 The managed path was accepted with a sealed local run:
@@ -171,7 +193,8 @@ and is intentionally not committed.
 | Multi-family preference and RAG | Closed for the accepted window | `superpowers/verification/2026-07-24-multi-family-quality-live-evidence.md` |
 | Personal selection policy | Operator decision | `superpowers/verification/2026-07-24-personal-selection-policy.md` |
 | Discovery Gemma execution | Sealed PASS | `superpowers/verification/2026-07-24-discovery-20260725-004-pass.md` |
-| Approach 3 Gemma collections | `EXECUTED_UNSEALED` | Historical run directories remain local; no product PASS claimed |
+| Managed OptiQ free-binding overhead | Sealed live acceptance `PASS` | `results/runs/run-20260806-012734-936521` (local, gitignored) |
+| Approach 3 Gemma collections | `REVIEWED_UNSEALED` | Historical collector directories reviewed; negative seal decision recorded, no product PASS claimed |
 
 ## Active Workflows
 
@@ -197,9 +220,11 @@ and is intentionally not committed.
 
 ## Open Risks
 
-- The OptiQ overhead pair remains unmeasured (`N/A`) in the accepted screen
-  attempt.
-- Approach 3 evidence still needs a separate review/seal decision.
+- The original three-cell managed acceptance still preserves its honest OptiQ
+  overhead `N/A`; the missing path is superseded by the separate sealed OptiQ
+  binding run rather than by rewriting that bundle.
+- Historical Approach 3 collector output remains permanently unsealed by
+  review decision; use the managed binding path for future sealable evidence.
 - Backend attach/reclaim behavior is powerful and requires an adopted policy
   authorizing the exact plan.
 - Resolved artifacts remain machine-local and may be missing even when the

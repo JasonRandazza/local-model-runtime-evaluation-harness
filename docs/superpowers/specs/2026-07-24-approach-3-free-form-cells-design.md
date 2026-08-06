@@ -45,3 +45,17 @@ baseline; operators may add explicitly reviewed recipes from retained cells.
 
 The active non-live baseline is `dry-config` plus the unit suite. Historical
 experiments and unsealed remap recipes are in the sibling archive.
+
+## Historical Evidence Closure (2026-08-05)
+
+The four 2026-07-24 Gemma collector directories were reviewed separately.
+Their request records are internally complete at the collector level, but the
+directories predate immutable plans, policy linkage, lifecycle journals,
+cleanup proof, input hashes, and execution-time checksum manifests. They are
+therefore classified `REVIEWED_UNSEALED` and will not be retroactively
+promoted to product `PASS`.
+
+The current sealed successor is managed free binding through `lmre plan
+--binding` and `lmre run|resume`. Sealed managed evidence now covers the exact
+native triple plus both oMLX and OptiQ direct-versus-Osaurus overhead paths.
+See the [closure review](../verification/2026-08-05-approach3-evidence-closure-review.md).
