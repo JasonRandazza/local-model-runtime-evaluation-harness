@@ -6,7 +6,7 @@
 > creation and reconnect remain UI-owned. Direct use of `lmre-overhead` must
 > itself be explicitly requested.
 
-Family-first measurement of the **Osaurus router tax** for screen-winning oQ4 and OptiQ-4bit pairs. For each pair, compare **direct native** (`:8100` or `:8080`) vs **the same model via Osaurus** (`http://127.0.0.1:1337/v1`). Each family runs **four legs** (two pairs × direct/routed); there is no JANG/MXFP overhead pair. Separate from `lmre-matrix` native control triple and `lmre-preference`; retired orchestration is preserved in the sibling archive.
+Family-first measurement of the **Osaurus router tax** for screen-winning oQ4 and OptiQ-4bit pairs. For each pair, compare **direct native** (`:8100` or `:8080`) vs **the same model via Osaurus** (`http://127.0.0.1:1337/v1`). Each family runs **four legs** (two pairs × direct/routed); there is no JANG/JANGTQ overhead pair. Separate from `lmre-matrix` native control triple and `lmre-preference`; retired orchestration is preserved in the sibling archive.
 
 **Related:** matrix campaign — see [matrix.md](matrix.md); preference POC — see [preference.md](preference.md); RAG oracle — see [rag.md](rag.md).
 
@@ -57,7 +57,7 @@ Qwen recipe (two pairs from screen PASS non-Osaurus winners): `qwen_oq4`, `qwen_
 - `config/overhead/pairs/qwen_oq4.json` — direct/backend `qwen_oq4__omlx`
 - `config/overhead/pairs/qwen_optiq_4bit.json` — direct/backend `qwen_optiq_4bit__optiq`
 
-MXFP (`qwen_mxfp4__osaurus`) has no overhead pair (Osaurus-native). A third pair (`qwen_optiq_4bit__omlx`) is out of scope.
+JANGTQ4 (`qwen_jangtq4__osaurus`) has no overhead pair (Osaurus-native). A third pair (`qwen_optiq_4bit__omlx`) is out of scope.
 
 ### Exact routed model ids
 

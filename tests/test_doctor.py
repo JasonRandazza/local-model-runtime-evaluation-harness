@@ -28,7 +28,7 @@ DOCTOR_SOURCE = REPO_ROOT / "src" / "local_model_runtime_evaluation" / "doctor.p
 _REAL_LOCAL_MODEL_DIRS = (
     "gemma-4-12B-it-qat-JANG_4M",
     "Ornith-1.0-35B-JANG_4M",
-    "Qwen3.6-35B-A3B-MXFP4-MTP",
+    "Qwen3.6-35B-A3B-JANGTQ4",
 )
 _REAL_HUGGINGFACE_DIRS = (
     "avneetsb/gemma-4-12B-it-qat-oQ4-fp16",

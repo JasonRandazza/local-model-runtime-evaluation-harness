@@ -74,7 +74,7 @@ class PreferenceCliTests(unittest.TestCase):
         self.assertEqual(
             payload["cells"],
             [
-                "qwen_mxfp4__osaurus",
+                "qwen_jangtq4__osaurus",
                 "qwen_oq4__omlx",
                 "qwen_optiq_4bit__optiq",
             ],

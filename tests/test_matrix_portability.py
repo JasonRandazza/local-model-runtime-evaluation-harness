@@ -40,7 +40,7 @@ class MatrixPortabilityTests(unittest.TestCase):
                 ),
             },
             "qwen36-35b-a3b": {
-                "qwen_mxfp4": ("local_models", "Qwen3.6-35B-A3B-MXFP4-MTP"),
+                "qwen_jangtq4": ("local_models", "Qwen3.6-35B-A3B-JANGTQ4"),
                 "qwen_oq4": (
                     "huggingface_hub",
                     "Jundot/Qwen3.6-35B-A3B-oQ4-mtp",

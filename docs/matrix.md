@@ -11,7 +11,7 @@ Each family runs exactly **three cells** — one per quant on its only capable n
 
 Campaigns are family-scoped. Each campaign JSON declares a `family_id` that loads an allowlist from `config/matrix/families/<family_id>.json`. Cells keep `quant__server` ids; Ornith and Qwen quants are prefixed so they do not collide with Gemma.
 
-Family quant entries require `"native_server"` (`osaurus`, `omlx`, or `optiq`). Optional `"role": "osaurus_native"` marks curated Osaurus library artifacts (JANG or MXFP); when set, `native_server` must be `"osaurus"`. `Cell.load` rejects cells whose server does not match the quant's `native_server`. Cross-server cell JSON is archived; campaigns schedule only the native triple.
+Family quant entries require `"native_server"` (`osaurus`, `omlx`, or `optiq`). Optional `"role": "osaurus_native"` marks curated Osaurus library artifacts (JANG/JANGTQ); when set, `native_server` must be `"osaurus"`. `Cell.load` rejects cells whose server does not match the quant's `native_server`. Cross-server cell JSON is archived; campaigns schedule only the native triple.
 
 | Campaign | Family | Command |
 | --- | --- | --- |
@@ -43,7 +43,7 @@ Routing overhead procedure: [overhead.md](overhead.md).
   `config/machine-profile.example.json`, then set its `local_models` and
   `huggingface_hub` values to absolute existing directories. Checked-in cells
   contain logical roots; resolved artifact paths must exist before live runs.
-  Osaurus-native builds (JANG or MXFP) belong below `local_models`; oQ4 and
+  Osaurus-native builds (JANG/JANGTQ) belong below `local_models`; oQ4 and
   OptiQ-4bit belong below `huggingface_hub` (flat hub paths or operator
   symlinks).
 - **Ornith / Qwen prep:** download and complete HF snapshots before live screen. Hub dirs may be refs-only (no `snapshots/`) until `huggingface-cli download` finishes; flat paths may need a local symlink. Dry-config lists missing paths in `artifact_missing`; live cells with missing weights become `N/A`.
@@ -158,7 +158,7 @@ Ornith subset:
 Qwen subset:
 
 ```bash
-./bin/lmre-matrix --mode screen --cells qwen_mxfp4__osaurus,qwen_optiq_4bit__optiq \
+./bin/lmre-matrix --mode screen --cells qwen_jangtq4__osaurus,qwen_optiq_4bit__optiq \
   --campaign config/matrix/qwen36-35b-a3b-campaign.json
 ```
 
@@ -201,7 +201,7 @@ Under `results/matrix/<campaign_id>-<mode>-<timestamp>/`:
 - Pinned start argv only; harness starts and stops only what each cell defines.
 - Verify port free before the next cell; stop on RAM floor breach.
 - Attempt listed campaign cells; `on_cell_failure: continue` keeps going after `N/A` or `FAIL`.
-  `osaurus_native` quants (JANG / MXFP) run only on Osaurus — not scheduled on oMLX/OptiQ.
+  `osaurus_native` quants (JANG/JANGTQ) run only on Osaurus — not scheduled on oMLX/OptiQ.
 - Direct low-level live campaigns require an explicit user request. A managed
   run instead follows its adopted policy and does not pause for separate
   per-collector approval.

@@ -108,8 +108,8 @@ class MatrixMetricsTest(unittest.TestCase):
             "suite_revision": "1",
             "cells": [
                 {
-                    "cell_id": "qwen_mxfp4__osaurus",
-                    "quant": "qwen_mxfp4",
+                    "cell_id": "qwen_jangtq4__osaurus",
+                    "quant": "qwen_jangtq4",
                     "server": "osaurus",
                     "status": "PASS",
                     "na_reason": None,
@@ -159,10 +159,10 @@ class MatrixMetricsTest(unittest.TestCase):
         }
         report = render_report(raw)
         self.assertIn("## Native triple results", report)
-        mxfp_at = report.index("| qwen_mxfp4 |")
+        jangtq_at = report.index("| qwen_jangtq4 |")
         oq4_at = report.index("| qwen_oq4 |")
         optiq_at = report.index("| qwen_optiq_4bit |")
-        self.assertLess(mxfp_at, oq4_at)
+        self.assertLess(jangtq_at, oq4_at)
         self.assertLess(oq4_at, optiq_at)
         self.assertNotIn("| jang_4m |", report)
 

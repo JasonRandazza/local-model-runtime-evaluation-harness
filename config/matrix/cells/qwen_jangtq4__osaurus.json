@@ -1,0 +1,12 @@
+{
+  "cell_id": "qwen_jangtq4__osaurus",
+  "quant": "qwen_jangtq4",
+  "server": "osaurus",
+  "base_url": "http://127.0.0.1:1337/v1",
+  "model_id": "qwen3.6-35b-a3b-jangtq4",
+  "artifact_path": "{LMRE_ROOT:local_models}/Qwen3.6-35B-A3B-JANGTQ4",
+  "start_command": ["osaurus", "serve", "--port", "1337", "--yes"],
+  "stop_command": ["osaurus", "stop"],
+  "health_path": "/health",
+  "notes": "Native Osaurus JANGTQ4 path. Promoted after bounded smoke and 9/9 candidate matrix admission; first chat may load the model."
+}
