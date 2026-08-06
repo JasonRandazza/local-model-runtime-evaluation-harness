@@ -15,6 +15,19 @@ omlx stop
 # Stop any foreground `optiq serve` with Ctrl+C.
 ```
 
+This is especially important for mixes of larger models. LMRE leaves an exact
+compatible process that it attaches to operator-owned and untouched. If that
+process later loads a model, the model may remain resident while a subsequent
+lane starts. Beginning with all three runtimes stopped lets LMRE own and
+release each configured lane between models, minimizing simultaneous residency.
+
+Osaurus may disconnect an existing oMLX provider when oMLX stops or restarts.
+The safe low-RAM workflow intentionally does not keep both applications alive
+just to preserve that route. Complete the native run from an idle start; if it
+seals `PARTIAL_BLOCKED`, start the exact planned oMLX backend, reconnect the
+existing provider in the Osaurus UI, and run `lmre resume <run-id>`. Resume
+retries overhead only and preserves the completed native evidence.
+
 Create the fixed local artifact-root profile once if it is not already
 present:
 
@@ -184,6 +197,9 @@ direct-versus-Osaurus pair records overhead `N/A` and does not cause route
 discovery. If a supported routed model is absent, the run seals
 `PARTIAL_BLOCKED`; reconnect only that existing provider in the Osaurus UI and
 use `lmre resume <run-id>` to retry overhead without repeating native evidence.
+For the checked-in Qwen/Ornith mix, an oMLX restart may require reconnecting the
+existing `omlx/Ornith-1.0-35B-MLX-oQ4` route before that resume. This is an
+Osaurus provider-lifecycle limitation, not proof that native collection failed.
 
 Inspection, artifact presence, a plan, or policy adoption still grants no live
 authority. The adapter is offline-verified; a real-model acceptance run is a
