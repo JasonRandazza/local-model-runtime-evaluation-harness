@@ -7,7 +7,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Mapping
 
 from .artifact_profile import ArtifactRoots
 from .credentials import Credential
@@ -135,7 +135,7 @@ def run_collect(
     cells_root: Path,
     results_root: Path,
     *,
-    family_id: str,
+    family_id: str | None,
     artifact_roots: ArtifactRoots,
     build_server: BuildServer | None = None,
     transport_factory: TransportFactory | None = None,
@@ -147,6 +147,10 @@ def run_collect(
     mode: str = "oracle",
     top_k: int = 2,
     require_native_server: bool = True,
+    resolved_cells: tuple[Cell, ...] | None = None,
+    family_ids_by_cell: Mapping[str, str] | None = None,
+    run_label: str | None = None,
+    collection_identity: Mapping[str, object] | None = None,
 ) -> Path:
     _validate_mode(mode)
     suite = RagSuite.load(suite_path)
@@ -156,21 +160,33 @@ def run_collect(
             f"corpus id mismatch: suite expects {suite.corpus_id!r}, "
             f"corpus has {corpus.corpus_id!r}"
         )
-    family_template = load_family(family_id)
-    family = family_template.resolve(artifact_roots)
-    loaded_cells = tuple(
-        Cell.load(
-            cells_root / f"{cell_id}.json",
-            family=family_template,
-            require_native_server=require_native_server,
-        ).resolve(artifact_roots)
-        for cell_id in cell_ids
-    )
-    for cell in loaded_cells:
-        cell.validate_for_family(
-            family,
-            require_native_server=require_native_server,
+    if resolved_cells is None:
+        if family_id is None:
+            raise RagError("family_id is required for family collection")
+        family_template = load_family(family_id)
+        family = family_template.resolve(artifact_roots)
+        loaded_cells = tuple(
+            Cell.load(
+                cells_root / f"{cell_id}.json",
+                family=family_template,
+                require_native_server=require_native_server,
+            ).resolve(artifact_roots)
+            for cell_id in cell_ids
         )
+        for cell in loaded_cells:
+            cell.validate_for_family(
+                family,
+                require_native_server=require_native_server,
+            )
+    else:
+        loaded_cells = resolved_cells
+        if tuple(cell.cell_id for cell in loaded_cells) != cell_ids:
+            raise RagError("resolved cell order does not match cell_ids")
+    label = run_label or family_id
+    if label is None:
+        raise RagError("collection run label is missing")
+    if family_ids_by_cell is not None and set(family_ids_by_cell) != set(cell_ids):
+        raise RagError("collection member families are incomplete")
     resource_probe = probe if probe is not None else HostResourceProbe()
     resolve_credential_fn = credential_for or resolve_credential
     build = build_server or (
@@ -182,7 +198,7 @@ def run_collect(
         lambda base_urls, timeout: LoopbackTransport(base_urls, timeout_seconds=timeout)
     )
 
-    run_dir = results_root / f"{family_id}-rag-{_stamp()}"
+    run_dir = results_root / f"{label}-rag-{_stamp()}"
     run_dir.mkdir(parents=True, exist_ok=False)
     answers_dir = run_dir / "answers"
     answers_dir.mkdir(parents=True, exist_ok=True)
@@ -215,6 +231,8 @@ def run_collect(
         }
         if mode == "keyword":
             raw["top_k"] = top_k
+        if collection_identity is not None:
+            raw["collection_identity"] = dict(collection_identity)
         (run_dir / "raw.json").write_text(
             json.dumps(raw, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
@@ -252,6 +270,11 @@ def run_collect(
                     cell.model_id,
                     [],
                     error=str(error),
+                    family_id=(
+                        None
+                        if family_ids_by_cell is None
+                        else family_ids_by_cell[cell.cell_id]
+                    ),
                 )
                 _persist_raw()
                 continue
@@ -261,6 +284,11 @@ def run_collect(
                 cell.cell_id,
                 cell.model_id,
                 records,
+                family_id=(
+                    None
+                    if family_ids_by_cell is None
+                    else family_ids_by_cell[cell.cell_id]
+                ),
             )
             _persist_raw()
     finally:

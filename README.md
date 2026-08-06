@@ -129,6 +129,8 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 These checks must not contact Osaurus, oMLX, OptiQ, Keychain, or a real model.
 They read the local machine profile and report missing artifacts without
 starting services.
-Open-mix inspection and planning are implemented as non-live surfaces; `run`
-and `resume` reject open-mix plans until the separately reviewed live adapter
-slice is implemented.
+Open-mix inspection and planning remain non-live. The managed execution adapter
+can run an explicitly authorized immutable open-mix plan sequentially, records
+family-qualified evidence, and preserves unsupported member-local overhead as
+`N/A`. This implementation has offline test coverage; real-model acceptance is
+a separate explicitly authorized slice.

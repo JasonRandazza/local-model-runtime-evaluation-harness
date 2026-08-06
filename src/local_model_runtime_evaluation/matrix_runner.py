@@ -8,7 +8,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from .artifact_profile import (
     DEFAULT_MACHINE_PROFILE_PATH,
@@ -105,30 +105,45 @@ def _format_metric_cell(
 
 
 def _metric_table(
-    by_key: dict[tuple[str, str], dict[str, Any]],
+    by_key: dict[str, dict[str, Any]],
     *,
     title: str,
     key: str,
     kind: str,
     cells: Sequence[dict[str, Any]],
 ) -> list[str]:
+    qualified = any(item.get("family_id") for item in cells)
     lines = [
         f"### {title}",
         "",
-        "| quant | native server | value |",
-        "|---|---|---|",
+        (
+            "| family | quant | native server | value |"
+            if qualified
+            else "| quant | native server | value |"
+        ),
+        "|---|---|---|---|" if qualified else "|---|---|---|",
     ]
     for item in cells:
         quant = item["quant"]
         server = item["server"]
-        value = _format_metric_cell(by_key.get((quant, server)), key=key, kind=kind)
-        lines.append(f"| {quant} | {server} | {value} |")
+        value = _format_metric_cell(by_key.get(item["cell_id"]), key=key, kind=kind)
+        if qualified:
+            lines.append(
+                f"| {item.get('family_id', '—')} | {quant} | {server} | {value} |"
+            )
+        else:
+            lines.append(f"| {quant} | {server} | {value} |")
     lines.append("")
     return lines
 
 
-def _cell_json(cell: Cell, result: CellResult) -> dict[str, Any]:
-    return {
+def _cell_json(
+    cell: Cell,
+    result: CellResult,
+    *,
+    family_id: str | None = None,
+) -> dict[str, Any]:
+    body = {
         "cell_id": cell.cell_id,
         "quant": cell.quant,
         "server": cell.server,
@@ -139,6 +154,9 @@ def _cell_json(cell: Cell, result: CellResult) -> dict[str, Any]:
         "memory_free_percent_after": result.memory_free_percent_after,
         "observations": [item.as_json() for item in result.observations],
     }
+    if family_id is not None:
+        body["family_id"] = family_id
+    return body
 
 
 def _na_result(reason: str, memory_before: int | None) -> CellResult:
@@ -166,7 +184,8 @@ def _na_result(reason: str, memory_before: int | None) -> CellResult:
 
 def render_report(raw: dict[str, Any]) -> str:
     cells = list(raw["cells"])
-    by_key = {(item["quant"], item["server"]): item for item in cells}
+    by_key = {item["cell_id"]: item for item in cells}
+    qualified = any(item.get("family_id") for item in cells)
     lines = [
         f"# Matrix campaign {raw['campaign_id']}",
         "",
@@ -175,12 +194,18 @@ def render_report(raw: dict[str, Any]) -> str:
         "",
         "## Native triple results",
         "",
-        "| quant | native server | result |",
-        "|---|---|---|",
+        (
+            "| family | quant | native server | result |"
+            if qualified
+            else "| quant | native server | result |"
+        ),
+        "|---|---|---|---|" if qualified else "|---|---|---|",
     ]
     for item in cells:
+        family = f"{item.get('family_id', '—')} | " if qualified else ""
         lines.append(
-            f"| {item['quant']} | {item['server']} | {_format_status_cell(item)} |"
+            f"| {family}{item['quant']} | {item['server']} | "
+            f"{_format_status_cell(item)} |"
         )
     if raw.get("stopped_early"):
         lines.extend(["", f"Campaign stopped early: `{raw.get('stop_reason')}`"])
@@ -246,6 +271,8 @@ def run_campaign(
     port_free: PortFree | None = None,
     credential_for: CredentialFor | None = None,
     lifecycle_managed: bool = False,
+    family_ids_by_cell: Mapping[str, str] | None = None,
+    collection_identity: Mapping[str, object] | None = None,
 ) -> Path:
     if mode not in MODES:
         raise MatrixRunnerError(f"unknown mode {mode!r}")
@@ -255,6 +282,10 @@ def run_campaign(
     if cell_filter is not None:
         allowed = set(cell_filter)
         loaded_cells = tuple(cell for cell in loaded_cells if cell.cell_id in allowed)
+    if family_ids_by_cell is not None and not {
+        cell.cell_id for cell in loaded_cells
+    }.issubset(family_ids_by_cell):
+        raise MatrixRunnerError("collection member families are incomplete")
 
     resource_probe = probe if probe is not None else HostResourceProbe()
     check_port = port_free or port_is_free
@@ -298,6 +329,8 @@ def run_campaign(
             "stop_reason": stop_reason,
             "cells": records,
         }
+        if collection_identity is not None:
+            raw["collection_identity"] = dict(collection_identity)
         (run_dir / "raw.json").write_text(
             json.dumps(raw, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
@@ -324,7 +357,17 @@ def run_campaign(
                 handle.start()
                 handle.wait_ready(cell.model_id, campaign.ready_timeout_seconds)
             except ServerError as error:
-                records.append(_cell_json(cell, _na_result(str(error), memory_before)))
+                records.append(
+                    _cell_json(
+                        cell,
+                        _na_result(str(error), memory_before),
+                        family_id=(
+                            None
+                            if family_ids_by_cell is None
+                            else family_ids_by_cell.get(cell.cell_id)
+                        ),
+                    )
+                )
                 try:
                     handle.stop()
                 except (ServerError, OSError, PermissionError):
@@ -340,7 +383,17 @@ def run_campaign(
                 continue
 
             result = measure(cell, suite, mode, transport, resource_probe, cancel, credential)
-            records.append(_cell_json(cell, result))
+            records.append(
+                _cell_json(
+                    cell,
+                    result,
+                    family_id=(
+                        None
+                        if family_ids_by_cell is None
+                        else family_ids_by_cell.get(cell.cell_id)
+                    ),
+                )
+            )
             try:
                 handle.stop()
             except (ServerError, OSError, PermissionError):

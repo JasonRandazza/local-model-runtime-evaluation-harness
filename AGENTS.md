@@ -11,7 +11,7 @@ The active project contains:
 
 - managed policy/plan/run/resume/status/report
 - managed free-bind proposal/show/validate/adopt/plan/run/resume/seal
-- heterogeneous open-mix inspect and immutable non-live planning
+- heterogeneous open-mix inspect/plan/run/resume/seal
 - Discovery proposal/show/execute
 - Approach 3 explicit recipes
 - native-diagonal matrix measurement
@@ -49,8 +49,10 @@ instructions are not active commands.
   external plugin.
 - Never infer live authority from historical manifests, evidence, or prior
   sessions.
-- Open-mix plans are non-live in the current product. `run` and `resume` must
-  fail closed before constructing a runtime manager.
+- Open-mix execution must preserve definition order, one configured member
+  lane at a time, family-qualified evidence, and honest `N/A` for unsupported
+  member-local overhead. Inspection and planning remain non-live and grant no
+  execution authority.
 
 ## Credentials and Evidence
 

@@ -17,7 +17,7 @@ inference. An offline `lmre doctor` command reports static local readiness
 every runtime, provider, credential, memory, and inference fact
 `NOT_CHECKED_LIVE`; it grants no live authority.
 
-## Heterogeneous Open-Mix Contract (Non-Live, 2026-08-05)
+## Heterogeneous Open-Mix Managed Execution (Offline-Verified, 2026-08-05)
 
 - `lmre open-mix inspect <id>` strictly validates a checked-in ordered set of
   two to six native cells from at least two families, one shared suite
@@ -30,11 +30,20 @@ every runtime, provider, credential, memory, and inference fact
   identity as exact comparability dimensions and derives no winner or score.
 - The checked-in `qwen-ornith-capability-v1` inspection reports its two local
   artifacts as present and labels all live facts `NOT_CHECKED_LIVE`.
-- Live scheduling is deliberately deferred. `run` and `resume` reject an
-  open-mix plan before runtime-manager construction, so this slice creates no
-  runtime, provider, credential, process, or inference authority.
-- Verification: 543 retained tests passed, all six established dry-config
-  commands passed, and the seventh checked-in open-mix inspection returned
+- `run` now materializes the exact ordered members through the existing
+  single-lane runtime manager and retained collectors. Collector artifacts
+  preserve family-qualified identity, member-family campaign inputs are bound
+  by plan hash, and unsupported overhead is explicit `N/A` without route
+  discovery.
+- A supported missing Osaurus route seals `PARTIAL_BLOCKED`; `resume` verifies
+  the original bundle and retries overhead only after the operator reconnects
+  the existing provider.
+- The adapter is verified with fakes and configuration reads only. No runtime,
+  provider, credential, process, model, or inference was contacted in this
+  implementation slice. A real-model acceptance run remains separately
+  authorized.
+- Verification: 546 retained tests passed, all six established dry-config
+  commands passed, and the checked-in open-mix inspection returned
   `READY_FOR_PLAN` with both artifacts present and `NOT_CHECKED_LIVE`.
 
 ## Controlled Expansion Contract (Non-Live, 2026-08-05)
@@ -237,7 +246,8 @@ and is intentionally not committed.
   ([free-bind contract](superpowers/specs/2026-08-05-managed-free-bind-declarations.md))
 - managed free-bind planning, execution, resume, and sealing
   ([execution contract](superpowers/specs/2026-08-05-managed-free-bind-execution.md))
-- heterogeneous open-mix inspection and immutable non-live planning
+- heterogeneous open-mix inspection, immutable planning, sequential managed
+  execution, overhead-only resume, and sealing
   ([open-mix contract](superpowers/specs/2026-08-05-heterogeneous-open-mix-contract.md))
 
 ## Open Risks
@@ -260,8 +270,9 @@ and is intentionally not committed.
   class currently declares the existing Gemma native baseline. No additional
   model build is claimed available or validated yet.
 - Managed free-bind execution remains same-family and native-server-only.
-  Open-mix inspection and planning are implemented; heterogeneous live
-  scheduling and collection remain deferred behind a separate review gate.
+  Heterogeneous open-mix scheduling and collection are implemented and
+  offline-verified; real-model acceptance remains behind explicit live
+  authorization and the exact adopted-plan policy gate.
 
 ## Machine State
 

@@ -1,8 +1,11 @@
 # Heterogeneous Open-Mix Contract Implementation Plan (2026-08-05)
 
-**Status:** Non-live slice implemented and verified; publication in progress.
-**Scope:** Non-live implementation only. No runtime contact, credentials,
-provider changes, process actions, model loading, or real evidence creation.
+**Status:** Managed execution adapter implemented and offline-verified; live
+acceptance pending.
+**Scope:** Contract, immutable identity, sequential execution adapter, resume,
+evidence, and documentation. No runtime contact, credentials, provider changes,
+process actions, model loading, or real evidence creation occurred during the
+adapter implementation.
 
 ## Objective
 
@@ -42,7 +45,7 @@ binding paths.
 - Calculate request and duration ceilings conservatively across all members and
   route the exact immutable plan through the existing policy evaluator.
 
-### 4. Managed execution adapter — deferred live slice
+### 4. Managed execution adapter — complete, offline-verified
 
 - Materialize per-member campaigns in definition order without editing
   checked-in configuration.
@@ -72,19 +75,24 @@ binding paths.
 - Run `git diff --check`, verify Graphify refresh, and reconcile `README.md`,
   architecture, managed-run, browser, status, and durable Deep Wiki status.
 
+Verification completed with 546 retained tests, all six established dry-config
+commands, and the checked-in open-mix inspection. The inspection reported both
+artifacts present and `NOT_CHECKED_LIVE`; no real service or model was
+contacted.
+
 ## Review gates
 
 1. Approve the comparison semantics before implementation: capability evidence,
    member-local performance metrics, and no automatic overall winner.
 2. Approve the schema and CLI boundary before adding code.
-3. Review the non-live implementation and tests before any live proposal.
+3. Review the managed adapter and offline tests before any live proposal.
 4. Require a separate explicit authorization and adopted exact-plan policy for
-   live acceptance.
+   live acceptance; do not infer it from implementation or prior runs.
 
 ## Manual preparation
 
-None for contract review or non-live implementation. Osaurus, oMLX, and OptiQ
-may remain shut down. Before a later live acceptance, the operator will need to
-confirm which checked-in members are locally available and reconnect only the
-required Osaurus providers through the UI; that preparation is intentionally
-deferred until an exact immutable plan exists.
+None for offline implementation verification. Osaurus, oMLX, and OptiQ may
+remain shut down. Before live acceptance, the operator must confirm the
+checked-in member artifacts and reconnect only the exact required Osaurus
+providers through the UI. The harness will report a missing supported route as
+`PARTIAL_BLOCKED` and preserve already completed native evidence.

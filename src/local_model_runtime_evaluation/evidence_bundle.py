@@ -43,6 +43,7 @@ ALLOWED_STEP_TRANSITIONS = {
         StepState.BLOCKED_PROVIDER_RECONNECT,
         StepState.STOPPED,
         StepState.INCOMPARABLE,
+        StepState.NOT_APPLICABLE,
     },
     StepState.BLOCKED_PROVIDER_RECONNECT: {
         StepState.RUNNING,
@@ -51,6 +52,7 @@ ALLOWED_STEP_TRANSITIONS = {
     StepState.FAIL: set(),
     StepState.STOPPED: set(),
     StepState.INCOMPARABLE: set(),
+    StepState.NOT_APPLICABLE: set(),
 }
 
 

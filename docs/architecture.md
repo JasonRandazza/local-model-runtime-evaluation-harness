@@ -81,11 +81,14 @@ Checked-in open mixes provide a separate heterogeneous identity. Each strict
 definition binds two to six ordered native cells from at least two families to
 one shared suite contract. `lmre open-mix inspect <id>` validates configuration
 and approved-root artifact presence without runtime contact. Plan schema
-`1.3.0` binds the definition, ordered members, suite contract, executable
-inputs, request ceiling, and policy dimensions while preserving the serialized
-shape and hash behavior of schemas `1.0.0` through `1.2.0`. Live execution is
-not yet an active product surface: open-mix `run` and `resume` fail closed
-before constructing the runtime manager.
+`1.3.0` binds the definition, ordered members, suite contract, member-family
+campaigns, executable inputs, request ceiling, and policy dimensions while
+preserving the serialized shape and hash behavior of schemas `1.0.0` through
+`1.2.0`. The managed adapter materializes those members in definition order,
+reuses the single-lane runtime manager and collectors, qualifies collector
+evidence by family, and permits only overhead-only resume after an
+operator-owned provider reconnect. Members without a reviewed overhead pair
+record `N/A`; they do not trigger route discovery.
 
 Committed family, cell, and overhead configuration uses logical
 `{LMRE_ROOT:...}` and `{artifact_path}` templates. Resolution happens only at

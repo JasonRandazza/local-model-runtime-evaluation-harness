@@ -149,7 +149,7 @@ sealing then apply unchanged. See the
 [declaration contract](superpowers/specs/2026-08-05-managed-free-bind-declarations.md)
 and [execution contract](superpowers/specs/2026-08-05-managed-free-bind-execution.md).
 
-### Heterogeneous open mixes (non-live)
+### Heterogeneous open mixes
 
 A checked-in open mix can bind an ordered set of native cells from multiple
 families to one shared capability suite:
@@ -169,10 +169,25 @@ machine profile, then writes schema `1.3.0`. `--open-mix` is mutually exclusive
 with family, comparison-class, and binding selection. Existing plan schemas
 remain readable and hash-verifiable without rewriting.
 
-This slice intentionally stops at reviewable planning. `lmre run` and
-`lmre resume` refuse open-mix plans before runtime-manager construction. Do not
-treat inspection, artifact presence, a plan, or policy adoption as live
-authority. See the
+After the user explicitly requests live execution, the same managed commands
+run the exact immutable open-mix plan:
+
+```bash
+./bin/lmre run <run-id>
+./bin/lmre status <run-id>
+```
+
+Members execute in definition order with one configured model/server lane at a
+time. Matrix, preference, RAG, and overhead output preserves each member's
+family and cell identity. A member without an existing reviewed
+direct-versus-Osaurus pair records overhead `N/A` and does not cause route
+discovery. If a supported routed model is absent, the run seals
+`PARTIAL_BLOCKED`; reconnect only that existing provider in the Osaurus UI and
+use `lmre resume <run-id>` to retry overhead without repeating native evidence.
+
+Inspection, artifact presence, a plan, or policy adoption still grants no live
+authority. The adapter is offline-verified; a real-model acceptance run is a
+separately authorized operation. See the
 [open-mix contract](superpowers/specs/2026-08-05-heterogeneous-open-mix-contract.md).
 
 Only one managed `run` or `resume` may hold `.lmre/active-run.lock` at a time.

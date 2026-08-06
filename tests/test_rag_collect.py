@@ -378,6 +378,11 @@ class RunCollectTests(unittest.TestCase):
                 ready_timeout=1.0,
                 request_timeout=5.0,
                 memory_floor_percent=20,
+                family_ids_by_cell={
+                    "jang_4m__osaurus": "gemma-4-12b-qat",
+                    "oq4_fp16__omlx": "gemma-4-12b-qat",
+                },
+                collection_identity={"comparison_scope": "open_mix"},
             )
 
             self.assertTrue(run_dir.name.startswith("gemma-4-12b-qat-rag-"))
@@ -387,14 +392,19 @@ class RunCollectTests(unittest.TestCase):
             self.assertEqual(raw["corpus_id"], suite.corpus_id)
             self.assertEqual(raw["cell_ids"], ["jang_4m__osaurus", "oq4_fp16__omlx"])
             self.assertIn("started_at", raw)
+            self.assertEqual(
+                raw["collection_identity"]["comparison_scope"], "open_mix"
+            )
 
             failed = json.loads((run_dir / "answers" / "jang_4m__osaurus.json").read_text())
             self.assertEqual(failed["answers"], [])
             self.assertEqual(failed["error"], "unloadable")
+            self.assertEqual(failed["family_id"], "gemma-4-12b-qat")
 
             ok = json.loads((run_dir / "answers" / "oq4_fp16__omlx.json").read_text())
             self.assertEqual(len(ok["answers"]), 6)
             self.assertTrue(all(item["success"] for item in ok["answers"]))
+            self.assertEqual(ok["family_id"], "gemma-4-12b-qat")
 
     def test_run_collect_keyword_raw_includes_mode_and_top_k(self) -> None:
         cell = _cell()
