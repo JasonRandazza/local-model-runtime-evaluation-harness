@@ -77,6 +77,8 @@ def _campaign_for_plan(
     plan: ManagedRunPlan,
     artifact_roots: ArtifactRoots,
 ) -> Campaign:
+    if plan.comparison_scope == "open_mix":
+        raise RuntimeError("open-mix live campaign materialization is not implemented")
     baseline = Campaign.load(_repo_path(plan.campaign_path))
     baseline_ids = tuple(cell.cell_id for cell in baseline.cells)
     if baseline_ids != plan.baseline_cell_ids:
@@ -144,6 +146,9 @@ def default_collector_hooks(
     machine_profile_path: Path = DEFAULT_MACHINE_PROFILE_PATH,
 ) -> ManagedCollectorHooks:
     """Bind the retained collectors to one immutable managed plan."""
+
+    if plan.comparison_scope == "open_mix":
+        raise RuntimeError("open-mix live collectors are not implemented")
 
     artifact_roots = load_artifact_roots(machine_profile_path)
     campaign = _campaign_for_plan(plan, artifact_roots)
@@ -471,6 +476,9 @@ def execute_managed_run(
 ) -> dict[str, object]:
     """Execute an immutable managed plan and seal all terminal evidence."""
 
+    if plan.comparison_scope == "open_mix":
+        raise RuntimeError("open-mix live execution is not implemented")
+
     current: ManagedStep | None = None
     terminal = RunSummaryState.FAIL
     failure: BaseException | None = None
@@ -633,6 +641,8 @@ def resume_managed_run(
     try:
         bundle = EvidenceBundle.load(run_dir)
         bundle.verify()
+        if bundle.plan.comparison_scope == "open_mix":
+            raise RuntimeError("open-mix live resume is not implemented")
         state = bundle.state
         if not resume_is_allowed(state):
             raise RuntimeError("only a sealed overhead-only retry may resume")

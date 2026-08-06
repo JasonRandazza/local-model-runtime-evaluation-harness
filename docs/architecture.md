@@ -25,6 +25,7 @@ ownership of the local active-run lock.
 | `comparison_class.py` | Checked-in same-family expansion declarations that preserve the native baseline |
 | `comparison_class_inspect.py` | Read-only class, candidate-cell, and approved-artifact readiness inspection |
 | `free_bind.py` | Immutable offline proposals, validation, and non-authorizing local adoption for ordered same-family cells |
+| `open_mix.py` / `open_mix_inspect.py` | Strict checked-in heterogeneous comparison identity, shared-suite validation, and static artifact readiness |
 | `runtime_adapters/` / `runtime_manager.py` | Exact attach/start/reclaim/release ownership |
 | `managed_run.py` / `managed_run_cli.py` | Fixed collector order, blocking, resume, JSON CLI |
 | `evidence_bundle.py` | Atomic state, lifecycle journal, attempts, checksums, sealing |
@@ -75,6 +76,16 @@ current adopted record, revalidates its provenance and artifacts, and persists
 the binding identity and hashes in plan schema `1.2.0`. Execution materializes
 the selected checked-in cells in their declared order and reuses the existing
 runtime manager, collectors, resume behavior, and evidence seal.
+
+Checked-in open mixes provide a separate heterogeneous identity. Each strict
+definition binds two to six ordered native cells from at least two families to
+one shared suite contract. `lmre open-mix inspect <id>` validates configuration
+and approved-root artifact presence without runtime contact. Plan schema
+`1.3.0` binds the definition, ordered members, suite contract, executable
+inputs, request ceiling, and policy dimensions while preserving the serialized
+shape and hash behavior of schemas `1.0.0` through `1.2.0`. Live execution is
+not yet an active product surface: open-mix `run` and `resume` fail closed
+before constructing the runtime manager.
 
 Committed family, cell, and overhead configuration uses logical
 `{LMRE_ROOT:...}` and `{artifact_path}` templates. Resolution happens only at

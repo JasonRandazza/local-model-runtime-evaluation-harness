@@ -149,6 +149,32 @@ sealing then apply unchanged. See the
 [declaration contract](superpowers/specs/2026-08-05-managed-free-bind-declarations.md)
 and [execution contract](superpowers/specs/2026-08-05-managed-free-bind-execution.md).
 
+### Heterogeneous open mixes (non-live)
+
+A checked-in open mix can bind an ordered set of native cells from multiple
+families to one shared capability suite:
+
+```bash
+./bin/lmre open-mix inspect qwen-ornith-capability-v1
+./bin/lmre plan \
+  --open-mix qwen-ornith-capability-v1 \
+  --recipe config/managed-runs/complete-native-quality-v1.json \
+  --name qwen-ornith-capability-review
+```
+
+Inspection is static and reports `NOT_CHECKED_LIVE`. Planning requires every
+approved artifact directory, hashes the open-mix definition, ordered members,
+suite contract, suites, corpus, cells, families, pairs, recipe, policy, and
+machine profile, then writes schema `1.3.0`. `--open-mix` is mutually exclusive
+with family, comparison-class, and binding selection. Existing plan schemas
+remain readable and hash-verifiable without rewriting.
+
+This slice intentionally stops at reviewable planning. `lmre run` and
+`lmre resume` refuse open-mix plans before runtime-manager construction. Do not
+treat inspection, artifact presence, a plan, or policy adoption as live
+authority. See the
+[open-mix contract](superpowers/specs/2026-08-05-heterogeneous-open-mix-contract.md).
+
 Only one managed `run` or `resume` may hold `.lmre/active-run.lock` at a time.
 If a host crash leaves that file behind, first verify that its recorded PID is
 no longer active before removing the stale lock.

@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0.0",
+  "suite_contract_id": "shared-capability-v1",
+  "revision": "1",
+  "matrix_suite_path": "suites/gemma-matrix-v1.json",
+  "preference_suite_path": "suites/multi-family-preference-v1.json",
+  "rag_suite_path": "suites/multi-family-rag-oracle-v1.json",
+  "rag_corpus_path": "corpora/rag-oracle-v1",
+  "notes": "Shared deterministic capability and workload inputs for reviewed heterogeneous members."
+}

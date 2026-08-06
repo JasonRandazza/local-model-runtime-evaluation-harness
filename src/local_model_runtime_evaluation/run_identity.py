@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import secrets
 from dataclasses import replace
@@ -18,9 +19,17 @@ from .comparison_class import (
 from .free_bind import FreeBindError, validate_adopted_binding
 from .managed_run_types import (
     MANAGED_PLAN_SCHEMA_VERSION,
+    OPEN_MIX_PLAN_SCHEMA_VERSION,
     ManagedRunPlan,
     ManagedStep,
     RunIdentity,
+)
+from .open_mix import (
+    DEFAULT_OPEN_MIXES_ROOT,
+    DEFAULT_SUITE_CONTRACTS_ROOT,
+    OpenMix,
+    OpenMixError,
+    load_open_mix,
 )
 from .matrix_config import (
     REPOSITORY_ROOT,
@@ -165,8 +174,17 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _hash_inputs(paths: set[Path]) -> tuple[tuple[str, str], ...]:
-    return tuple(sorted((_repo_relative(path), _sha256(path)) for path in paths))
+def _hash_inputs(
+    paths: set[Path],
+    *,
+    repository_root: Path = REPOSITORY_ROOT,
+) -> tuple[tuple[str, str], ...]:
+    return tuple(
+        sorted(
+            (_repo_relative(path, repository_root=repository_root), _sha256(path))
+            for path in paths
+        )
+    )
 
 
 def verify_plan_hash(plan: ManagedRunPlan) -> None:
@@ -195,9 +213,13 @@ def verify_plan_inputs(
             )
 
 
-def _repo_relative(path: Path) -> str:
+def _repo_relative(
+    path: Path,
+    *,
+    repository_root: Path = REPOSITORY_ROOT,
+) -> str:
     try:
-        return path.resolve().relative_to(REPOSITORY_ROOT.resolve()).as_posix()
+        return path.resolve().relative_to(repository_root.resolve()).as_posix()
     except ValueError as error:
         raise RunIdentityError(
             f"managed plan path is outside repository: {path}"
@@ -310,22 +332,254 @@ def _scaled_estimated_minutes(
     ) // baseline_requests
 
 
+def _open_mix_pairs(
+    mix: OpenMix,
+    *,
+    family_pairs_path: Path,
+    pairs_root: Path,
+) -> tuple[str, ...]:
+    try:
+        recipes = load_family_pair_recipes(family_pairs_path)
+    except (OverheadError, OSError) as error:
+        raise RunIdentityError("open mix overhead recipes are invalid") from error
+    selected_by_family: dict[str, set[str]] = {}
+    for member in mix.members:
+        selected_by_family.setdefault(member.family_id, set()).add(member.cell_id)
+    pair_ids: list[str] = []
+    for family_id in dict.fromkeys(mix.family_ids):
+        selected = selected_by_family[family_id]
+        for pair_id in recipes.get(family_id, ()):
+            try:
+                pair = OverheadPair.load(pairs_root / f"{pair_id}.json")
+            except (OverheadError, OSError) as error:
+                raise RunIdentityError("open mix overhead pair is invalid") from error
+            if pair.direct_cell_id in selected and pair.backend_cell_id in selected:
+                pair_ids.append(pair_id)
+    return tuple(pair_ids)
+
+
+def _build_open_mix_plan(
+    recipe_path: Path,
+    *,
+    open_mix_id: str,
+    run_name: str | None,
+    comparison_id: str | None,
+    parent_run_id: str | None,
+    results_root: Path,
+    now: datetime | None,
+    entropy: str | None,
+    machine_profile_path: Path,
+    repository_root: Path,
+    open_mixes_root: Path,
+    suite_contracts_root: Path,
+) -> ManagedRunPlan:
+    current = _utc_now(now)
+    artifact_roots = load_artifact_roots(machine_profile_path)
+    recipe = _load_recipe(recipe_path)
+    cells_root = repository_root / "config" / "matrix" / "cells"
+    families_root = repository_root / "config" / "matrix" / "families"
+    pairs_root = repository_root / "config" / "overhead" / "pairs"
+    family_pairs_path = repository_root / "config" / "overhead" / "family-pairs.json"
+    try:
+        mix = load_open_mix(
+            open_mix_id,
+            root=open_mixes_root,
+            repository_root=repository_root,
+            families_root=families_root,
+            cells_root=cells_root,
+            suite_contracts_root=suite_contracts_root,
+        )
+    except OpenMixError as error:
+        raise RunIdentityError(str(error), code=error.code) from error
+
+    resolved_cells: list[Cell] = []
+    missing: list[str] = []
+    for member in mix.members:
+        try:
+            resolved = member.cell.resolve(artifact_roots)
+            resolved.validate_for_family(member.family.resolve(artifact_roots))
+        except MatrixError as error:
+            raise RunIdentityError("open mix member artifact is invalid") from error
+        artifact = Path(resolved.artifact_path)
+        if not artifact.is_dir() or not os.access(artifact, os.R_OK):
+            missing.append(member.cell_id)
+        resolved_cells.append(resolved)
+    if missing:
+        raise RunIdentityError(
+            "open mix artifacts are not ready: " + ", ".join(missing),
+            code="open_mix_artifacts_not_ready",
+        )
+
+    contract = mix.suite_contract
+    pair_ids = _open_mix_pairs(
+        mix,
+        family_pairs_path=family_pairs_path,
+        pairs_root=pairs_root,
+    )
+    request_count = _request_count(
+        cell_count=len(mix.members),
+        pair_count=len(pair_ids),
+        matrix_suite=contract.matrix_suite,
+        preference_suite=contract.preference_suite,
+        rag_suite=contract.rag_suite,
+    )
+    baseline_requests = _request_count(
+        cell_count=3,
+        pair_count=2,
+        matrix_suite=contract.matrix_suite,
+        preference_suite=contract.preference_suite,
+        rag_suite=contract.rag_suite,
+    )
+    minimum_minutes = _scaled_estimated_minutes(
+        int(recipe["estimated_minutes"]),
+        baseline_requests,
+        request_count,
+    )
+    if mix.estimated_minutes < minimum_minutes:
+        raise RunIdentityError(
+            "open mix estimated_minutes is below the request-scaled minimum"
+        )
+
+    input_paths = {
+        recipe_path,
+        mix.path,
+        contract.path,
+        contract.matrix_suite_path,
+        contract.preference_suite_path,
+        contract.rag_suite_path,
+        family_pairs_path,
+        *(member.family_path for member in mix.members),
+        *(member.cell_path for member in mix.members),
+        *(pairs_root / f"{pair_id}.json" for pair_id in pair_ids),
+        *(path for path in contract.rag_corpus_path.rglob("*") if path.is_file()),
+    }
+    identity = allocate_run_identity(
+        results_root,
+        run_name=open_mix_id if run_name is None else run_name,
+        comparison_id=comparison_id,
+        parent_run_id=parent_run_id,
+        now=current,
+        entropy=entropy,
+    )
+    selected_servers = frozenset(cell.server for cell in resolved_cells)
+    endpoint_by_server = (
+        ("osaurus", "http://127.0.0.1:1337/v1"),
+        ("omlx", "http://127.0.0.1:8100/v1"),
+        ("optiq", "http://127.0.0.1:8080/v1"),
+    )
+    plan = ManagedRunPlan(
+        schema_version=OPEN_MIX_PLAN_SCHEMA_VERSION,
+        identity=identity,
+        recipe_id=str(recipe["recipe_id"]),
+        family_id=None,
+        comparison_class_id=None,
+        comparison_class_path=None,
+        binding_id=None,
+        binding_revision=None,
+        binding_hash=None,
+        binding_proposal_hash=None,
+        baseline_cell_ids=(),
+        steps=tuple(ManagedStep(value) for value in recipe["steps"]),  # type: ignore[arg-type]
+        cell_ids=mix.cell_ids,
+        pair_ids=pair_ids,
+        matrix_mode=str(recipe["matrix_mode"]),
+        campaign_path="",
+        suite_paths=(
+            (ManagedStep.MATRIX.value, _repo_relative(contract.matrix_suite_path, repository_root=repository_root)),
+            (ManagedStep.PREFERENCE.value, _repo_relative(contract.preference_suite_path, repository_root=repository_root)),
+            (ManagedStep.RAG_ORACLE.value, _repo_relative(contract.rag_suite_path, repository_root=repository_root)),
+            (ManagedStep.RAG_KEYWORD.value, _repo_relative(contract.rag_suite_path, repository_root=repository_root)),
+            (ManagedStep.OVERHEAD.value, _repo_relative(contract.matrix_suite_path, repository_root=repository_root)),
+        ),
+        rag_corpus_path=_repo_relative(contract.rag_corpus_path, repository_root=repository_root),
+        cells_root=_repo_relative(cells_root, repository_root=repository_root),
+        pairs_root=_repo_relative(pairs_root, repository_root=repository_root),
+        input_hashes=tuple(
+            sorted(
+                (
+                    *_hash_inputs(input_paths, repository_root=repository_root),
+                    (MACHINE_PROFILE_INPUT, _sha256(machine_profile_path)),
+                )
+            )
+        ),
+        endpoints=tuple(
+            endpoint for server, endpoint in endpoint_by_server if server in selected_servers
+        ),
+        runtimes=selected_servers,
+        request_count=request_count,
+        estimated_minutes=mix.estimated_minutes,
+        memory_floor_percent=int(recipe["memory_floor_percent"]),
+        max_parallel_models=1,
+        created_at=current.isoformat(),
+        plan_hash="",
+        comparison_scope="open_mix",
+        open_mix_id=mix.open_mix_id,
+        open_mix_revision=mix.revision,
+        open_mix_path=_repo_relative(mix.path, repository_root=repository_root),
+        open_mix_hash=_sha256(mix.path),
+        open_mix_members=tuple(
+            (member.family_id, member.cell_id) for member in mix.members
+        ),
+        suite_contract_id=contract.suite_contract_id,
+        suite_contract_revision=contract.revision,
+        suite_contract_path=_repo_relative(contract.path, repository_root=repository_root),
+        suite_contract_hash=_sha256(contract.path),
+    )
+    resolved = replace(plan, plan_hash=_canonical_plan_hash(plan))
+    verify_plan_inputs(
+        resolved,
+        repository_root=repository_root,
+        machine_profile_path=machine_profile_path,
+    )
+    verify_plan_hash(resolved)
+    return resolved
+
+
 def build_plan(
     recipe_path: Path,
     *,
-    family_id: str,
+    family_id: str | None,
     run_name: str | None,
     comparison_id: str | None,
     parent_run_id: str | None,
     results_root: Path,
     comparison_class_id: str | None = None,
     binding_id: str | None = None,
+    open_mix_id: str | None = None,
     binding_state_dir: Path = Path(".lmre"),
     now: datetime | None = None,
     entropy: str | None = None,
     machine_profile_path: Path = DEFAULT_MACHINE_PROFILE_PATH,
     comparison_classes_root: Path = DEFAULT_COMPARISON_CLASSES_ROOT,
+    open_mixes_root: Path = DEFAULT_OPEN_MIXES_ROOT,
+    suite_contracts_root: Path = DEFAULT_SUITE_CONTRACTS_ROOT,
+    repository_root: Path = REPOSITORY_ROOT,
 ) -> ManagedRunPlan:
+    if open_mix_id is not None:
+        if (
+            family_id is not None
+            or comparison_class_id is not None
+            or binding_id is not None
+        ):
+            raise RunIdentityError(
+                "managed family declarations and open mix are mutually exclusive"
+            )
+        return _build_open_mix_plan(
+            recipe_path,
+            open_mix_id=open_mix_id,
+            run_name=run_name,
+            comparison_id=comparison_id,
+            parent_run_id=parent_run_id,
+            results_root=results_root,
+            now=now,
+            entropy=entropy,
+            machine_profile_path=machine_profile_path,
+            repository_root=repository_root,
+            open_mixes_root=open_mixes_root,
+            suite_contracts_root=suite_contracts_root,
+        )
+    if family_id is None:
+        raise RunIdentityError("managed family or open mix is required")
     current = _utc_now(now)
     load_artifact_roots(machine_profile_path)
     recipe = _load_recipe(recipe_path)

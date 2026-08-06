@@ -12,6 +12,7 @@ from local_model_runtime_evaluation.evidence_bundle import EvidenceBundle
 from local_model_runtime_evaluation.free_bind import adopt_binding, propose_binding
 from local_model_runtime_evaluation.managed_run_cli import (
     _build_runtime_manager,
+    _command_run,
     main as _main,
 )
 from local_model_runtime_evaluation.managed_run_types import (
@@ -95,6 +96,44 @@ class ManagedRunCliTests(unittest.TestCase):
             payload["error"]["kind"],  # type: ignore[index]
             "operator_policy_missing",
         )
+
+    def test_open_mix_inspect_is_offline_and_live_run_refuses_before_manager(self) -> None:
+        code, payload = _main_json(
+            self._global()
+            + ["open-mix", "inspect", "qwen-ornith-capability-v1"]
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            payload["inspection"]["live_status"],  # type: ignore[index]
+            "NOT_CHECKED_LIVE",
+        )
+        self._adopt()
+        fake_bundle = type(
+            "FakeBundle",
+            (),
+            {"plan": type("FakePlan", (), {"comparison_scope": "open_mix"})()},
+        )()
+        args = type(
+            "Args",
+            (),
+            {
+                "results_dir": self.results_root,
+                "run_id": "run-test",
+                "state_dir": self.state_root,
+            },
+        )()
+        with (
+            patch(
+                "local_model_runtime_evaluation.managed_run_cli.EvidenceBundle.load",
+                return_value=fake_bundle,
+            ),
+            patch(
+                "local_model_runtime_evaluation.managed_run_cli._build_runtime_manager",
+                side_effect=AssertionError("runtime manager must not be built"),
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "not implemented"):
+                _command_run(args, self.state_root / "machine-profile.json")
 
     def test_policy_adopt_then_plan_writes_no_live_activity(self) -> None:
         with (
