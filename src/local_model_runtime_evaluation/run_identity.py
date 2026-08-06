@@ -450,6 +450,13 @@ def _build_open_mix_plan(
         family_pairs_path,
         *(member.family_path for member in mix.members),
         *(member.cell_path for member in mix.members),
+        *(
+            repository_root
+            / "config"
+            / "matrix"
+            / f"{family_id}-campaign.json"
+            for family_id in dict.fromkeys(mix.family_ids)
+        ),
         *(pairs_root / f"{pair_id}.json" for pair_id in pair_ids),
         *(path for path in contract.rag_corpus_path.rglob("*") if path.is_file()),
     }

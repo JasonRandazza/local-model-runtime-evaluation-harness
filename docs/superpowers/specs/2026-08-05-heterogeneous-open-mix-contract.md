@@ -1,10 +1,13 @@
 # Heterogeneous Open-Mix Comparison Contract (2026-08-05)
 
-**Status:** Implemented and verified for non-live inspection, planning, and
-browser identity; not approved or implemented for live execution.
-**Live authority:** None. A mix definition, inspection result, or immutable plan
-must never be treated as authorization to contact a runtime, load a model, edit
-a provider, or manage a process.
+**Status:** Implemented and offline-verified for inspection, planning, managed
+execution/resume, evidence identity, and browser identity. Real-model
+acceptance remains pending.
+**Live authority:** None by implication. A mix definition, inspection result,
+or immutable plan must never be treated as authorization to contact a runtime,
+load a model, edit a provider, or manage a process; execution still requires an
+explicit current-session request and an adopted policy authorizing the exact
+plan.
 
 ## Purpose
 
@@ -146,12 +149,13 @@ cannot seal as a successful open-mix comparison.
   or automatic winner selection;
 - run-orchestration UI.
 
-## Initial acceptance boundary
+## Acceptance boundary
 
-The first implementation slice is non-live: strict definition loading,
-inspection, suite-contract validation, plan construction, backward-compatible
-identity and browser behavior, and offline tests. A checked-in example must use
-only repository fixtures or artifacts already proven available; otherwise the
-example remains synthetic in tests. Live acceptance requires a separate
-current-session authorization after this contract and its implementation are
-reviewed.
+Strict definition loading, inspection, suite-contract validation, plan
+construction, sequential managed execution, overhead-only resume,
+backward-compatible identity, browser behavior, and lifecycle-safe failure
+handling are covered by offline tests and configuration checks. This does not
+claim that the checked-in mix has completed a real-model run. Live acceptance
+requires a separate current-session authorization, current artifact and
+provider readiness, and an adopted policy that authorizes the exact immutable
+plan.

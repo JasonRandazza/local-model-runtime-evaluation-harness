@@ -8,10 +8,18 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+from local_model_runtime_evaluation.artifact_profile import load_artifact_roots
 from local_model_runtime_evaluation.evidence_bundle import EvidenceBundle
-from local_model_runtime_evaluation.managed_run import execute_managed_run
+from local_model_runtime_evaluation.managed_run import (
+    ManagedCollectorHooks,
+    _open_mix_context,
+    _required_routes,
+    default_collector_hooks,
+    execute_managed_run,
+    resume_managed_run,
+)
 from local_model_runtime_evaluation.managed_run_types import (
     OPEN_MIX_PLAN_SCHEMA_VERSION,
     ManagedRunPlan,
@@ -32,6 +40,7 @@ from local_model_runtime_evaluation.run_identity import (
     verify_plan_hash,
     verify_plan_inputs,
 )
+from tests.artifact_profile_fixtures import write_machine_profile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -81,6 +90,10 @@ class OpenMixFixture:
             shutil.copy2(
                 ROOT / "config" / "matrix" / "families" / f"{name}.json",
                 self.families_root / f"{name}.json",
+            )
+            shutil.copy2(
+                ROOT / "config" / "matrix" / f"{name}-campaign.json",
+                self.repository / "config" / "matrix" / f"{name}-campaign.json",
             )
         for name in ("qwen_mxfp4__osaurus", "ornith_oq4__omlx"):
             shutil.copy2(
@@ -190,6 +203,138 @@ class OpenMixFixture:
 
 
 class OpenMixTests(unittest.TestCase):
+    def _actual_plan(self, root: Path) -> tuple[ManagedRunPlan, Path]:
+        profile = write_machine_profile(root / "machine")
+        payload = json.loads(profile.read_text(encoding="utf-8"))
+        local_models = Path(payload["artifact_roots"]["local_models"])
+        huggingface = Path(payload["artifact_roots"]["huggingface_hub"])
+        (local_models / "Qwen3.6-35B-A3B-MXFP4-MTP").mkdir()
+        (huggingface / "georgeis55" / "Ornith-1.0-35B-MLX-oQ4").mkdir(
+            parents=True
+        )
+        plan = build_plan(
+            ROOT / "config/managed-runs/complete-native-quality-v1.json",
+            family_id=None,
+            open_mix_id="qwen-ornith-capability-v1",
+            run_name="open mix test",
+            comparison_id="open-mix-test",
+            parent_run_id=None,
+            results_root=root / "results",
+            now=datetime(2026, 8, 5, 12, 0, tzinfo=timezone.utc),
+            entropy="b1c2d3",
+            machine_profile_path=profile,
+        )
+        return plan, profile
+
+    def test_runtime_context_binds_campaigns_and_ordered_members(self) -> None:
+        with TemporaryDirectory() as tmp:
+            plan, profile = self._actual_plan(Path(tmp))
+            context = _open_mix_context(plan, load_artifact_roots(profile))
+            self.assertEqual(
+                tuple(cell.cell_id for cell in context.cells), plan.cell_ids
+            )
+            self.assertEqual(context.campaign.ready_timeout_seconds, 300)
+            self.assertEqual(context.campaign.request_timeout_seconds, 180)
+            self.assertEqual(plan.pair_ids, ("ornith_oq4",))
+            self.assertEqual(
+                context.family_ids_by_pair,
+                {"ornith_oq4": "ornith-35b"},
+            )
+            self.assertEqual(
+                context.family_ids_by_cell,
+                {
+                    "qwen_mxfp4__osaurus": "qwen36-35b-a3b",
+                    "ornith_oq4__omlx": "ornith-35b",
+                },
+            )
+            bound = dict(plan.input_hashes)
+            self.assertIn(
+                "config/matrix/qwen36-35b-a3b-campaign.json", bound
+            )
+            self.assertIn("config/matrix/ornith-35b-campaign.json", bound)
+
+    def test_default_hooks_forward_member_qualified_collector_context(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, profile = self._actual_plan(root)
+            bundle = type("Bundle", (), {"run_dir": root / "run"})()
+            runtime_manager = MagicMock()
+            hooks = default_collector_hooks(
+                plan,
+                runtime_manager,
+                bundle,  # type: ignore[arg-type]
+                machine_profile_path=profile,
+            )
+            output = root / "output"
+            output.mkdir()
+            collector = output / "collector"
+            collector.mkdir()
+            with patch(
+                "local_model_runtime_evaluation.managed_run.run_campaign",
+                return_value=collector,
+            ) as matrix:
+                self.assertEqual(hooks.matrix(plan, output, MagicMock()), collector)
+            matrix_kwargs = matrix.call_args.kwargs
+            self.assertEqual(
+                tuple(cell.cell_id for cell in matrix_kwargs["cells"]),
+                plan.cell_ids,
+            )
+            self.assertEqual(
+                matrix_kwargs["collection_identity"]["open_mix_id"],
+                plan.open_mix_id,
+            )
+            self.assertEqual(
+                matrix_kwargs["collection_identity"]["overhead_coverage"][0][
+                    "status"
+                ],
+                "N/A",
+            )
+
+            with (
+                patch(
+                    "local_model_runtime_evaluation.managed_run.run_preference_collect",
+                    return_value=collector,
+                ) as preference,
+                patch("local_model_runtime_evaluation.managed_run.run_review"),
+                patch(
+                    "local_model_runtime_evaluation.managed_run.run_judge"
+                ) as judge,
+                patch(
+                    "local_model_runtime_evaluation.managed_run.run_tally",
+                    return_value=collector,
+                ),
+            ):
+                self.assertEqual(
+                    hooks.preference(plan, output, MagicMock()), collector
+                )
+            self.assertIsNone(preference.call_args.kwargs["family_id"])
+            self.assertEqual(
+                preference.call_args.kwargs["run_label"], plan.open_mix_id
+            )
+            self.assertEqual(
+                judge.call_args.kwargs["family_id"], "qwen36-35b-a3b"
+            )
+
+            with (
+                patch(
+                    "local_model_runtime_evaluation.managed_run.run_rag_collect",
+                    return_value=collector,
+                ) as rag,
+                patch(
+                    "local_model_runtime_evaluation.managed_run.score_run",
+                    return_value=collector,
+                ),
+            ):
+                self.assertEqual(hooks.rag_oracle(plan, output, MagicMock()), collector)
+            self.assertIsNone(rag.call_args.kwargs["family_id"])
+            self.assertEqual(
+                rag.call_args.kwargs["family_ids_by_cell"],
+                {
+                    "qwen_mxfp4__osaurus": "qwen36-35b-a3b",
+                    "ornith_oq4__omlx": "ornith-35b",
+                },
+            )
+
     def test_valid_cross_family_definition_loads(self) -> None:
         with TemporaryDirectory() as tmp:
             fixture = OpenMixFixture(Path(tmp)).create()
@@ -367,19 +512,141 @@ class OpenMixTests(unittest.TestCase):
                     machine_profile_path=fixture.profile,
                 )
 
-    def test_live_execution_refuses_before_using_runtime_dependencies(self) -> None:
+    def test_execution_seals_pass_with_explicit_overhead_na(self) -> None:
         with TemporaryDirectory() as tmp:
             fixture = OpenMixFixture(Path(tmp)).create()
             plan = fixture.plan()
-            with self.assertRaisesRegex(RuntimeError, "not implemented"):
-                execute_managed_run(  # type: ignore[arg-type]
+            adopted = adopt_policy(
+                POLICY,
+                fixture.state,
+                now=datetime(2026, 8, 5, 11, 0, tzinfo=timezone.utc),
+            )
+            bundle = EvidenceBundle.create(
+                fixture.results,
+                plan,
+                adopted,
+                {"platform": "test", "python": "3"},
+            )
+
+            def collect(candidate, output_root, build_server):
+                del candidate, build_server
+                run_dir = output_root / "collector"
+                run_dir.mkdir()
+                (run_dir / "report.md").write_text("PASS\n", encoding="utf-8")
+                return run_dir
+
+            def routed(candidate):
+                raise AssertionError(
+                    f"route discovery must not run without pairs: {candidate}"
+                )
+
+            hooks = ManagedCollectorHooks(
+                preflight=lambda candidate: {"open_mix_id": candidate.open_mix_id},
+                matrix=collect,
+                preference=collect,
+                rag_oracle=collect,
+                rag_keyword=collect,
+                routed_models=routed,
+                overhead=collect,
+            )
+
+            class Manager:
+                build_server = object()
+
+                def release_all(self) -> None:
+                    return None
+
+            with patch(
+                "local_model_runtime_evaluation.managed_run.verify_plan_inputs"
+            ):
+                summary = execute_managed_run(
                     plan,
-                    None,
-                    None,
-                    None,
-                    None,
+                    adopted,
+                    bundle,
+                    Manager(),  # type: ignore[arg-type]
+                    hooks,
                     machine_profile_path=fixture.profile,
                 )
+            self.assertEqual(summary["status"], "PASS")
+            verified = EvidenceBundle.load(bundle.run_dir)
+            verified.verify()
+            overhead = next(
+                record
+                for record in verified.state.steps
+                if record.step.value == "overhead"
+            )
+            self.assertEqual(overhead.state, StepState.NOT_APPLICABLE)
+
+    def test_open_mix_provider_block_resumes_only_overhead(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, profile = self._actual_plan(root)
+            adopted = adopt_policy(
+                POLICY,
+                root / ".lmre",
+                now=datetime(2026, 8, 5, 11, 0, tzinfo=timezone.utc),
+            )
+            bundle = EvidenceBundle.create(
+                root / "results",
+                plan,
+                adopted,
+                {"platform": "test", "python": "3"},
+            )
+
+            def collect(candidate, output_root, build_server):
+                del candidate, build_server
+                run_dir = output_root / "collector"
+                run_dir.mkdir()
+                (run_dir / "report.md").write_text("PASS\n", encoding="utf-8")
+                return run_dir
+
+            class Manager:
+                build_server = object()
+
+                def release_all(self) -> None:
+                    return None
+
+            blocked_hooks = ManagedCollectorHooks(
+                preflight=lambda candidate: {"open_mix_id": candidate.open_mix_id},
+                matrix=collect,
+                preference=collect,
+                rag_oracle=collect,
+                rag_keyword=collect,
+                routed_models=lambda candidate: (),
+                overhead=collect,
+            )
+            first = execute_managed_run(
+                plan,
+                adopted,
+                bundle,
+                Manager(),  # type: ignore[arg-type]
+                blocked_hooks,
+                machine_profile_path=profile,
+            )
+            self.assertEqual(first["status"], "PARTIAL_BLOCKED")
+
+            routes = _required_routes(plan, load_artifact_roots(profile))
+            resumed_hooks = ManagedCollectorHooks(
+                preflight=lambda candidate: {},
+                matrix=collect,
+                preference=collect,
+                rag_oracle=collect,
+                rag_keyword=collect,
+                routed_models=lambda candidate: routes,
+                overhead=collect,
+            )
+            second = resume_managed_run(
+                bundle.run_dir,
+                adopted,
+                Manager(),  # type: ignore[arg-type]
+                resumed_hooks,
+                machine_profile_path=profile,
+            )
+            self.assertEqual(second["status"], "PASS")
+            verified = EvidenceBundle.load(bundle.run_dir)
+            verified.verify()
+            self.assertEqual(verified.state.attempt, 2)
+            self.assertEqual(verified.state.summary_state, RunSummaryState.PASS)
 
     def test_browser_exposes_and_compares_exact_open_mix_dimensions(self) -> None:
         with TemporaryDirectory() as tmp:

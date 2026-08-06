@@ -160,11 +160,17 @@ class RunOverheadTests(unittest.TestCase):
                 probe=FakeProbe([80] * 10),
                 port_free=lambda port: True,  # 1337 free → Osaurus down
                 credential_for=lambda server: None,
+                family_ids_by_pair={"oq4_fp16": "gemma-4-12b-qat"},
+                collection_identity={"comparison_scope": "open_mix"},
             )
             raw = json.loads((out / "raw.json").read_text(encoding="utf-8"))
             self.assertEqual(len(raw["pairs"]), 1)
             self.assertEqual(raw["pairs"][0]["direct"]["status"], "PASS")
             self.assertEqual(raw["pairs"][0]["routed"]["status"], "N/A")
+            self.assertEqual(raw["pairs"][0]["family_id"], "gemma-4-12b-qat")
+            self.assertEqual(
+                raw["collection_identity"]["comparison_scope"], "open_mix"
+            )
             self.assertEqual(len(build_calls), 1)  # direct only
             self.assertEqual(len(measure_calls), 1)
             self.assertEqual(measure_calls[0].cell_id, "oq4_fp16__omlx")

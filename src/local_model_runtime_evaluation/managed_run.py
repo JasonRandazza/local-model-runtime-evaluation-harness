@@ -22,6 +22,7 @@ from .credentials import (
 )
 from .evidence_bundle import EvidenceBundle, resume_is_allowed
 from .matrix_config import (
+    EXPECTED_CAMPAIGN_PORTS,
     REPOSITORY_ROOT,
     Campaign,
     Cell,
@@ -38,6 +39,7 @@ from .managed_run_types import (
     StepState,
 )
 from .operator_policy import AdoptedPolicy, authorize
+from .open_mix import OpenMix, load_open_mix
 from .overhead_config import OverheadPair
 from .overhead_runner import run_overhead
 from .preference_collect import run_collect as run_preference_collect
@@ -69,8 +71,148 @@ class ManagedCollectorHooks:
     overhead: CollectorHook
 
 
+@dataclass(frozen=True)
+class OpenMixRuntimeContext:
+    definition: OpenMix
+    campaign: Campaign
+    cells: tuple[Cell, ...]
+    family_ids_by_cell: dict[str, str]
+    family_ids_by_pair: dict[str, str]
+    collection_identity: dict[str, object]
+
+
 def _repo_path(value: str) -> Path:
     return REPOSITORY_ROOT / value
+
+
+def _open_mix_context(
+    plan: ManagedRunPlan,
+    artifact_roots: ArtifactRoots,
+) -> OpenMixRuntimeContext:
+    if (
+        plan.comparison_scope != "open_mix"
+        or plan.open_mix_id is None
+        or plan.open_mix_revision is None
+        or plan.open_mix_path is None
+        or plan.suite_contract_id is None
+        or plan.suite_contract_revision is None
+        or plan.suite_contract_path is None
+    ):
+        raise RuntimeError("managed open-mix identity is incomplete")
+    definition = load_open_mix(plan.open_mix_id)
+    expected_members = tuple(
+        (member.family_id, member.cell_id) for member in definition.members
+    )
+    if (
+        definition.path != _repo_path(plan.open_mix_path).resolve()
+        or definition.revision != plan.open_mix_revision
+        or expected_members != plan.open_mix_members
+        or definition.cell_ids != plan.cell_ids
+        or definition.suite_contract.suite_contract_id != plan.suite_contract_id
+        or definition.suite_contract.revision != plan.suite_contract_revision
+        or definition.suite_contract.path
+        != _repo_path(plan.suite_contract_path).resolve()
+    ):
+        raise RuntimeError("managed open-mix definition does not match plan")
+
+    bound_inputs = dict(plan.input_hashes)
+    campaigns: dict[str, Campaign] = {}
+    for family_id in dict.fromkeys(definition.family_ids):
+        relative = f"config/matrix/{family_id}-campaign.json"
+        if relative not in bound_inputs:
+            raise RuntimeError("managed open-mix family campaign is not bound")
+        campaign = Campaign.load(_repo_path(relative))
+        if campaign.family_id != family_id:
+            raise RuntimeError("managed open-mix family campaign mismatch")
+        campaigns[family_id] = campaign
+
+    cells: list[Cell] = []
+    family_ids_by_cell: dict[str, str] = {}
+    for member in definition.members:
+        family = member.family.resolve(artifact_roots)
+        cell = member.cell.resolve(artifact_roots)
+        cell.validate_for_family(family)
+        cells.append(cell)
+        family_ids_by_cell[cell.cell_id] = member.family_id
+
+    pair_families: dict[str, str] = {}
+    pair_ids_by_cell: dict[str, str] = {}
+    for pair_id in plan.pair_ids:
+        pair = OverheadPair.load(_repo_path(plan.pairs_root) / f"{pair_id}.json")
+        matches = {
+            family_ids_by_cell[cell_id]
+            for cell_id in (pair.direct_cell_id, pair.backend_cell_id)
+            if cell_id in family_ids_by_cell
+        }
+        if (
+            pair.direct_cell_id not in family_ids_by_cell
+            or pair.backend_cell_id not in family_ids_by_cell
+            or len(matches) != 1
+        ):
+            raise RuntimeError("managed open-mix overhead pair is invalid")
+        pair_families[pair_id] = next(iter(matches))
+        pair_ids_by_cell[pair.direct_cell_id] = pair_id
+
+    suite_path = _repo_path(plan.suite_path(ManagedStep.MATRIX)).resolve()
+    if suite_path != definition.suite_contract.matrix_suite_path:
+        raise RuntimeError("managed open-mix matrix suite mismatch")
+    if any(item.suite_path != suite_path for item in campaigns.values()):
+        raise RuntimeError("managed open-mix family campaign suite mismatch")
+    campaign = Campaign(
+        campaign_id=f"{definition.open_mix_id}--open-mix",
+        family_id=definition.open_mix_id,
+        family=definition.members[0].family.resolve(artifact_roots),
+        suite_path=suite_path,
+        results_root=Path("."),
+        memory_floor_percent=plan.memory_floor_percent,
+        ready_timeout_seconds=max(
+            item.ready_timeout_seconds for item in campaigns.values()
+        ),
+        request_timeout_seconds=max(
+            item.request_timeout_seconds for item in campaigns.values()
+        ),
+        on_cell_failure="continue",
+        ports=dict(EXPECTED_CAMPAIGN_PORTS),
+        cell_paths=tuple(member.cell_path for member in definition.members),
+        cells=tuple(cells),
+    )
+    identity: dict[str, object] = {
+        "comparison_scope": "open_mix",
+        "open_mix_id": definition.open_mix_id,
+        "open_mix_revision": definition.revision,
+        "suite_contract_id": definition.suite_contract.suite_contract_id,
+        "suite_contract_revision": definition.suite_contract.revision,
+        "members": [
+            {"family_id": family_id, "cell_id": cell_id}
+            for family_id, cell_id in expected_members
+        ],
+        "overhead_coverage": [
+            (
+                {
+                    "family_id": family_id,
+                    "cell_id": cell_id,
+                    "status": "PLANNED",
+                    "pair_id": pair_ids_by_cell[cell_id],
+                }
+                if cell_id in pair_ids_by_cell
+                else {
+                    "family_id": family_id,
+                    "cell_id": cell_id,
+                    "status": "N/A",
+                    "reason": "no reviewed direct-versus-Osaurus pair",
+                }
+            )
+            for family_id, cell_id in expected_members
+        ],
+    }
+    return OpenMixRuntimeContext(
+        definition=definition,
+        campaign=campaign,
+        cells=tuple(cells),
+        family_ids_by_cell=family_ids_by_cell,
+        family_ids_by_pair=pair_families,
+        collection_identity=identity,
+    )
 
 
 def _campaign_for_plan(
@@ -78,7 +220,7 @@ def _campaign_for_plan(
     artifact_roots: ArtifactRoots,
 ) -> Campaign:
     if plan.comparison_scope == "open_mix":
-        raise RuntimeError("open-mix live campaign materialization is not implemented")
+        return _open_mix_context(plan, artifact_roots).campaign
     baseline = Campaign.load(_repo_path(plan.campaign_path))
     baseline_ids = tuple(cell.cell_id for cell in baseline.cells)
     if baseline_ids != plan.baseline_cell_ids:
@@ -147,11 +289,17 @@ def default_collector_hooks(
 ) -> ManagedCollectorHooks:
     """Bind the retained collectors to one immutable managed plan."""
 
-    if plan.comparison_scope == "open_mix":
-        raise RuntimeError("open-mix live collectors are not implemented")
-
     artifact_roots = load_artifact_roots(machine_profile_path)
-    campaign = _campaign_for_plan(plan, artifact_roots)
+    open_mix = (
+        _open_mix_context(plan, artifact_roots)
+        if plan.comparison_scope == "open_mix"
+        else None
+    )
+    campaign = (
+        open_mix.campaign
+        if open_mix is not None
+        else _campaign_for_plan(plan, artifact_roots)
+    )
     cells_root = _repo_path(plan.cells_root)
     pairs_root = _repo_path(plan.pairs_root)
     preference_path = _repo_path(plan.suite_path(ManagedStep.PREFERENCE))
@@ -165,23 +313,41 @@ def default_collector_hooks(
             candidate,
             machine_profile_path=machine_profile_path,
         )
-        loaded_campaign = _campaign_for_plan(candidate, artifact_roots)
+        candidate_open_mix = (
+            _open_mix_context(candidate, artifact_roots)
+            if candidate.comparison_scope == "open_mix"
+            else None
+        )
+        loaded_campaign = (
+            candidate_open_mix.campaign
+            if candidate_open_mix is not None
+            else _campaign_for_plan(candidate, artifact_roots)
+        )
         MatrixSuite.load(_repo_path(candidate.suite_path(ManagedStep.MATRIX)))
         PreferenceSuite.load(_repo_path(candidate.suite_path(ManagedStep.PREFERENCE)))
         rag_suite = RagSuite.load(
             _repo_path(candidate.suite_path(ManagedStep.RAG_ORACLE))
         )
         RagCorpus.load(_repo_path(candidate.rag_corpus_path))
-        family_template = load_family(candidate.family_id)
-        family = family_template.resolve(artifact_roots)
         missing_artifacts: list[str] = []
         missing_executables: list[str] = []
-        for cell_id in candidate.cell_ids:
-            cell = Cell.load(
-                _repo_path(candidate.cells_root) / f"{cell_id}.json",
-                family=family_template,
-            ).resolve(artifact_roots)
-            cell.validate_for_family(family)
+        if candidate_open_mix is not None:
+            checked_cells = candidate_open_mix.cells
+        else:
+            if candidate.family_id is None:
+                raise RuntimeError("managed family identity is missing")
+            family_template = load_family(candidate.family_id)
+            family = family_template.resolve(artifact_roots)
+            checked_cells = tuple(
+                Cell.load(
+                    _repo_path(candidate.cells_root) / f"{cell_id}.json",
+                    family=family_template,
+                ).resolve(artifact_roots)
+                for cell_id in candidate.cell_ids
+            )
+            for cell in checked_cells:
+                cell.validate_for_family(family)
+        for cell in checked_cells:
             artifact = Path(cell.artifact_path)
             if not artifact.exists():
                 missing_artifacts.append(cell.cell_id)
@@ -194,10 +360,18 @@ def default_collector_hooks(
             pair_template = OverheadPair.load(
                 _repo_path(candidate.pairs_root) / f"{pair_id}.json"
             )
+            pair_family_id = (
+                candidate_open_mix.family_ids_by_pair[pair_id]
+                if candidate_open_mix is not None
+                else candidate.family_id
+            )
+            if pair_family_id is None:
+                raise RuntimeError("managed overhead family is missing")
+            pair_family = load_family(pair_family_id)
             backend = Cell.load(
                 _repo_path(candidate.cells_root)
                 / f"{pair_template.backend_cell_id}.json",
-                family=family_template,
+                family=pair_family,
             ).resolve(artifact_roots)
             pair_template.resolve(backend.artifact_path)
         if missing_artifacts:
@@ -213,7 +387,7 @@ def default_collector_hooks(
         free_memory = HostResourceProbe().free_memory_percent()
         if free_memory < candidate.memory_floor_percent:
             raise RuntimeError("free memory is below the managed run floor")
-        return {
+        detail: dict[str, object] = {
             "campaign_id": loaded_campaign.campaign_id,
             "cell_count": len(candidate.cell_ids),
             "binding_id": candidate.binding_id,
@@ -222,6 +396,9 @@ def default_collector_hooks(
             "rag_suite_id": rag_suite.suite_id,
             "request_count": candidate.request_count,
         }
+        if candidate_open_mix is not None:
+            detail.update(candidate_open_mix.collection_identity)
+        return detail
 
     def matrix(
         candidate: ManagedRunPlan,
@@ -235,6 +412,13 @@ def default_collector_hooks(
             cell_filter=candidate.cell_ids,
             build_server=build_server,
             lifecycle_managed=True,
+            cells=None if open_mix is None else open_mix.cells,
+            family_ids_by_cell=(
+                None if open_mix is None else open_mix.family_ids_by_cell
+            ),
+            collection_identity=(
+                None if open_mix is None else open_mix.collection_identity
+            ),
         )
 
     def preference(
@@ -252,6 +436,14 @@ def default_collector_hooks(
             artifact_roots=artifact_roots,
             build_server=build_server,
             memory_floor_percent=candidate.memory_floor_percent,
+            resolved_cells=None if open_mix is None else open_mix.cells,
+            family_ids_by_cell=(
+                None if open_mix is None else open_mix.family_ids_by_cell
+            ),
+            run_label=None if open_mix is None else open_mix.definition.open_mix_id,
+            collection_identity=(
+                None if open_mix is None else open_mix.collection_identity
+            ),
         )
         run_review(
             run_dir,
@@ -269,7 +461,11 @@ def default_collector_hooks(
             judge_cell_id=judge_cell,
             cells_root=cells_root,
             suite=suite,
-            family_id=candidate.family_id,
+            family_id=(
+                candidate.family_id
+                if open_mix is None
+                else open_mix.family_ids_by_cell[judge_cell]
+            ),
             artifact_roots=artifact_roots,
             build_server=build_server,
         )
@@ -293,6 +489,14 @@ def default_collector_hooks(
             build_server=build_server,
             memory_floor_percent=candidate.memory_floor_percent,
             mode=mode,
+            resolved_cells=None if open_mix is None else open_mix.cells,
+            family_ids_by_cell=(
+                None if open_mix is None else open_mix.family_ids_by_cell
+            ),
+            run_label=None if open_mix is None else open_mix.definition.open_mix_id,
+            collection_identity=(
+                None if open_mix is None else open_mix.collection_identity
+            ),
         )
         return score_run(run_dir, suite)
 
@@ -302,15 +506,24 @@ def default_collector_hooks(
         credential = KeychainCredentialProvider(service=OSAURUS_KEYCHAIN_SERVICE).get()
         transport = LoopbackTransport(set(candidate.endpoints))
         if route_handle is None:
-            family_template = load_family(candidate.family_id)
-            family = family_template.resolve(artifact_roots)
             osaurus_cell: Cell | None = None
-            for cell_id in candidate.cell_ids:
-                cell = Cell.load(
-                    _repo_path(candidate.cells_root) / f"{cell_id}.json",
-                    family=family_template,
-                ).resolve(artifact_roots)
-                cell.validate_for_family(family)
+            if open_mix is not None:
+                route_cells = open_mix.cells
+            else:
+                if candidate.family_id is None:
+                    raise RuntimeError("managed route family is missing")
+                family_template = load_family(candidate.family_id)
+                family = family_template.resolve(artifact_roots)
+                route_cells = tuple(
+                    Cell.load(
+                        _repo_path(candidate.cells_root) / f"{cell_id}.json",
+                        family=family_template,
+                    ).resolve(artifact_roots)
+                    for cell_id in candidate.cell_ids
+                )
+                for cell in route_cells:
+                    cell.validate_for_family(family)
+            for cell in route_cells:
                 if cell.server == "osaurus":
                     osaurus_cell = cell
                     break
@@ -348,6 +561,12 @@ def default_collector_hooks(
             build_server=build_server,
             memory_floor_percent=candidate.memory_floor_percent,
             lifecycle_managed=True,
+            family_ids_by_pair=(
+                None if open_mix is None else open_mix.family_ids_by_pair
+            ),
+            collection_identity=(
+                None if open_mix is None else open_mix.collection_identity
+            ),
         )
 
     return ManagedCollectorHooks(
@@ -393,10 +612,20 @@ def _required_routes(
     root = Path(plan.pairs_root)
     if not root.is_absolute():
         root = REPOSITORY_ROOT / root
-    family_template = load_family(plan.family_id)
     routes: list[str] = []
     for pair_id in plan.pair_ids:
         pair = OverheadPair.load(root / f"{pair_id}.json")
+        if plan.comparison_scope == "open_mix":
+            families_by_cell = {
+                cell_id: family_id
+                for family_id, cell_id in plan.open_mix_members
+            }
+            family_id = families_by_cell.get(pair.backend_cell_id)
+        else:
+            family_id = plan.family_id
+        if family_id is None:
+            raise RuntimeError("managed overhead family is missing")
+        family_template = load_family(family_id)
         backend = Cell.load(
             _repo_path(plan.cells_root) / f"{pair.backend_cell_id}.json",
             family=family_template,
@@ -432,6 +661,9 @@ def _summary(
         "comparison_id": plan.identity.comparison_id,
         "binding_id": plan.binding_id,
         "comparison_class_id": plan.comparison_class_id,
+        "comparison_scope": plan.comparison_scope,
+        "open_mix_id": plan.open_mix_id,
+        "suite_contract_id": plan.suite_contract_id,
         "run_id": plan.identity.run_id,
         "run_name": plan.identity.run_name,
         "status": status.value,
@@ -475,9 +707,6 @@ def execute_managed_run(
     machine_profile_path: Path = DEFAULT_MACHINE_PROFILE_PATH,
 ) -> dict[str, object]:
     """Execute an immutable managed plan and seal all terminal evidence."""
-
-    if plan.comparison_scope == "open_mix":
-        raise RuntimeError("open-mix live execution is not implemented")
 
     current: ManagedStep | None = None
     terminal = RunSummaryState.FAIL
@@ -526,13 +755,35 @@ def execute_managed_run(
 
         current = ManagedStep.OVERHEAD
         bundle.transition_step(current, StepState.RUNNING)
-        routed = frozenset(hooks.routed_models(plan))
+        if not plan.pair_ids:
+            bundle.transition_step(
+                current,
+                StepState.NOT_APPLICABLE,
+                detail={
+                    "reason": "no reviewed direct-versus-Osaurus pairs",
+                    "overhead_coverage": [
+                        {
+                            "family_id": family_id,
+                            "cell_id": cell_id,
+                            "status": "N/A",
+                            "reason": "no reviewed direct-versus-Osaurus pair",
+                        }
+                        for family_id, cell_id in plan.open_mix_members
+                    ],
+                },
+            )
+            terminal = RunSummaryState.PASS
+            routed = frozenset()
+        else:
+            routed = frozenset(hooks.routed_models(plan))
         missing_routes = tuple(
             route
             for route in _required_routes(plan, artifact_roots)
             if route not in routed
         )
-        if missing_routes:
+        if not plan.pair_ids:
+            pass
+        elif missing_routes:
             bundle.transition_step(
                 current,
                 StepState.BLOCKED_PROVIDER_RECONNECT,
@@ -641,8 +892,6 @@ def resume_managed_run(
     try:
         bundle = EvidenceBundle.load(run_dir)
         bundle.verify()
-        if bundle.plan.comparison_scope == "open_mix":
-            raise RuntimeError("open-mix live resume is not implemented")
         state = bundle.state
         if not resume_is_allowed(state):
             raise RuntimeError("only a sealed overhead-only retry may resume")

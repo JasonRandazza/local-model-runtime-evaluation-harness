@@ -175,10 +175,19 @@ class MatrixRunnerTest(unittest.TestCase):
                 probe=FakeProbe([80, 80]),
                 port_free=lambda port: True,
                 credential_for=lambda server: None,
+                family_ids_by_cell={
+                    "jang_4m__osaurus": "gemma-4-12b-qat",
+                    "oq4_fp16__omlx": "gemma-4-12b-qat",
+                },
+                collection_identity={"comparison_scope": "open_mix"},
             )
             raw = json.loads((out / "raw.json").read_text())
             self.assertEqual(len(raw["cells"]), 1)
             self.assertEqual(raw["cells"][0]["cell_id"], "oq4_fp16__omlx")
+            self.assertEqual(raw["cells"][0]["family_id"], "gemma-4-12b-qat")
+            self.assertEqual(
+                raw["collection_identity"]["comparison_scope"], "open_mix"
+            )
             build_server.assert_called_once()
 
     def test_managed_lifecycle_does_not_require_attached_port_to_free(self) -> None:

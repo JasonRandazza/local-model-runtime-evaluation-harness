@@ -45,6 +45,7 @@ class StepState(StrEnum):
     BLOCKED_PROVIDER_RECONNECT = "BLOCKED_PROVIDER_RECONNECT"
     STOPPED = "STOPPED"
     INCOMPARABLE = "INCOMPARABLE"
+    NOT_APPLICABLE = "N/A"
 
 
 class RunSummaryState(StrEnum):

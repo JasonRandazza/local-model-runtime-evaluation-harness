@@ -7,7 +7,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 from .artifact_profile import ArtifactRoots
 from urllib.parse import urlparse
@@ -206,7 +206,7 @@ def run_overhead(
     suite_path: Path,
     results_root: Path,
     *,
-    family_id: str = "gemma-4-12b-qat",
+    family_id: str | None = "gemma-4-12b-qat",
     artifact_roots: ArtifactRoots,
     mode: str = "screen",
     build_server: BuildServer | None = None,
@@ -218,10 +218,10 @@ def run_overhead(
     ready_timeout_seconds: float = DEFAULT_READY_TIMEOUT_SECONDS,
     memory_floor_percent: int = DEFAULT_MEMORY_FLOOR_PERCENT,
     lifecycle_managed: bool = False,
+    family_ids_by_pair: Mapping[str, str] | None = None,
+    collection_identity: Mapping[str, object] | None = None,
 ) -> Path:
     suite = MatrixSuite.load(suite_path)
-    family_template = load_family(family_id)
-    family = family_template.resolve(artifact_roots)
     resource_probe = probe if probe is not None else HostResourceProbe()
     check_port = port_free or port_is_free
     stop = stop_runner or run_stop_command
@@ -258,6 +258,8 @@ def run_overhead(
             "stop_reason": stop_reason,
             "pairs": pair_records,
         }
+        if collection_identity is not None:
+            raw["collection_identity"] = dict(collection_identity)
         (run_dir / "raw.json").write_text(
             json.dumps(raw, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
@@ -273,6 +275,15 @@ def run_overhead(
                 break
 
             pair_template = OverheadPair.load(pairs_root / f"{pair_id}.json")
+            pair_family_id = (
+                family_id
+                if family_ids_by_pair is None
+                else family_ids_by_pair[pair_id]
+            )
+            if pair_family_id is None:
+                raise OverheadError("family_id is required for overhead collection")
+            family_template = load_family(pair_family_id)
+            family = family_template.resolve(artifact_roots)
             direct = Cell.load(
                 cells_root / f"{pair_template.direct_cell_id}.json",
                 family=family_template,
@@ -311,6 +322,7 @@ def run_overhead(
             if memory_before < memory_floor_percent:
                 pair_records.append({
                     "pair_id": pair.pair_id,
+                    "family_id": pair_family_id,
                     "direct_cell_id": pair.direct_cell_id,
                     "backend_cell_id": pair.backend_cell_id,
                     "routed_model_id": pair.routed_model_id,
@@ -336,6 +348,7 @@ def run_overhead(
                 routed_result = _na_result(str(error), memory_before)
                 pair_records.append({
                     "pair_id": pair.pair_id,
+                    "family_id": pair_family_id,
                     "direct_cell_id": pair.direct_cell_id,
                     "backend_cell_id": pair.backend_cell_id,
                     "routed_model_id": pair.routed_model_id,
@@ -368,6 +381,7 @@ def run_overhead(
 
             pair_records.append({
                 "pair_id": pair.pair_id,
+                "family_id": pair_family_id,
                 "direct_cell_id": pair.direct_cell_id,
                 "backend_cell_id": pair.backend_cell_id,
                 "routed_model_id": pair.routed_model_id,

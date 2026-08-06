@@ -229,10 +229,6 @@ def _command_run(
 ) -> dict[str, object]:
     adopted = load_adopted_policy(args.state_dir)
     bundle = EvidenceBundle.load(_run_dir(args.results_dir, args.run_id))
-    if bundle.plan.comparison_scope == "open_mix":
-        raise RuntimeError(
-            "open-mix live execution is not implemented; review the non-live plan only"
-        )
     with _active_run_lock(args.state_dir, args.run_id):
         state = bundle.state
         if state.sealed or state.summary_state is not RunSummaryState.PENDING:
@@ -268,10 +264,6 @@ def _command_resume(
     with _active_run_lock(args.state_dir, args.run_id):
         bundle = EvidenceBundle.load(run_dir)
         bundle.verify()
-        if bundle.plan.comparison_scope == "open_mix":
-            raise RuntimeError(
-                "open-mix live resume is not implemented; review the non-live plan only"
-            )
         manager = _build_runtime_manager(
             bundle.plan,
             adopted,

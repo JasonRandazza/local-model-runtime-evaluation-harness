@@ -269,6 +269,11 @@ class RunCollectTests(unittest.TestCase):
                 ready_timeout=1.0,
                 request_timeout=5.0,
                 memory_floor_percent=20,
+                family_ids_by_cell={
+                    "jang_4m__osaurus": "gemma-4-12b-qat",
+                    "oq4_fp16__omlx": "gemma-4-12b-qat",
+                },
+                collection_identity={"comparison_scope": "open_mix"},
             )
 
             self.assertTrue(run_dir.name.startswith("gemma-4-12b-qat-preference-"))
@@ -277,15 +282,20 @@ class RunCollectTests(unittest.TestCase):
             self.assertEqual(raw["suite_id"], "multi-family-preference-v1")
             self.assertEqual(raw["cell_ids"], ["jang_4m__osaurus", "oq4_fp16__omlx"])
             self.assertEqual(raw["family_id"], "gemma-4-12b-qat")
+            self.assertEqual(
+                raw["collection_identity"]["comparison_scope"], "open_mix"
+            )
             self.assertIn("started_at", raw)
 
             failed = json.loads((run_dir / "answers" / "jang_4m__osaurus.json").read_text())
             self.assertEqual(failed["answers"], [])
             self.assertEqual(failed["error"], "unloadable")
+            self.assertEqual(failed["family_id"], "gemma-4-12b-qat")
 
             ok = json.loads((run_dir / "answers" / "oq4_fp16__omlx.json").read_text())
             self.assertEqual(len(ok["answers"]), 6)
             self.assertTrue(all(item["success"] for item in ok["answers"]))
+            self.assertEqual(ok["family_id"], "gemma-4-12b-qat")
 
 
 if __name__ == "__main__":

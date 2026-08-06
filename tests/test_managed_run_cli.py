@@ -17,6 +17,7 @@ from local_model_runtime_evaluation.managed_run_cli import (
 )
 from local_model_runtime_evaluation.managed_run_types import (
     ManagedStep,
+    RunSummaryState,
     StepState,
 )
 from local_model_runtime_evaluation.operator_policy import load_adopted_policy
@@ -97,7 +98,7 @@ class ManagedRunCliTests(unittest.TestCase):
             "operator_policy_missing",
         )
 
-    def test_open_mix_inspect_is_offline_and_live_run_refuses_before_manager(self) -> None:
+    def test_open_mix_inspect_is_offline_and_run_uses_managed_pipeline(self) -> None:
         code, payload = _main_json(
             self._global()
             + ["open-mix", "inspect", "qwen-ornith-capability-v1"]
@@ -111,7 +112,14 @@ class ManagedRunCliTests(unittest.TestCase):
         fake_bundle = type(
             "FakeBundle",
             (),
-            {"plan": type("FakePlan", (), {"comparison_scope": "open_mix"})()},
+            {
+                "plan": type("FakePlan", (), {"comparison_scope": "open_mix"})(),
+                "state": type(
+                    "FakeState",
+                    (),
+                    {"sealed": False, "summary_state": RunSummaryState.PENDING},
+                )(),
+            },
         )()
         args = type(
             "Args",
@@ -122,6 +130,8 @@ class ManagedRunCliTests(unittest.TestCase):
                 "state_dir": self.state_root,
             },
         )()
+        manager = object()
+        hooks = object()
         with (
             patch(
                 "local_model_runtime_evaluation.managed_run_cli.EvidenceBundle.load",
@@ -129,11 +139,22 @@ class ManagedRunCliTests(unittest.TestCase):
             ),
             patch(
                 "local_model_runtime_evaluation.managed_run_cli._build_runtime_manager",
-                side_effect=AssertionError("runtime manager must not be built"),
-            ),
+                return_value=manager,
+            ) as build_manager,
+            patch(
+                "local_model_runtime_evaluation.managed_run_cli.default_collector_hooks",
+                return_value=hooks,
+            ) as build_hooks,
+            patch(
+                "local_model_runtime_evaluation.managed_run_cli.execute_managed_run",
+                return_value={"status": "PASS"},
+            ) as execute,
         ):
-            with self.assertRaisesRegex(RuntimeError, "not implemented"):
-                _command_run(args, self.state_root / "machine-profile.json")
+            result = _command_run(args, self.state_root / "machine-profile.json")
+        self.assertEqual(result, {"status": "PASS"})
+        build_manager.assert_called_once()
+        build_hooks.assert_called_once()
+        execute.assert_called_once()
 
     def test_policy_adopt_then_plan_writes_no_live_activity(self) -> None:
         with (
