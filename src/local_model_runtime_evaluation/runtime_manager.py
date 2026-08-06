@@ -222,11 +222,21 @@ class RuntimeManager:
         *,
         checks: int,
     ) -> bool:
+        inspection_error: RuntimeAdapterError | None = None
         for index in range(max(1, checks)):
-            if not adapter.process_is_alive(expected):
-                return True
+            try:
+                if not adapter.process_is_alive(expected):
+                    return True
+                inspection_error = None
+            except RuntimeAdapterError as error:
+                inspection_error = error
             if index + 1 < max(1, checks):
                 context.sleep(context.poll_seconds)
+        if inspection_error is not None:
+            raise RuntimeManagerError(
+                str(inspection_error),
+                code="runtime_cleanup_failed",
+            ) from inspection_error
         return False
 
     def _notice(
