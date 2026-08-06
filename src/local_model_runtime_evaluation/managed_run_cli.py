@@ -223,6 +223,24 @@ def _command_plan(
     }
 
 
+def _print_live_run_notice(plan) -> None:
+    print(
+        "LMRE live-run notice: for the lowest RAM risk, start with Osaurus, "
+        "oMLX, and OptiQ stopped. An exact compatible process may be attached "
+        "and will then remain operator-owned and untouched.",
+        file=sys.stderr,
+    )
+    if getattr(plan, "pair_ids", ()) and "omlx" in getattr(plan, "runtimes", ()):
+        print(
+            "LMRE provider note: after oMLX starts or restarts, Osaurus may "
+            "require you to reconnect the existing oMLX provider in its UI. "
+            "If this run seals PARTIAL_BLOCKED, leave the exact backend "
+            "running, reconnect it, then use `lmre resume <run-id>`; completed "
+            "native evidence will not repeat.",
+            file=sys.stderr,
+        )
+
+
 def _command_run(
     args: argparse.Namespace,
     machine_profile_path: Path,
@@ -233,6 +251,7 @@ def _command_run(
         state = bundle.state
         if state.sealed or state.summary_state is not RunSummaryState.PENDING:
             raise RuntimeError("managed run is not an unstarted plan")
+        _print_live_run_notice(bundle.plan)
         manager = _build_runtime_manager(
             bundle.plan,
             adopted,
@@ -440,7 +459,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     plan.add_argument("--parent")
 
-    run = commands.add_parser("run", help="Execute one previously saved plan")
+    run = commands.add_parser(
+        "run",
+        help="Execute one previously saved plan",
+        description=(
+            "Execute one immutable managed plan. For the lowest RAM risk, "
+            "start with Osaurus, oMLX, and OptiQ stopped. Existing compatible "
+            "processes are attached and left untouched."
+        ),
+        epilog=(
+            "After an oMLX start or restart, Osaurus may require a manual "
+            "reconnect of the existing provider. A missing route seals "
+            "PARTIAL_BLOCKED; reconnect it and use `lmre resume <run-id>` "
+            "without repeating native evidence."
+        ),
+    )
     run.add_argument("run_id")
     resume = commands.add_parser(
         "resume",

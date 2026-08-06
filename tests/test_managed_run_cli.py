@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -113,7 +113,15 @@ class ManagedRunCliTests(unittest.TestCase):
             "FakeBundle",
             (),
             {
-                "plan": type("FakePlan", (), {"comparison_scope": "open_mix"})(),
+                "plan": type(
+                    "FakePlan",
+                    (),
+                    {
+                        "comparison_scope": "open_mix",
+                        "pair_ids": ("ornith_oq4",),
+                        "runtimes": frozenset({"osaurus", "omlx"}),
+                    },
+                )(),
                 "state": type(
                     "FakeState",
                     (),
@@ -150,8 +158,16 @@ class ManagedRunCliTests(unittest.TestCase):
                 return_value={"status": "PASS"},
             ) as execute,
         ):
-            result = _command_run(args, self.state_root / "machine-profile.json")
+            error_output = StringIO()
+            with redirect_stderr(error_output):
+                result = _command_run(
+                    args,
+                    self.state_root / "machine-profile.json",
+                )
         self.assertEqual(result, {"status": "PASS"})
+        self.assertIn("lowest RAM risk", error_output.getvalue())
+        self.assertIn("oMLX starts or restarts", error_output.getvalue())
+        self.assertIn("PARTIAL_BLOCKED", error_output.getvalue())
         build_manager.assert_called_once()
         build_hooks.assert_called_once()
         execute.assert_called_once()
