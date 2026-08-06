@@ -9,7 +9,7 @@
   "on_cell_failure": "continue",
   "ports": {"osaurus": 1337, "omlx": 8100, "optiq": 8080},
   "cells": [
-    "config/matrix/cells/qwen_mxfp4__osaurus.json",
+    "config/matrix/cells/qwen_jangtq4__osaurus.json",
     "config/matrix/cells/qwen_oq4__omlx.json",
     "config/matrix/cells/qwen_optiq_4bit__optiq.json"
   ]

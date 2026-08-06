@@ -51,7 +51,7 @@ Ornith recipe (native triple PASS cells): `ornith_jang_4m__osaurus`, `ornith_oq4
 ./bin/lmre-preference collect --dry-config --family qwen36-35b-a3b
 ```
 
-Qwen recipe (native triple PASS cells): `qwen_mxfp4__osaurus`, `qwen_oq4__omlx`, `qwen_optiq_4bit__optiq`.
+Qwen recipe (native triple cells): `qwen_jangtq4__osaurus`, `qwen_oq4__omlx`, `qwen_optiq_4bit__optiq`.
 
 ### Pair count
 
@@ -141,7 +141,7 @@ Qwen direct live collect:
 ./bin/lmre-preference collect --family qwen36-35b-a3b
 ```
 
-For Qwen judging, prefer a PASS cell that is not under test self-bias pressure if desired, e.g. `--judge-cell qwen_optiq_4bit__optiq` or `qwen_mxfp4__osaurus`.
+For Qwen judging, prefer a PASS cell that is not under test self-bias pressure if desired, e.g. `--judge-cell qwen_optiq_4bit__optiq` or `qwen_jangtq4__osaurus`.
 
 Default judge cell: `jang_4m__osaurus`. Override with `--judge-cell`:
 

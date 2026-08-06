@@ -95,7 +95,7 @@ class OpenMixFixture:
                 ROOT / "config" / "matrix" / f"{name}-campaign.json",
                 self.repository / "config" / "matrix" / f"{name}-campaign.json",
             )
-        for name in ("qwen_mxfp4__osaurus", "ornith_oq4__omlx"):
+        for name in ("qwen_jangtq4__osaurus", "ornith_oq4__omlx"):
             shutil.copy2(
                 ROOT / "config" / "matrix" / "cells" / f"{name}.json",
                 self.cells_root / f"{name}.json",
@@ -141,7 +141,7 @@ class OpenMixFixture:
         self.local_models.mkdir(parents=True, exist_ok=True)
         self.huggingface.mkdir(parents=True, exist_ok=True)
         if artifacts_ready:
-            (self.local_models / "Qwen3.6-35B-A3B-MXFP4-MTP").mkdir(
+            (self.local_models / "Qwen3.6-35B-A3B-JANGTQ4").mkdir(
                 parents=True
             )
             (
@@ -157,7 +157,7 @@ class OpenMixFixture:
             "members": [
                 {
                     "family_id": "qwen36-35b-a3b",
-                    "cell_id": "qwen_mxfp4__osaurus",
+                    "cell_id": "qwen_jangtq4__osaurus",
                 },
                 {
                     "family_id": "ornith-35b",
@@ -208,7 +208,7 @@ class OpenMixTests(unittest.TestCase):
         payload = json.loads(profile.read_text(encoding="utf-8"))
         local_models = Path(payload["artifact_roots"]["local_models"])
         huggingface = Path(payload["artifact_roots"]["huggingface_hub"])
-        (local_models / "Qwen3.6-35B-A3B-MXFP4-MTP").mkdir()
+        (local_models / "Qwen3.6-35B-A3B-JANGTQ4").mkdir()
         (huggingface / "georgeis55" / "Ornith-1.0-35B-MLX-oQ4").mkdir(
             parents=True
         )
@@ -243,7 +243,7 @@ class OpenMixTests(unittest.TestCase):
             self.assertEqual(
                 context.family_ids_by_cell,
                 {
-                    "qwen_mxfp4__osaurus": "qwen36-35b-a3b",
+                    "qwen_jangtq4__osaurus": "qwen36-35b-a3b",
                     "ornith_oq4__omlx": "ornith-35b",
                 },
             )
@@ -330,7 +330,7 @@ class OpenMixTests(unittest.TestCase):
             self.assertEqual(
                 rag.call_args.kwargs["family_ids_by_cell"],
                 {
-                    "qwen_mxfp4__osaurus": "qwen36-35b-a3b",
+                    "qwen_jangtq4__osaurus": "qwen36-35b-a3b",
                     "ornith_oq4__omlx": "ornith-35b",
                 },
             )
@@ -345,7 +345,7 @@ class OpenMixTests(unittest.TestCase):
             )
             self.assertEqual(
                 mix.cell_ids,
-                ("qwen_mxfp4__osaurus", "ornith_oq4__omlx"),
+                ("qwen_jangtq4__osaurus", "ornith_oq4__omlx"),
             )
             self.assertEqual(
                 mix.suite_contract.suite_contract_id, "shared-capability-v1"
@@ -358,11 +358,11 @@ class OpenMixTests(unittest.TestCase):
                 members=[
                     {
                         "family_id": "qwen36-35b-a3b",
-                        "cell_id": "qwen_mxfp4__osaurus",
+                        "cell_id": "qwen_jangtq4__osaurus",
                     },
                     {
                         "family_id": "qwen36-35b-a3b",
-                        "cell_id": "qwen_mxfp4__osaurus",
+                        "cell_id": "qwen_jangtq4__osaurus",
                     },
                 ]
             )
@@ -376,7 +376,7 @@ class OpenMixTests(unittest.TestCase):
                 members=[
                     {
                         "family_id": "ornith-35b",
-                        "cell_id": "qwen_mxfp4__osaurus",
+                        "cell_id": "qwen_jangtq4__osaurus",
                     },
                     {
                         "family_id": "qwen36-35b-a3b",
@@ -411,7 +411,7 @@ class OpenMixTests(unittest.TestCase):
             self.assertEqual(ready["status"], "READY_FOR_PLAN")
             self.assertEqual(ready["live_status"], "NOT_CHECKED_LIVE")
 
-            shutil.rmtree(fixture.local_models / "Qwen3.6-35B-A3B-MXFP4-MTP")
+            shutil.rmtree(fixture.local_models / "Qwen3.6-35B-A3B-JANGTQ4")
             missing = inspect_open_mix(
                 fixture.mix_id,
                 machine_profile_path=fixture.profile,

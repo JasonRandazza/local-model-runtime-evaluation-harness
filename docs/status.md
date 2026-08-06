@@ -17,6 +17,28 @@ inference. An offline `lmre doctor` command reports static local readiness
 every runtime, provider, credential, memory, and inference fact
 `NOT_CHECKED_LIVE`; it grants no live authority.
 
+## Qwen Osaurus-Native Candidate Promotion (Pending Full Acceptance, 2026-08-06)
+
+- The prior `qwen_mxfp4__osaurus` cell remains preserved in sealed historical
+  evidence but is retired from the active Qwen campaign. Run
+  `run-20260806-151415-b64165` truthfully sealed `FAIL`: all 12 MXFP matrix
+  observations and all six MXFP preference requests reached the corrected
+  180-second request ceiling. A separately authorized one-request
+  non-thinking probe also timed out at 60 seconds.
+- The replacement `qwen_jangtq4__osaurus` cell uses the locally installed
+  `Qwen3.6-35B-A3B-JANGTQ4` artifact and provider model ID
+  `qwen3.6-35b-a3b-jangtq4`.
+- A bounded live admission screen passed: the fixed non-thinking smoke request
+  returned the exact expected marker in about 13.72 seconds, followed by 9/9
+  successful, contract-valid matrix observations. Matrix median total latency
+  was about 4.53 seconds, worst total latency about 6.86 seconds, and median
+  TTFT about 1.07 seconds. The configured memory floor remained satisfied.
+- That candidate evidence is intentionally `EXECUTED_UNSEALED`; it establishes
+  admission readiness, not full product acceptance. The active configuration,
+  preference and RAG maps, and open-mix revision now select JANGTQ4. A new
+  immutable managed plan and separately authorized full live run remain
+  required before claiming sealed Qwen acceptance.
+
 ## Heterogeneous Open-Mix Managed Execution (Offline-Verified, 2026-08-05)
 
 - `lmre open-mix inspect <id>` strictly validates a checked-in ordered set of

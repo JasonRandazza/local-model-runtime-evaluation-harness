@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "open_mix_id": "qwen-ornith-capability-v1",
-  "revision": "1",
+  "revision": "2",
   "members": [
     {
       "family_id": "qwen36-35b-a3b",
-      "cell_id": "qwen_mxfp4__osaurus"
+      "cell_id": "qwen_jangtq4__osaurus"
     },
     {
       "family_id": "ornith-35b",
@@ -14,5 +14,5 @@
   ],
   "suite_contract_id": "shared-capability-v1",
   "estimated_minutes": 90,
-  "notes": "Reviewed cross-family capability collection. Member-local performance metrics only; no automatic overall winner."
+  "notes": "Reviewed cross-family capability collection using the admitted Qwen JANGTQ4 Osaurus-native cell. Member-local performance metrics only; no automatic overall winner. Revision 1 used the retired MXFP candidate."
 }

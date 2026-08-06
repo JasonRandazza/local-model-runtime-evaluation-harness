@@ -53,7 +53,7 @@ Ornith native triple: `ornith_jang_4m__osaurus`, `ornith_oq4__omlx`, `ornith_opt
 ./bin/lmre-rag collect --dry-config --family qwen36-35b-a3b
 ```
 
-Qwen native triple: `qwen_mxfp4__osaurus`, `qwen_oq4__omlx`, `qwen_optiq_4bit__optiq`.
+Qwen native triple: `qwen_jangtq4__osaurus`, `qwen_oq4__omlx`, `qwen_optiq_4bit__optiq`.
 
 ## Modes
 

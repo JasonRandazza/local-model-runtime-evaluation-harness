@@ -386,7 +386,7 @@ class MatrixConfigTests(unittest.TestCase):
         payload = {
             "family_id": "bad-role-family",
             "quants": {
-                "qwen_mxfp4": {
+                "qwen_jangtq4": {
                     "role": "not_a_role",
                     "native_server": "osaurus",
                     "artifact_path": "/tmp/x",
@@ -408,7 +408,7 @@ class MatrixConfigTests(unittest.TestCase):
         self.assertEqual(
             {(c.quant, c.server) for c in cells},
             {
-                ("qwen_mxfp4", "osaurus"),
+                ("qwen_jangtq4", "osaurus"),
                 ("qwen_oq4", "omlx"),
                 ("qwen_optiq_4bit", "optiq"),
             },
@@ -447,22 +447,22 @@ class MatrixConfigTests(unittest.TestCase):
         self.assertEqual(family.family_id, "qwen36-35b-a3b")
         self.assertEqual(
             set(family.quants.keys()),
-            {"qwen_mxfp4", "qwen_oq4", "qwen_optiq_4bit"},
+            {"qwen_jangtq4", "qwen_oq4", "qwen_optiq_4bit"},
         )
-        self.assertEqual(family.quants["qwen_mxfp4"].role, "osaurus_native")
+        self.assertEqual(family.quants["qwen_jangtq4"].role, "osaurus_native")
         self.assertIsNone(family.quants["qwen_oq4"].role)
         self.assertIsNone(family.quants["qwen_optiq_4bit"].role)
-        self.assertEqual(family.quants["qwen_mxfp4"].native_server, "osaurus")
+        self.assertEqual(family.quants["qwen_jangtq4"].native_server, "osaurus")
         self.assertEqual(family.quants["qwen_oq4"].native_server, "omlx")
         self.assertEqual(family.quants["qwen_optiq_4bit"].native_server, "optiq")
 
-    def test_qwen_family_mxfp4_artifact_path(self) -> None:
-        mxfp = load_family("qwen36-35b-a3b").quants["qwen_mxfp4"]
+    def test_qwen_family_jangtq4_artifact_path(self) -> None:
+        jangtq = load_family("qwen36-35b-a3b").quants["qwen_jangtq4"]
         self.assertEqual(
-            mxfp.artifact_path,
-            "{LMRE_ROOT:local_models}/Qwen3.6-35B-A3B-MXFP4-MTP",
+            jangtq.artifact_path,
+            "{LMRE_ROOT:local_models}/Qwen3.6-35B-A3B-JANGTQ4",
         )
-        self.assertIn("qwen3.6-35b-a3b-mxfp4-mtp", mxfp.model_ids)
+        self.assertIn("qwen3.6-35b-a3b-jangtq4", jangtq.model_ids)
 
     def test_qwen_optiq_native_cell_uses_no_think_model_id(self) -> None:
         cell = Cell.load(
