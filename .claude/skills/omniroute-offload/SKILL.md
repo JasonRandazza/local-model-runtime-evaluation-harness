@@ -29,6 +29,17 @@ omniroute_route_request(
 )
 ```
 
+## Reliability ceiling (measured 2026-08-07)
+
+Short exchanges work (~5–7 s). Long generations **time out** at the MCP call
+boundary: three attempts at a ~40-line checklist failed on `kimi-k3`,
+`glm-5.2`, and `gemini-3-5-flash`, and never registered in the cost report.
+
+Ask for small outputs. Split large asks into several small ones. If a call
+times out, write it yourself instead of retrying — retries cost more
+wall-clock than drafting. Do not plan work around bulk offload until this is
+retested.
+
 ## Packet rules (non-negotiable)
 
 Workers have no filesystem, tools, or repo access. Send small self-contained

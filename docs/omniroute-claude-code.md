@@ -177,6 +177,23 @@ Companion skill for Claude Code sessions: `.claude/skills/omniroute-offload/SKIL
 - `omniroute_cost_report` (period `session`/`day`/`week`) confirms spend;
   `route_request` accepts a per-request `budget` in USD as a hard cap.
 
+### Measured limitation: long generations time out
+
+Re-tested 2026-08-07 during the release-readiness slice. A trivial prompt
+(one-line echo) round-trips in about 5–7 s. Three separate attempts to
+generate a ~40-line checklist — on `kimi-k3`, `glm-5.2`, and
+`gemini-3-5-flash` — all aborted on timeout at the MCP call boundary, and
+none of the three even registered in `omniroute_cost_report`, so they
+expired before the provider accounted for them.
+
+Practical consequence: this transport is currently reliable for **short**
+exchanges, not for bulk drafting. Do not plan a slice around offloading
+long-form generation until this is retested and shown fixed. Ask for small
+outputs (a handful of lines), or split one large ask into several small
+ones and assemble locally. When a delegation times out, write the content
+yourself rather than retrying the same prompt — three retries cost more
+wall-clock than drafting it.
+
 ### What to delegate vs. keep
 
 Delegate (sanitized packets only): draft prose for docs/checklists,

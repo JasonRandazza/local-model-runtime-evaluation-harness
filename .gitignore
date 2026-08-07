@@ -12,3 +12,6 @@ results/
 .worktrees/
 
 .claude/settings.local.json
+
+build/
+*.egg-info/
