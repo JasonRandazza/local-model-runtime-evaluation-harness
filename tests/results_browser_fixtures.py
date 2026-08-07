@@ -19,7 +19,6 @@ from local_model_runtime_evaluation.operator_policy import adopt_policy
 from local_model_runtime_evaluation.run_identity import build_plan
 from tests.artifact_profile_fixtures import write_machine_profile
 
-
 ROOT = Path(__file__).resolve().parents[1]
 RECIPE = ROOT / "config" / "managed-runs" / "complete-native-quality-v1.json"
 POLICY = ROOT / "config" / "operator-policies" / "local-managed-v1.example.json"
@@ -80,15 +79,65 @@ def _write_output(
     step: ManagedStep,
     attempt: int,
     report_md: str,
+    raw: dict,
 ) -> str:
     output_dir = bundle.step_attempt_dir(step, attempt)
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "report.md").write_text(report_md, encoding="utf-8")
     (output_dir / "raw.json").write_text(
-        json.dumps({"family": "fake-family-1b", "stub": True}),
+        json.dumps(raw),
         encoding="utf-8",
     )
     return output_dir.relative_to(bundle.run_dir).as_posix()
+
+
+def _matrix_raw(bundle: EvidenceBundle) -> dict:
+    return {
+        "schema_version": "matrix-campaign-1.0.0",
+        "cells": [
+            {
+                "cell_id": cell_id,
+                "family_id": bundle.plan.family_id,
+                "status": "PASS",
+                "na_reason": None,
+                "summary": {
+                    "median_total_seconds": 1.25 + index,
+                    "median_ttft_seconds": 0.2 + index,
+                    "success_count": 9,
+                    "contract_pass_count": 9,
+                    "measured_count": 9,
+                },
+            }
+            for index, cell_id in enumerate(bundle.plan.cell_ids)
+        ],
+    }
+
+
+def _overhead_raw(bundle: EvidenceBundle) -> dict:
+    return {
+        "schema_version": "overhead-run-1.0.0",
+        "pairs": [
+            {
+                "pair_id": pair_id,
+                "family_id": bundle.plan.family_id,
+                "direct": {
+                    "status": "PASS",
+                    "summary": {
+                        "median_total_seconds": 2.0 + index,
+                        "median_ttft_seconds": 0.4 + index,
+                    },
+                },
+                "routed": {
+                    "status": "PASS",
+                    "summary": {
+                        "median_total_seconds": 2.3 + index,
+                        "median_ttft_seconds": 0.6 + index,
+                    },
+                },
+            }
+            for index, pair_id in enumerate(bundle.plan.pair_ids)
+        ],
+    }
 
 
 def _add_lifecycle_pair(bundle: EvidenceBundle) -> None:
@@ -122,6 +171,7 @@ def _build_full_pass(
     now: datetime,
     comparison_id: str | None = None,
     family_id: str = FAMILY_ID,
+    structured_metrics: bool = True,
 ) -> EvidenceBundle:
     bundle = _make_bundle(
         root,
@@ -135,9 +185,19 @@ def _build_full_pass(
         bundle.transition_step(step, StepState.RUNNING)
         output_path = None
         if step is ManagedStep.MATRIX:
-            output_path = _write_output(bundle, step, 1, _MATRIX_REPORT)
+            raw = (
+                _matrix_raw(bundle)
+                if structured_metrics
+                else {"family": "fake-family-1b", "stub": True}
+            )
+            output_path = _write_output(bundle, step, 1, _MATRIX_REPORT, raw)
         elif step is ManagedStep.OVERHEAD:
-            output_path = _write_output(bundle, step, 1, _OVERHEAD_REPORT)
+            raw = (
+                _overhead_raw(bundle)
+                if structured_metrics
+                else {"family": "fake-family-1b", "stub": True}
+            )
+            output_path = _write_output(bundle, step, 1, _OVERHEAD_REPORT, raw)
         bundle.transition_step(step, StepState.PASS, output_path=output_path)
     _add_lifecycle_pair(bundle)
     bundle.mark_cleanup_complete()
@@ -163,6 +223,7 @@ def make_sealed_pass(
     now: datetime | None = None,
     comparison_id: str | None = None,
     family_id: str = FAMILY_ID,
+    structured_metrics: bool = True,
 ) -> Path:
     bundle = _build_full_pass(
         root,
@@ -171,6 +232,24 @@ def make_sealed_pass(
         now=now or datetime(2026, 7, 31, 4, 0, tzinfo=timezone.utc),
         comparison_id=comparison_id,
         family_id=family_id,
+        structured_metrics=structured_metrics,
+    )
+    return bundle.run_dir
+
+
+def make_pending_plan(
+    root: Path,
+    *,
+    run_name: str = "fixture-pending-plan",
+    entropy: str = "ababab",
+    comparison_id: str | None = None,
+) -> Path:
+    bundle = _make_bundle(
+        root,
+        run_name=run_name,
+        entropy=entropy,
+        now=datetime(2026, 7, 31, 4, 30, tzinfo=timezone.utc),
+        comparison_id=comparison_id,
     )
     return bundle.run_dir
 
@@ -187,7 +266,7 @@ def make_partial_blocked_with_attempts(root: Path) -> Path:
             continue
         bundle.transition_step(step, StepState.RUNNING)
         output_path = (
-            _write_output(bundle, step, 1, _MATRIX_REPORT)
+            _write_output(bundle, step, 1, _MATRIX_REPORT, _matrix_raw(bundle))
             if step is ManagedStep.MATRIX
             else None
         )

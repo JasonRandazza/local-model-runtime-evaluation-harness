@@ -9,6 +9,13 @@ provider reconnect. A read-only sealed-results browser (`lmre browse`)
 renders that evidence as static local HTML; it grants no run, lifecycle,
 provider, or credential authority.
 
+A functional fixed-loopback run console (`lmre ui`) now presents existing
+immutable plans, exact evidence state, and runtime ownership. Starting the
+console grants no live authority; start or resume requires the complete plan
+hash, explicit acknowledgement, and a fresh single-use action grant. The UI
+delegates execution to the existing managed CLI and does not create policy,
+plans, providers, endpoints, or commands.
+
 Committed model configuration is now machine-portable. A strict, gitignored
 `.lmre/machine-profile.json` supplies the two approved local artifact roots;
 new managed plans checksum that profile so changed mappings fail before
@@ -17,7 +24,7 @@ inference. An offline `lmre doctor` command reports static local readiness
 every runtime, provider, credential, memory, and inference fact
 `NOT_CHECKED_LIVE`; it grants no live authority.
 
-## Qwen Osaurus-Native Candidate Promotion (Pending Full Acceptance, 2026-08-06)
+## Qwen JANGTQ4 and Open-Mix Live Acceptance (2026-08-06)
 
 - The prior `qwen_mxfp4__osaurus` cell remains preserved in sealed historical
   evidence but is retired from the active Qwen campaign. Run
@@ -33,11 +40,59 @@ every runtime, provider, credential, memory, and inference fact
   successful, contract-valid matrix observations. Matrix median total latency
   was about 4.53 seconds, worst total latency about 6.86 seconds, and median
   TTFT about 1.07 seconds. The configured memory floor remained satisfied.
-- That candidate evidence is intentionally `EXECUTED_UNSEALED`; it establishes
-  admission readiness, not full product acceptance. The active configuration,
-  preference and RAG maps, and open-mix revision now select JANGTQ4. A new
-  immutable managed plan and separately authorized full live run remain
-  required before claiming sealed Qwen acceptance.
+- Candidate evidence remains honestly `EXECUTED_UNSEALED`, while immutable run
+  `run-20260806-194307-801b42` is the sealed full-workflow acceptance. It
+  completed preflight, matrix, preference, both RAG modes, Ornith overhead,
+  cleanup, and sealing as `PASS` on attempt 1. Qwen JANGTQ4 and Ornith oQ4 each
+  produced 9/9 successful, contract-valid matrix observations; median total
+  latency was about 1.08 seconds for JANGTQ4 and 11.24 seconds for Ornith.
+- Ornith direct and Osaurus-routed overhead both produced 9/9 successful,
+  contract-valid measured observations. Median total latency was about 14.74
+  seconds direct and 14.45 seconds routed (about -0.29 seconds); median TTFT
+  was about 13.79 seconds direct and 13.46 seconds routed (about -0.33 seconds).
+  Qwen member-local overhead remains explicit `N/A` because no reviewed direct
+  pair exists.
+- The checksum manifest verifies in full. Six harness-owned oMLX worker PIDs
+  were individually released, the operator-owned Osaurus PID was attached and
+  recorded untouched across all six leases, cleanup completed, and the run
+  lock was removed.
+
+## OmniRoute-Assisted UI Slice (Recorded 2026-08-06)
+
+- OmniRoute MCP `3.8.49` was reachable and healthy for this slice. Its named
+  LMRE context skill remained unavailable and broader CLI/config skill coverage
+  was incomplete, so no repository context integration was inferred.
+- After explicit approval, only sanitized architecture and lifecycle packets
+  were sent externally. They excluded credentials, source code, local paths,
+  run identities, raw evidence, model responses, and machine configuration.
+- Short bounded delegations covered information hierarchy, loopback server
+  structure, route and session design, threat review, and offline test cases.
+  Their proposals were treated as review input and reconciled against local
+  repository rules; unsafe force-kill and UI-as-evidence suggestions were
+  rejected.
+- OmniRoute received no Git, filesystem, process, provider, evidence-write, or
+  live-run authority. Improving its reusable LMRE context skill remains a
+  separate slice owned by the concurrent OmniRoute workstream.
+
+## Run-Orchestration UI MVP (Non-Live Verified, 2026-08-06)
+
+- `lmre ui` binds only `127.0.0.1:8765`, renders server-side HTML with no
+  JavaScript, and reads existing managed bundles through the retained evidence
+  and results-browser boundaries.
+- A start or overhead-only resume is shown only when persisted evidence allows
+  it. The full plan hash, explicit acknowledgement, same-origin CSRF proof, and
+  a fresh ten-minute single-use action grant are all required.
+- One fixed managed-CLI child may run at a time. UI memory is presentation-only;
+  persisted evidence remains truth. Cancel sends exact-child `SIGINT`; console
+  shutdown may follow with bounded exact-child `SIGTERM`, never force kill.
+- Host, Origin/Referer, CSRF, safe-run-ID, HTML escaping, action replay,
+  expiry, concurrency, cancellation, and fixed command-vector behavior have
+  offline fake-process coverage. Desktop and phone-width browser reviews
+  passed without horizontal page overflow.
+- Verification at review: 566 retained tests passed (environment-dependent
+  transport tests skip while a local Osaurus holds its port); all six
+  retained dry-config commands passed. No runtime, provider, credential, or
+  model was contacted and no live run was initiated.
 
 ## Heterogeneous Open-Mix Managed Execution (Offline-Verified, 2026-08-05)
 
@@ -60,10 +115,9 @@ every runtime, provider, credential, memory, and inference fact
 - A supported missing Osaurus route seals `PARTIAL_BLOCKED`; `resume` verifies
   the original bundle and retries overhead only after the operator reconnects
   the existing provider.
-- The adapter is verified with fakes and configuration reads only. No runtime,
-  provider, credential, process, model, or inference was contacted in this
-  implementation slice. A real-model acceptance run remains separately
-  authorized.
+- The implementation adapter was first verified with fakes and configuration
+  reads only; live acceptance is now supplied by
+  `run-20260806-194307-801b42` as recorded above.
 - Verification: 546 retained tests passed, all six established dry-config
   commands passed, and the checked-in open-mix inspection returned
   `READY_FOR_PLAN` with both artifacts present and `NOT_CHECKED_LIVE`.
@@ -249,7 +303,7 @@ and is intentionally not committed.
 
 ## Active Workflows
 
-- managed `policy` / `plan` / `run` / `resume` / `status` / `report` / `browse`
+- managed `policy` / `plan` / `run` / `resume` / `status` / `report` / `browse` / `ui`
 - Discovery proposal/show/execute
 - Approach 3 explicit recipes
 - native matrix
@@ -284,17 +338,23 @@ and is intentionally not committed.
 - Resolved artifacts remain machine-local and may be missing even when the
   portable committed templates and machine profile are structurally valid.
 - The results browser now includes read-only sealed cross-run comparison
-  pages (metadata and verbatim statuses only, sealed verified members only).
-  It understands open-mix identity, but richer metric comparison remains
-  deferred.
+  pages for sealed verified members only. `COMPARABLE` groups additionally
+  expose recorded matrix and direct-versus-Osaurus summary values from exact,
+  checksummed plan rows. Missing or malformed metric payloads fail closed as
+  `UNAVAILABLE`; no winner, ranking, delta, confidence value, or new score is
+  derived. A state read that fails after classification keeps the member
+  visible with `UNAVAILABLE` metrics instead of failing the build.
+  Verification at review: 566 retained tests passed (environment-dependent
+  transport tests skip while a local Osaurus holds its port), and all six
+  retained dry-config commands passed.
 - No external plugin lifecycle is managed by this repository cleanup.
 - The controlled-expansion mechanism is shipped, but the only checked-in
   class currently declares the existing Gemma native baseline. No additional
   model build is claimed available or validated yet.
 - Managed free-bind execution remains same-family and native-server-only.
-  Heterogeneous open-mix scheduling and collection are implemented and
-  offline-verified; real-model acceptance remains behind explicit live
-  authorization and the exact adopted-plan policy gate.
+  Heterogeneous open-mix scheduling and collection now have sealed live
+  acceptance; additional definitions and future runs remain behind the exact
+  adopted-plan policy gate.
 
 ## Machine State
 

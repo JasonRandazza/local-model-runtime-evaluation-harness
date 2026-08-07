@@ -41,6 +41,7 @@ ownership of the local active-run lock.
 | `resources.py` | Host memory and resource-floor checks |
 | `measurement.py` / `token_counter.py` | Qualified timing and token evidence |
 | `results_browser.py` / `results_browser_html.py` | Read-only sealed-evidence interpretation and static HTML presentation |
+| `run_console.py` / `run_console_html.py` / `run_console_server.py` | Fixed-loopback presentation, exact-plan authority form, and one fixed managed-CLI child |
 | `doctor.py` | Offline static-readiness diagnostics over existing validators; no live contact |
 
 ## Native-Diagonal Contract
@@ -140,6 +141,14 @@ read-only presentation over this boundary: it re-verifies sealed checksums
 through `evidence_bundle` before presenting a bundle as trusted, fails closed
 for unsealed, corrupt, unsupported, or unreadable bundles, and never contacts
 a runtime or mutates evidence.
+
+The functional run console ([run-console.md](run-console.md)) remains a thin
+local adapter over the same evidence and managed CLI. It binds only to the
+fixed loopback origin, creates no plans or policy, requires an exact plan hash
+and a fresh single-use action grant, permits one console-owned child, and
+treats persisted evidence as the only run truth. Cancellation targets that
+exact child with `SIGINT`; console shutdown may follow with bounded `SIGTERM`
+but never force kill or broad process matching.
 
 ## Source Precedence
 

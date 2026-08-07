@@ -10,3 +10,8 @@ results/
 .DS_Store
 
 .worktrees/
+
+.claude/settings.local.json
+
+build/
+*.egg-info/

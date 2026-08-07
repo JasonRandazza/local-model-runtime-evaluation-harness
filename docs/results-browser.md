@@ -58,8 +58,9 @@ A malformed bundle never hides other valid runs.
 
 The browser also writes `comparisons/index.html` and one
 `comparisons/<comparison-id>.html` page per group, linked from the main
-index. The contract (frozen in
-`docs/superpowers/specs/2026-08-05-sealed-cross-run-comparison.md`):
+index. The grouping and comparability baseline is preserved in
+`docs/superpowers/specs/2026-08-05-sealed-cross-run-comparison.md`; the current
+read-only presentation contract is:
 
 - Groups form only from a persisted, non-empty `identity.comparison_id`
   matching the safe shape `[a-z0-9][a-z0-9-]{0,79}`. Missing or malformed
@@ -93,10 +94,19 @@ index. The contract (frozen in
   hides individual run pages.
 - Ordering is deterministic: groups by comparison ID; members by created
   timestamp, then run ID, then directory name.
-- Comparison pages show plan-identity metadata and recorded run statuses
-  only, verbatim. No winner, delta, confidence value, ranking, or new
-  score is derived. Open-mix identity is understood and compared fail-closed,
-  but richer metric comparison remains deferred.
+- A `COMPARABLE` page also shows the existing recorded matrix summary values
+  for every exact plan cell and direct-versus-Osaurus overhead summary values
+  for every exact plan pair. Values are read only from checksummed `raw.json`
+  files inside sealed verified bundles and displayed verbatim, in immutable
+  plan order. The browser never reads observations or response text for this
+  view.
+- Missing, malformed, duplicate, or plan-mismatched metric rows fail closed as
+  `UNAVAILABLE`; plans with no overhead pairs show overhead as `N/A`. An
+  unavailable run remains an accepted member when its bundle and plan are
+  otherwise sealed, verified, and comparable, but contributes no metric rows.
+- No metric section is exposed for `INCOMPARABLE` or one-member `N/A` groups.
+  No winner, ranking, delta, confidence value, or new score is derived.
+  Open-mix identity is understood and compared fail-closed.
 
 The `browse` JSON output adds `comparison_index` and `comparisons`
 alongside the existing keys, plus `unattributed_exclusions` (the count of
@@ -107,5 +117,5 @@ entries listed in the "Unattributed exclusions" section above).
 The browser is read-only presentation. It does not run, resume, or plan
 evaluations; it does not contact Osaurus, oMLX, OptiQ, or any other service;
 it binds no port; it never edits bundles, policies, providers, credentials,
-or model weights. Raw model-response viewing and derived metric comparison
-are deliberately out of scope.
+or model weights. Raw model-response viewing and derived metric calculations
+remain deliberately out of scope.
