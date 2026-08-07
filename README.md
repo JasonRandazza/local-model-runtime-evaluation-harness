@@ -28,6 +28,46 @@ sibling archive:
 See [docs/history.md](docs/history.md) for the historical lane summary and
 [docs/status.md](docs/status.md) for the current state.
 
+## Install and First Run
+
+Requires macOS on Apple Silicon and Python 3.11 or later. Installing the
+harness downloads no model and grants no authority to run one.
+
+```bash
+pip install local-model-runtime-evaluation-harness
+
+# Create a workspace from the shipped default configuration.
+lmre init ~/lmre-workspace
+cd ~/lmre-workspace
+
+# Tell the harness where this machine keeps model artifacts.
+#   edit .lmre/machine-profile.json
+
+# Offline readiness check. Contacts nothing and authorizes nothing.
+lmre doctor
+
+# Read sealed evidence once runs exist.
+lmre browse
+```
+
+A workspace holds `config/`, `suites/`, `corpora/`, `results/`, and `.lmre/`.
+Commands resolve it from `LMRE_WORKSPACE`, else the nearest parent directory
+containing a `.lmre-workspace` marker, else the surrounding source checkout.
+Run commands from inside the workspace, or set `LMRE_WORKSPACE`, and a source
+checkout keeps working exactly as before with no marker required.
+
+`lmre doctor` on a fresh workspace correctly reports `ACTION_REQUIRED` until
+you supply a machine profile and deliberately adopt an operator policy. It
+labels every runtime, provider, credential, memory, and inference fact
+`NOT_CHECKED_LIVE`, because it checks none of them.
+
+Nothing above starts inference. A live run additionally requires a reviewed
+operator policy adopted in the current session and an immutable plan that
+policy authorizes; see [docs/managed-runs.md](docs/managed-runs.md).
+
+Working from a source checkout instead? Use the `./bin/` wrappers in place of
+the installed commands; they need no install step.
+
 ## Active Commands
 
 | Command | Purpose |
@@ -39,6 +79,7 @@ See [docs/history.md](docs/history.md) for the historical lane summary and
 | `./bin/lmre-preference` | Collect, review, judge, and tally pairwise preference |
 | `./bin/lmre-rag` | Run oracle or keyword RAG evaluation |
 | `./bin/lmre-overhead` | Compare direct and Osaurus-routed latency for native backends |
+| `./bin/lmre init` | Create a workspace from the shipped default configuration; copies files only |
 | `./bin/lmre browse` | Generate the read-only static HTML browser for sealed evidence |
 | `./bin/lmre ui` | Inspect and explicitly start an existing immutable plan from the fixed-loopback console |
 | `./bin/lmre doctor` | Report offline readiness of local config, artifacts, and policy |
