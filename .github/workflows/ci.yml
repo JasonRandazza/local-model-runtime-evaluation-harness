@@ -116,15 +116,19 @@ jobs:
       - name: Scaffold a workspace and check offline readiness
         run: |
           set -euo pipefail
+          # Put the environment's scripts on PATH, as an operator who activated
+          # it would have. harness.entry_points resolves them via PATH, so
+          # calling them by absolute path alone correctly reports them missing.
+          export PATH="$RUNNER_TEMP/env/bin:$PATH"
           cd "$RUNNER_TEMP"
-          "$RUNNER_TEMP/env/bin/lmre" init "$RUNNER_TEMP/workspace"
+          lmre init "$RUNNER_TEMP/workspace"
           cd "$RUNNER_TEMP/workspace"
           test -d config && test -d suites && test -d corpora
           test -f .lmre-workspace
           # A fresh workspace legitimately reports ACTION_REQUIRED for the
           # machine profile and the unadopted policy; the command must still
           # succeed and must resolve the workspace configuration.
-          "$RUNNER_TEMP/env/bin/lmre" doctor > doctor.json
+          lmre doctor > doctor.json
           python - <<'PY'
           import json, pathlib, sys
           report = json.loads(pathlib.Path("doctor.json").read_text())["diagnostic"]

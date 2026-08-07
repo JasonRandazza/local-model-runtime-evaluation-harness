@@ -36,6 +36,14 @@ Issues = "https://github.com/JasonRandazza/local-model-runtime-evaluation-harnes
 [tool.hatch.version]
 path = "src/local_model_runtime_evaluation/__init__.py"
 
+[tool.pytest.ini_options]
+# The suite imports both `local_model_runtime_evaluation` and `tests.*`, so it
+# previously only ran where the package had been installed editable by hand.
+# Declaring the paths lets a fresh checkout run pytest with no install step.
+# The wheel itself is exercised separately by the install job in CI.
+pythonpath = [".", "src"]
+testpaths = ["tests"]
+
 [project.scripts]
 lmre = "local_model_runtime_evaluation.managed_run_cli:main"
 lmre-approach3 = "local_model_runtime_evaluation.approach3_cli:main"
