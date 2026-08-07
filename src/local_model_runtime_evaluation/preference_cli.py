@@ -15,7 +15,7 @@ from .artifact_profile import (
 from .matrix_config import Cell, MatrixError, REPOSITORY_ROOT, load_family
 from .preference_collect import run_collect
 from .preference_config import (
-    DEFAULT_PREFERENCE_CELLS,
+    default_preference_cells,
     PreferenceError,
     PreferenceSelection,
     PreferenceSuite,
@@ -76,15 +76,15 @@ def _load_cells(
 def _load_run_metadata(run_dir: Path) -> tuple[tuple[str, ...], str | None]:
     raw_path = run_dir / "raw.json"
     if not raw_path.is_file():
-        return DEFAULT_PREFERENCE_CELLS, None
+        return default_preference_cells(), None
     payload = json.loads(raw_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
-        return DEFAULT_PREFERENCE_CELLS, None
+        return default_preference_cells(), None
     cell_ids_raw = payload.get("cell_ids")
     if isinstance(cell_ids_raw, list) and all(isinstance(item, str) for item in cell_ids_raw):
         cell_ids = tuple(cell_ids_raw)
     else:
-        cell_ids = DEFAULT_PREFERENCE_CELLS
+        cell_ids = default_preference_cells()
     suite_id = payload.get("suite_id")
     suite_id_str = suite_id if isinstance(suite_id, str) else None
     return cell_ids, suite_id_str

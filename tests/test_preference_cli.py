@@ -9,7 +9,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from local_model_runtime_evaluation.preference_config import DEFAULT_PREFERENCE_CELLS
+from local_model_runtime_evaluation.preference_config import default_preference_cells
 from local_model_runtime_evaluation.preference_cli import main as _main
 from local_model_runtime_evaluation.preference_judge import DEFAULT_JUDGE_CELL
 from tests.artifact_profile_fixtures import synthetic_artifact_roots
@@ -30,7 +30,7 @@ class PreferenceCliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         payload = json.loads(buffer.getvalue())
         self.assertTrue(payload["ok"])
-        self.assertEqual(payload["cells"], list(DEFAULT_PREFERENCE_CELLS))
+        self.assertEqual(payload["cells"], list(default_preference_cells()))
         self.assertEqual(payload["prompts"], 6)
         self.assertEqual(payload["suite_id"], "multi-family-preference-v1")
 
@@ -114,7 +114,7 @@ class PreferenceCliTests(unittest.TestCase):
             run_dir = Path(tmp) / "gemma-4-12b-qat-preference-test"
             answers_dir = run_dir / "answers"
             answers_dir.mkdir(parents=True)
-            for index, cell_id in enumerate(DEFAULT_PREFERENCE_CELLS):
+            for index, cell_id in enumerate(default_preference_cells()):
                 payload = {
                     "cell_id": cell_id,
                     "model_id": f"model-{index}",
@@ -140,7 +140,7 @@ class PreferenceCliTests(unittest.TestCase):
                 json.dumps(
                     {
                         "suite_id": suite.suite_id,
-                        "cell_ids": list(DEFAULT_PREFERENCE_CELLS),
+                        "cell_ids": list(default_preference_cells()),
                     },
                     indent=2,
                 )

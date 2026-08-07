@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 from local_model_runtime_evaluation.matrix_config import Cell
 from local_model_runtime_evaluation.matrix_measure import CellResult
-from local_model_runtime_evaluation.overhead_config import DEFAULT_PAIR_IDS, OverheadError
+from local_model_runtime_evaluation.overhead_config import OverheadError, default_overhead_pairs
 from local_model_runtime_evaluation.overhead_runner import require_osaurus_listening, run_overhead
 from tests.artifact_profile_fixtures import synthetic_artifact_roots
 
@@ -93,7 +93,7 @@ class RunOverheadTests(unittest.TestCase):
 
         with TemporaryDirectory() as tmp:
             out = run_overhead(
-                DEFAULT_PAIR_IDS,
+                default_overhead_pairs(),
                 ROOT / "config/overhead/pairs",
                 ROOT / "config/matrix/cells",
                 ROOT / "suites/gemma-matrix-v1.json",
@@ -296,7 +296,7 @@ class RunOverheadTests(unittest.TestCase):
         build_server = MagicMock()
         with TemporaryDirectory() as tmp:
             out = run_overhead(
-                DEFAULT_PAIR_IDS,
+                default_overhead_pairs(),
                 ROOT / "config/overhead/pairs",
                 ROOT / "config/matrix/cells",
                 ROOT / "suites/gemma-matrix-v1.json",

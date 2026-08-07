@@ -6,7 +6,7 @@ import unittest
 from contextlib import redirect_stdout
 
 from local_model_runtime_evaluation.rag_cli import main as _main
-from local_model_runtime_evaluation.rag_config import DEFAULT_RAG_CELLS
+from local_model_runtime_evaluation.rag_config import default_rag_cells
 from tests.artifact_profile_fixtures import synthetic_artifact_roots
 
 ROOTS = synthetic_artifact_roots()
@@ -24,7 +24,7 @@ class RagCliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         payload = json.loads(buffer.getvalue())
         self.assertTrue(payload["ok"])
-        self.assertEqual(payload["cells"], list(DEFAULT_RAG_CELLS))
+        self.assertEqual(payload["cells"], list(default_rag_cells()))
         self.assertEqual(payload["questions"], 6)
         self.assertEqual(payload["corpus_id"], "rag-oracle-v1")
         self.assertEqual(payload["mode"], "oracle")

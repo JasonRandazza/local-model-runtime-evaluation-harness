@@ -8,7 +8,7 @@ from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from local_model_runtime_evaluation.overhead_cli import main as _main
-from local_model_runtime_evaluation.overhead_config import DEFAULT_PAIR_IDS
+from local_model_runtime_evaluation.overhead_config import default_overhead_pairs
 from tests.artifact_profile_fixtures import synthetic_artifact_roots
 
 ROOT = __import__("pathlib").Path(__file__).resolve().parents[1]
@@ -31,7 +31,7 @@ class OverheadCliTests(unittest.TestCase):
         self.assertEqual(payload["suite_id"], "gemma-matrix-v1")
         self.assertEqual(payload["family_id"], "gemma-4-12b-qat")
         pair_ids = {pair["pair_id"] for pair in payload["pairs"]}
-        self.assertEqual(pair_ids, set(DEFAULT_PAIR_IDS))
+        self.assertEqual(pair_ids, set(default_overhead_pairs()))
         for pair in payload["pairs"]:
             self.assertIn("direct_cell_id", pair)
             self.assertIn("routed_cell_id", pair)

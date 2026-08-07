@@ -72,10 +72,14 @@ def load_family_cell_recipes(path: Path | None = None) -> dict[str, tuple[str, .
 
 
 def default_preference_cells() -> tuple[str, ...]:
+    """Read the configured default cells.
+
+    Deliberately not cached in a module constant: configuration is resolved
+    per workspace, so a value captured at import time would pin one
+    workspace's selection for the life of the process -- and would make
+    importing this module fail wherever configuration is absent.
+    """
     return load_preference_defaults().cells
-
-
-DEFAULT_PREFERENCE_CELLS = default_preference_cells()
 
 
 def resolve_preference_selection(

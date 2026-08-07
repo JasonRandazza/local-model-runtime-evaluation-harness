@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from local_model_runtime_evaluation.preference_config import (
-    DEFAULT_PREFERENCE_CELLS,
+    default_preference_cells,
     PreferenceError,
     PreferenceSuite,
 )
@@ -32,7 +32,7 @@ def _prompts_by_id() -> dict[str, str]:
 def _answers_by_cell() -> dict[str, dict]:
     suite = PreferenceSuite.load(ROOT / "suites/multi-family-preference-v1.json")
     answers: dict[str, dict] = {}
-    for index, cell_id in enumerate(DEFAULT_PREFERENCE_CELLS):
+    for index, cell_id in enumerate(default_preference_cells()):
         answers[cell_id] = {
             "cell_id": cell_id,
             "model_id": f"model-{index}",
@@ -56,7 +56,7 @@ def _answers_by_cell() -> dict[str, dict]:
 class BuildPairsTests(unittest.TestCase):
     def test_build_pairs_count_is_eighteen(self) -> None:
         pairs = build_pairs(
-            DEFAULT_PREFERENCE_CELLS,
+            default_preference_cells(),
             _prompt_ids(),
             rng=random.Random(0),
         )
@@ -64,7 +64,7 @@ class BuildPairsTests(unittest.TestCase):
 
     def test_build_pairs_unique_pair_ids(self) -> None:
         pairs = build_pairs(
-            DEFAULT_PREFERENCE_CELLS,
+            default_preference_cells(),
             _prompt_ids(),
             rng=random.Random(0),
         )
@@ -73,7 +73,7 @@ class BuildPairsTests(unittest.TestCase):
 
     def test_build_pairs_deterministic_for_fixed_seed(self) -> None:
         kwargs = {
-            "cell_ids": DEFAULT_PREFERENCE_CELLS,
+            "cell_ids": default_preference_cells(),
             "prompt_ids": _prompt_ids(),
         }
         first = build_pairs(**kwargs, rng=random.Random(42))
@@ -82,7 +82,7 @@ class BuildPairsTests(unittest.TestCase):
 
     def test_build_pairs_expected_keys(self) -> None:
         pairs = build_pairs(
-            DEFAULT_PREFERENCE_CELLS,
+            default_preference_cells(),
             _prompt_ids(),
             rng=random.Random(0),
         )
@@ -98,7 +98,7 @@ class BuildPairsTests(unittest.TestCase):
 class WriteReviewTests(unittest.TestCase):
     def test_review_hides_cell_ids_in_markdown_body(self) -> None:
         pairs = build_pairs(
-            DEFAULT_PREFERENCE_CELLS,
+            default_preference_cells(),
             _prompt_ids(),
             rng=random.Random(0),
         )
@@ -114,12 +114,12 @@ class WriteReviewTests(unittest.TestCase):
             self.assertIn("**A**", review)
             self.assertIn("**B**", review)
             self.assertIn("Do not look up cell ids", review)
-            for cell_id in DEFAULT_PREFERENCE_CELLS:
+            for cell_id in default_preference_cells():
                 self.assertNotIn(cell_id, review)
 
     def test_judgments_stub_null_winners(self) -> None:
         pairs = build_pairs(
-            DEFAULT_PREFERENCE_CELLS,
+            default_preference_cells(),
             _prompt_ids(),
             rng=random.Random(0),
         )
@@ -140,7 +140,7 @@ class WriteReviewTests(unittest.TestCase):
 
     def test_pairs_json_maps_cells_without_answer_bodies(self) -> None:
         pairs = build_pairs(
-            DEFAULT_PREFERENCE_CELLS,
+            default_preference_cells(),
             _prompt_ids(),
             rng=random.Random(0),
         )
@@ -160,7 +160,7 @@ class WriteReviewTests(unittest.TestCase):
 
     def test_missing_answer_raises_preference_error(self) -> None:
         pairs = build_pairs(
-            DEFAULT_PREFERENCE_CELLS,
+            default_preference_cells(),
             ("tradeoff-explain",),
             rng=random.Random(0),
         )
