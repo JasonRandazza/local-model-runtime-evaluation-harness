@@ -25,9 +25,25 @@ from tempfile import TemporaryDirectory
 PACKAGE_NAME = "local_model_runtime_evaluation"
 PACKAGE_DIR = Path(__file__).resolve().parents[1] / "src" / PACKAGE_NAME
 
-# Module-scope calls that do no I/O and are safe at import time.
+# Module-scope calls that are safe at import time.
+#
+# `workspace_root` resolves a directory and reads no configuration. It has to
+# run at import because the path constants across the package derive from it,
+# and it cannot fail when configuration is absent -- it falls back to the
+# package's own parent. Its one failure mode is `LMRE_WORKSPACE` pointing at a
+# non-directory, which is explicit operator misconfiguration and should be
+# loud. Both properties are covered by tests/test_workspace.py.
 _ALLOWED_MODULE_SCOPE_CALLS = frozenset(
-    {"frozenset", "compile", "Path", "getLogger", "namedtuple", "TypeVar", "dict"}
+    {
+        "frozenset",
+        "compile",
+        "Path",
+        "getLogger",
+        "namedtuple",
+        "TypeVar",
+        "dict",
+        "workspace_root",
+    }
 )
 
 _CLI_MODULES = (

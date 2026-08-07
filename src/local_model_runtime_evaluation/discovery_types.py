@@ -5,10 +5,15 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .workspace import workspace_root
+
 DISCOVERY_SCHEMA_VERSION = "1.0.0"
 CONFIRM_POLICY_EXPLICIT = "explicit_execute"
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+# Resolved workspace root. Kept under the historical name so the modules
+# that derive path constants from it need no change; a checkout resolves
+# to the repository root exactly as before.
+REPOSITORY_ROOT = workspace_root()
 DEFAULT_DISCOVERY_RESULTS_ROOT = REPOSITORY_ROOT / "results" / "discovery"
 
 
