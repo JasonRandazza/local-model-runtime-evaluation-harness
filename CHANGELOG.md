@@ -43,6 +43,11 @@ but never the meaning of already-sealed evidence.
 
 ### Changed
 
+- Released under the MIT license, declared in `LICENSE` and in package metadata.
+  The project is built for the open-source community.
+- Continuous integration runs the retained suite on Python 3.11 and 3.13, the
+  six dry-config commands, and a clean-environment install smoke test that
+  walks the documented first-run path. All non-live.
 - MXFP quantization is retired and must not be reintroduced into any active
   family, cell, campaign, suite map, open mix, or comparison class. The sealed
   MXFP failure evidence is preserved: retirement means "not selectable for

@@ -8,8 +8,30 @@ name = "local-model-runtime-evaluation-harness"
 # previously maintained separately in this file and __init__.py.
 dynamic = ["version"]
 description = "Fail-closed local model runtime evaluation orchestration"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Jason Randazza" }]
+keywords = ["llm", "evaluation", "benchmark", "apple-silicon", "local-models"]
 requires-python = ">=3.11"
 dependencies = []
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Operating System :: MacOS :: MacOS X",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: System :: Benchmark",
+]
+
+[project.urls]
+Homepage = "https://github.com/JasonRandazza/local-model-runtime-evaluation-harness"
+Changelog = "https://github.com/JasonRandazza/local-model-runtime-evaluation-harness/blob/main/CHANGELOG.md"
+Issues = "https://github.com/JasonRandazza/local-model-runtime-evaluation-harness/issues"
 
 [tool.hatch.version]
 path = "src/local_model_runtime_evaluation/__init__.py"

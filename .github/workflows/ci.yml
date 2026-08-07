@@ -1,0 +1,154 @@
+name: CI
+
+# Non-live by design. Nothing here contacts Osaurus, oMLX, OptiQ, a keychain,
+# or a real model, and no managed run is started. The suite and dry-config
+# commands use fakes and configuration reads only. No model is downloaded.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    # macOS is the supported platform, and Actions is free for public
+    # repositories, so test where operators actually run.
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip pytest
+
+      - name: Run the retained suite
+        run: python -m pytest tests/ -q
+
+      - name: Byte-compile
+        run: python -m compileall -q src/ tests/
+
+  dry-config:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Write a synthetic machine profile
+        # The real profile is machine-local and gitignored. Artifact roots only
+        # have to exist for a configuration read; these stay empty, so no model
+        # resolves and nothing live is reachable.
+        run: |
+          mkdir -p "$RUNNER_TEMP/roots/hub" "$RUNNER_TEMP/roots/local" .lmre
+          python - <<'PY'
+          import json, os, pathlib
+          roots = pathlib.Path(os.environ["RUNNER_TEMP"]) / "roots"
+          pathlib.Path(".lmre/machine-profile.json").write_text(
+              json.dumps(
+                  {
+                      "schema_version": "1.0.0",
+                      "artifact_roots": {
+                          "huggingface_hub": str(roots / "hub"),
+                          "local_models": str(roots / "local"),
+                      },
+                  }
+              ),
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Retained dry-config commands
+        run: |
+          set -euo pipefail
+          ./bin/lmre-discover dry-config
+          ./bin/lmre-approach3 dry-config config/approach3/gemma-freeform-native-triple-v1.json
+          ./bin/lmre-matrix --dry-config --campaign config/matrix/gemma-4-12b-qat-campaign.json
+          ./bin/lmre-preference collect --dry-config
+          ./bin/lmre-rag collect --dry-config
+          ./bin/lmre-overhead run --dry-config
+
+  install:
+    # Proves the published artifact works: build a wheel, install it into a
+    # clean environment, and run the documented first-run path from outside the
+    # source tree.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Build and install into a clean environment
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip build
+          python -m build --wheel --outdir "$RUNNER_TEMP/dist"
+          python -m venv "$RUNNER_TEMP/env"
+          "$RUNNER_TEMP/env/bin/pip" install --quiet "$RUNNER_TEMP"/dist/*.whl
+
+      - name: Every console script runs from outside the source tree
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          for name in lmre lmre-approach3 lmre-discover lmre-matrix \
+                      lmre-overhead lmre-preference lmre-rag; do
+            echo "--- $name --help"
+            "$RUNNER_TEMP/env/bin/$name" --help > /dev/null
+          done
+
+      - name: Scaffold a workspace and check offline readiness
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/env/bin/lmre" init "$RUNNER_TEMP/workspace"
+          cd "$RUNNER_TEMP/workspace"
+          test -d config && test -d suites && test -d corpora
+          test -f .lmre-workspace
+          # A fresh workspace legitimately reports ACTION_REQUIRED for the
+          # machine profile and the unadopted policy; the command must still
+          # succeed and must resolve the workspace configuration.
+          "$RUNNER_TEMP/env/bin/lmre" doctor > doctor.json
+          python - <<'PY'
+          import json, pathlib, sys
+          report = json.loads(pathlib.Path("doctor.json").read_text())["diagnostic"]
+          findings = {
+              finding["check"]: finding["status"]
+              for section in report["sections"]
+              for finding in section["findings"]
+          }
+          required = {
+              "harness.entry_points": "OFFLINE_READY",
+              "configuration.recipe.complete-native-quality-v1": "OFFLINE_READY",
+          }
+          failures = [
+              f"{check}: expected {want}, got {findings.get(check)!r}"
+              for check, want in required.items()
+              if findings.get(check) != want
+          ]
+          # An installed copy must never be asked for checkout-only files.
+          failures += [
+              f"{check} should not be reported for an installed copy"
+              for check in ("harness.bin_wrappers", "harness.docs")
+              if check in findings
+          ]
+          if failures:
+              sys.exit("; ".join(failures))
+          print("installed first-run path verified")
+          PY
