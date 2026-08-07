@@ -3,7 +3,10 @@
 Notable operator-visible changes. Pre-1.0: minor versions may change behavior,
 but never the meaning of already-sealed evidence.
 
-## 0.4.0 (unreleased)
+## 0.4.0 (2026-08-07)
+
+First tagged release. Verification record:
+[docs/releases/0.4.0-verification.md](docs/releases/0.4.0-verification.md).
 
 ### Added
 
