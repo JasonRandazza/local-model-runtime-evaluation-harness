@@ -22,6 +22,22 @@ The active project contains:
 Historical stage runners, consumed manifests, plugin tools, and operator-window
 instructions are not active commands.
 
+## Retired Model Configuration
+
+- MXFP quantization is retired from LMRE and must not be reintroduced into any
+  active family, cell, campaign, suite map, open mix, or comparison class.
+  Operator decision, 2026-08-07: it runs far longer than the Gemma and Ornith
+  lanes and did not produce correct comparable results.
+- For the `qwen36-35b-a3b` family, the Osaurus-native cell is
+  `qwen_jangtq4__osaurus`. Do not propose an MXFP replacement or a "retry MXFP"
+  investigation.
+- The sealed MXFP failure evidence stays preserved and must not be deleted,
+  retroactively sealed, or reinterpreted. Retirement means "not selectable for
+  future runs", never "erase the record".
+- Removing MXFP model weights from disk and removing an MXFP entry from an
+  Osaurus provider are operator actions outside agent authority. Do not perform
+  them; report them instead.
+
 ## Non-Live Boundary
 
 - Unit tests and dry-config use fakes or configuration reads only.

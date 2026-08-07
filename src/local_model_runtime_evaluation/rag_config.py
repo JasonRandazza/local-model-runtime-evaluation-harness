@@ -72,10 +72,12 @@ def load_rag_family_cell_recipes(path: Path | None = None) -> dict[str, tuple[st
 
 
 def default_rag_cells() -> tuple[str, ...]:
+    """Read the configured default cells.
+
+    Deliberately not cached in a module constant: see
+    `preference_config.default_preference_cells`.
+    """
     return load_rag_defaults().cells
-
-
-DEFAULT_RAG_CELLS = default_rag_cells()
 
 
 def resolve_rag_selection(

@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
 [project]
 name = "local-model-runtime-evaluation-harness"
 version = "0.3.0"
@@ -7,4 +11,39 @@ dependencies = []
 
 [project.scripts]
 lmre = "local_model_runtime_evaluation.managed_run_cli:main"
+lmre-approach3 = "local_model_runtime_evaluation.approach3_cli:main"
 lmre-discover = "local_model_runtime_evaluation.discovery_cli:main"
+lmre-matrix = "local_model_runtime_evaluation.matrix_runner:main"
+lmre-overhead = "local_model_runtime_evaluation.overhead_cli:main"
+lmre-preference = "local_model_runtime_evaluation.preference_cli:main"
+lmre-rag = "local_model_runtime_evaluation.rag_cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/local_model_runtime_evaluation"]
+
+# Ship the default operator trees as a workspace template inside the wheel.
+#
+# They are force-included from their canonical repository locations rather than
+# moved into the package. Moving them would change the repo-relative input
+# paths recorded in `input_hashes`, which is a comparison dimension -- runs
+# planned before and after the move would read as INCOMPARABLE despite
+# byte-identical configuration. `lmre init` copies this template into a new
+# workspace, where the paths are `config/...` exactly as in a checkout.
+[tool.hatch.build.targets.wheel.force-include]
+"config" = "local_model_runtime_evaluation/_workspace_template/config"
+"suites" = "local_model_runtime_evaluation/_workspace_template/suites"
+"corpora" = "local_model_runtime_evaluation/_workspace_template/corpora"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/local_model_runtime_evaluation",
+  "bin",
+  "config",
+  "suites",
+  "corpora",
+  "tests",
+  "docs",
+  "schemas",
+  "README.md",
+  "AGENTS.md",
+]

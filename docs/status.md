@@ -16,6 +16,13 @@ hash, explicit acknowledgement, and a fresh single-use action grant. The UI
 delegates execution to the existing managed CLI and does not create policy,
 plans, providers, endpoints, or commands.
 
+The harness is now genuinely installable. `pip install` provides all seven
+console scripts, `lmre init` scaffolds a workspace from configuration shipped
+inside the wheel, and paths resolve from a workspace root rather than a fixed
+repository checkout. A source checkout resolves exactly as before, which keeps
+plan hashes and recorded input paths byte-identical and existing sealed runs
+comparable with future ones. Installing grants no authority to run inference.
+
 Committed model configuration is now machine-portable. A strict, gitignored
 `.lmre/machine-profile.json` supplies the two approved local artifact roots;
 new managed plans checksum that profile so changed mappings fail before

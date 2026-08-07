@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+
+from .workspace import workspace_root
 from typing import Any
 
 from .artifact_profile import (
@@ -16,7 +18,10 @@ from .artifact_profile import (
 )
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+# Resolved workspace root. Kept under the historical name so the modules
+# that derive path constants from it need no change; a checkout resolves
+# to the repository root exactly as before.
+REPOSITORY_ROOT = workspace_root()
 DEFAULT_FAMILIES_ROOT = REPOSITORY_ROOT / "config" / "matrix" / "families"
 
 ALLOWED_SERVERS = frozenset({"osaurus", "omlx", "optiq"})

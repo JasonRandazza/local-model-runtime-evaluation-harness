@@ -73,10 +73,12 @@ def load_family_pair_recipes(path: Path | None = None) -> dict[str, tuple[str, .
 
 
 def default_overhead_pairs() -> tuple[str, ...]:
+    """Read the configured default pairs.
+
+    Deliberately not cached in a module constant: see
+    `preference_config.default_preference_cells`.
+    """
     return load_overhead_defaults().pairs
-
-
-DEFAULT_PAIR_IDS = default_overhead_pairs()
 
 
 def resolve_overhead_selection(

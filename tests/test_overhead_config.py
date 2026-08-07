@@ -7,7 +7,7 @@ from pathlib import Path
 
 from local_model_runtime_evaluation.matrix_config import Cell, MatrixError, load_family
 from local_model_runtime_evaluation.overhead_config import (
-    DEFAULT_PAIR_IDS,
+    default_overhead_pairs,
     DEFAULT_PAIRS_ROOT,
     OverheadDefaults,
     OverheadError,
@@ -91,7 +91,7 @@ class OverheadConfigTests(unittest.TestCase):
             bad_artifact.validate_for_family(family, require_native_server=False)
 
     def test_default_pair_ids_and_root(self) -> None:
-        self.assertEqual(DEFAULT_PAIR_IDS, ("oq4_fp16", "optiq_4bit"))
+        self.assertEqual(default_overhead_pairs(), ("oq4_fp16", "optiq_4bit"))
         self.assertEqual(DEFAULT_PAIRS_ROOT, ROOT / "config" / "overhead" / "pairs")
 
     def test_defaults_load_gemma_family(self) -> None:

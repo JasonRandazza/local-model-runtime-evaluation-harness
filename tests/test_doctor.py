@@ -608,21 +608,55 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("configuration.recipes", checks)
         self.assertIn("configuration.families", checks)
 
-    def test_harness_missing_bin_and_docs(self) -> None:
-        # A bare synthetic repository_root has neither bin/ wrappers nor docs.
+    def _harness_findings(self, **overrides: object) -> dict[str, dict]:
         profile = _write_real_machine_profile(self.root / "machine")
-        result = doctor.run_diagnostics(
-            machine_profile_path=profile,
-            state_root=self.root / "state",
-            repository_root=self.root / "bare-repo",
-            which=_fake_which(),
-            now=FIXED_NOW,
-        )
+        arguments: dict[str, object] = {
+            "machine_profile_path": profile,
+            "state_root": self.root / "state",
+            "repository_root": self.root / "bare-repo",
+            "which": _fake_which(),
+            "now": FIXED_NOW,
+        }
+        arguments.update(overrides)
+        result = doctor.run_diagnostics(**arguments)
         harness = next(s for s in result["sections"] if s["section"] == "harness")
-        bins = next(f for f in harness["findings"] if f["check"] == "harness.bin_wrappers")
-        docs = next(f for f in harness["findings"] if f["check"] == "harness.docs")
-        self.assertEqual(bins["status"], doctor.STATUS_ACTION_REQUIRED)
-        self.assertEqual(docs["status"], doctor.STATUS_ACTION_REQUIRED)
+        return {finding["check"]: finding for finding in harness["findings"]}
+
+    def test_checkout_reports_missing_bin_and_docs(self) -> None:
+        # A bare synthetic root has neither bin/ wrappers nor docs. Forced into
+        # checkout mode, both must fail closed.
+        with patch.object(doctor, "is_source_checkout", return_value=True):
+            findings = self._harness_findings()
+        self.assertEqual(
+            findings["harness.bin_wrappers"]["status"], doctor.STATUS_ACTION_REQUIRED
+        )
+        self.assertEqual(
+            findings["harness.docs"]["status"], doctor.STATUS_ACTION_REQUIRED
+        )
+        self.assertNotIn("harness.entry_points", findings)
+
+    def test_installed_copy_checks_entry_points_not_checkout_files(self) -> None:
+        # An installed operator has no bin/ or docs tree in the workspace.
+        # Demanding them would report a fault that does not exist; the console
+        # scripts are what must actually be reachable.
+        with patch.object(doctor, "is_source_checkout", return_value=False):
+            findings = self._harness_findings()
+        self.assertNotIn("harness.bin_wrappers", findings)
+        self.assertNotIn("harness.docs", findings)
+        self.assertEqual(
+            findings["harness.entry_points"]["status"], doctor.STATUS_ACTION_REQUIRED
+        )
+
+    def test_installed_copy_is_ready_when_console_scripts_are_on_path(self) -> None:
+        with patch.object(doctor, "is_source_checkout", return_value=False):
+            findings = self._harness_findings(
+                which=_fake_which(
+                    found=("osaurus", "omlx", "optiq", *doctor.BIN_WRAPPERS)
+                )
+            )
+        self.assertEqual(
+            findings["harness.entry_points"]["status"], doctor.STATUS_OFFLINE_READY
+        )
 
     # -- tripwires --
 

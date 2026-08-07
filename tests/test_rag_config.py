@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from local_model_runtime_evaluation.rag_config import (
-    DEFAULT_RAG_CELLS,
+    default_rag_cells,
     RagCorpus,
     RagDefaults,
     RagError,
@@ -40,7 +40,7 @@ class RagConfigTests(unittest.TestCase):
             cells,
             ("jang_4m__osaurus", "oq4_fp16__omlx", "optiq_4bit__optiq"),
         )
-        self.assertEqual(len(DEFAULT_RAG_CELLS), 3)
+        self.assertEqual(len(default_rag_cells()), 3)
 
     def test_historical_gemma_rag_suite_still_loads(self) -> None:
         suite = RagSuite.load(ROOT / "suites/gemma-rag-oracle-v1.json")

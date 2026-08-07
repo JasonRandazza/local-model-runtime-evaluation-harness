@@ -38,6 +38,7 @@ from .preference_config import (
 )
 from .rag_config import RagCorpus, RagError, RagSuite, load_rag_family_cell_recipes
 from .artifact_profile import ArtifactProfileError, ArtifactRoots, load_artifact_roots
+from .workspace import is_source_checkout
 from .run_identity import RunIdentityError, _load_recipe, _native_recipes
 
 
@@ -114,7 +115,7 @@ def _try(callable_, *args, **kwargs):
         return None, str(error)
 
 
-def _harness_section(root: Path) -> dict:
+def _harness_section(root: Path, which: Callable[[str], str | None]) -> dict:
     findings = []
     version_ok = sys.version_info >= (3, 11)
     version_text = ".".join(str(part) for part in sys.version_info[:3])
@@ -127,33 +128,51 @@ def _harness_section(root: Path) -> dict:
         else "Upgrade the Python interpreter to 3.11 or later.",
     ))
 
-    missing_bins = [
-        name for name in BIN_WRAPPERS
-        if not (
-            (root / "bin" / name).is_file()
-            and os.access(root / "bin" / name, os.X_OK)
-        )
-    ]
-    findings.append(_finding(
-        "harness.bin_wrappers",
-        STATUS_ACTION_REQUIRED if missing_bins else STATUS_OFFLINE_READY,
-        "some bin/ command wrappers are missing or not executable" if missing_bins
-        else "all bin/ command wrappers are present and executable",
-        detail=", ".join(missing_bins) or None,
-        remediation=None if not missing_bins
-        else "Restore the missing bin/ wrappers from version control and mark them executable.",
-    ))
+    # bin/ wrappers and docs/ belong to a source checkout. An installed
+    # operator invokes the console scripts instead and has no docs tree in the
+    # workspace, so demanding them there reports a fault that does not exist.
+    if is_source_checkout(root):
+        missing_bins = [
+            name for name in BIN_WRAPPERS
+            if not (
+                (root / "bin" / name).is_file()
+                and os.access(root / "bin" / name, os.X_OK)
+            )
+        ]
+        findings.append(_finding(
+            "harness.bin_wrappers",
+            STATUS_ACTION_REQUIRED if missing_bins else STATUS_OFFLINE_READY,
+            "some bin/ command wrappers are missing or not executable" if missing_bins
+            else "all bin/ command wrappers are present and executable",
+            detail=", ".join(missing_bins) or None,
+            remediation=None if not missing_bins
+            else "Restore the missing bin/ wrappers from version control and mark them executable.",
+        ))
 
-    missing_docs = [name for name in REQUIRED_DOCS if not (root / name).is_file()]
-    findings.append(_finding(
-        "harness.docs",
-        STATUS_ACTION_REQUIRED if missing_docs else STATUS_OFFLINE_READY,
-        "some core operator docs are missing" if missing_docs
-        else "core operator docs are present",
-        detail=", ".join(missing_docs) or None,
-        remediation=None if not missing_docs
-        else "Restore the missing operator docs from version control.",
-    ))
+        missing_docs = [name for name in REQUIRED_DOCS if not (root / name).is_file()]
+        findings.append(_finding(
+            "harness.docs",
+            STATUS_ACTION_REQUIRED if missing_docs else STATUS_OFFLINE_READY,
+            "some core operator docs are missing" if missing_docs
+            else "core operator docs are present",
+            detail=", ".join(missing_docs) or None,
+            remediation=None if not missing_docs
+            else "Restore the missing operator docs from version control.",
+        ))
+    else:
+        missing_scripts = [name for name in BIN_WRAPPERS if which(name) is None]
+        findings.append(_finding(
+            "harness.entry_points",
+            STATUS_ACTION_REQUIRED if missing_scripts else STATUS_OFFLINE_READY,
+            "some lmre console scripts are not on PATH" if missing_scripts
+            else "all lmre console scripts are on PATH",
+            detail=", ".join(missing_scripts) or None,
+            remediation=None if not missing_scripts
+            else (
+                "Reinstall the harness so its console scripts are on PATH, or "
+                "activate the environment that provides them."
+            ),
+        ))
     return {"section": "harness", "findings": findings}
 
 
@@ -561,7 +580,7 @@ def run_diagnostics(
 ) -> dict:
     root = REPOSITORY_ROOT if repository_root is None else repository_root
 
-    harness = _harness_section(root)
+    harness = _harness_section(root, which)
     commands, commands_status = _commands_section(which)
     profile, roots = _machine_profile_section(machine_profile_path)
     profile_ok = roots is not None
