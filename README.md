@@ -33,8 +33,10 @@ See [docs/history.md](docs/history.md) for the historical lane summary and
 Requires macOS on Apple Silicon and Python 3.11 or later. Installing the
 harness downloads no model and grants no authority to run one.
 
+Not on PyPI yet, so install from the repository:
+
 ```bash
-pip install local-model-runtime-evaluation-harness
+pip install "git+https://github.com/JasonRandazza/local-model-runtime-evaluation-harness"
 
 # Create a workspace from the shipped default configuration.
 lmre init ~/lmre-workspace

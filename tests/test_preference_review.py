@@ -7,9 +7,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from local_model_runtime_evaluation.preference_config import (
-    default_preference_cells,
     PreferenceError,
     PreferenceSuite,
+    default_preference_cells,
 )
 from local_model_runtime_evaluation.preference_review import (
     build_pairs,

@@ -39,7 +39,6 @@ from .operator_policy import (
 from .process_inspection import ProcessInspector
 from .results_browser_html import write_browser
 from .run_console_server import serve_console
-from .workspace_init import initialize_workspace
 from .run_identity import build_plan
 from .runtime_adapters import (
     OmlxAdapter,
@@ -49,6 +48,7 @@ from .runtime_adapters import (
 )
 from .runtime_manager import RuntimeManager
 from .transport import LoopbackTransport
+from .workspace_init import initialize_workspace
 
 DEFAULT_STATE_DIR = Path(".lmre")
 DEFAULT_RESULTS_DIR = Path("results/runs")

@@ -42,7 +42,8 @@ limitation in the release notes — do not silently pass it.
       and names what is out of scope.
 - [ ] Known limitations in `docs/status.md` match reality, with no claim local
       verification did not establish.
-- [ ] A licensing decision is recorded. **Open: no LICENSE file exists.**
+- [ ] A licensing decision is recorded. Resolved: MIT, in `LICENSE`, declared in
+      package metadata as `License-Expression: MIT`.
 
 ## 4. Pre-release verification gates
 
@@ -96,10 +97,19 @@ unchanged afterwards.
       invalidating sealed comparability.
 - [ ] Rollback trigger conditions and the deciding owner are recorded.
 
-## Known gaps at the time of writing
+## Known gaps
 
-- No `LICENSE` file. Blocks public release; the decision is the owner's.
-- No CI. `gh pr checks` reports nothing, so local verification is the only gate
-  and must be re-run rather than quoted.
 - No pinned linter configuration, so the default rule set reports pre-existing
-  findings across the tree. Prior slices required only new modules to be clean.
+  findings across the tree. Prior slices required only new modules to be clean,
+  and CI therefore does not run a linter. Adopting a pinned configuration would
+  let CI enforce it.
+- CI does not run a whitespace check. The obvious whole-tree form fails on
+  intentional Markdown hard line breaks, which are trailing spaces by design;
+  scoping it to a pull-request diff is possible but was not worth the
+  complexity. `git diff --check` remains a local pre-publication step.
+- No live acceptance runs in CI, deliberately. Live work stays operator-driven
+  and separately authorized.
+
+Resolved since first draft: MIT licensing, and CI now runs the suite on two
+Python versions, the six dry-config commands, and a clean-environment install
+smoke test of the documented first-run path.
