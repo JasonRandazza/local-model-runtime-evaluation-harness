@@ -8,6 +8,7 @@ import unittest
 from http import cookies
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 
 from local_model_runtime_evaluation.managed_run_cli import build_parser
 from local_model_runtime_evaluation.run_console import (
@@ -234,6 +235,30 @@ class RunConsoleControllerTests(unittest.TestCase):
     def test_unrecognized_run_id_is_rejected(self) -> None:
         with self.assertRaisesRegex(ConsoleError, "not recognized"):
             self.controller.dashboard("../outside")
+
+    def test_auto_selection_race_keeps_index_reachable(self) -> None:
+        # build_index can vet a bundle that becomes unreadable before the
+        # detail read. Auto-selection must not strand every other plan.
+        make_pending_plan(self.root)
+        with mock.patch.object(
+            RunConsoleController,
+            "_bundle",
+            side_effect=ConsoleError("unreadable", status=422),
+        ):
+            dashboard = self.controller.dashboard()
+        self.assertEqual(len(dashboard["entries"]), 1)
+        self.assertIsNone(dashboard["selected_run_id"])
+        self.assertIsNone(dashboard["detail"])
+        self.assertEqual(dashboard["grants"], {})
+
+    def test_explicit_unreadable_run_still_fails_closed(self) -> None:
+        run_dir = make_pending_plan(self.root)
+        with mock.patch.object(
+            RunConsoleController,
+            "_bundle",
+            side_effect=ConsoleError("unreadable", status=422),
+        ), self.assertRaises(ConsoleError):
+            self.controller.dashboard(run_dir.name)
 
     def test_shutdown_uses_exact_sigint_then_bounded_sigterm_without_kill(self) -> None:
         run_dir = make_pending_plan(self.root)

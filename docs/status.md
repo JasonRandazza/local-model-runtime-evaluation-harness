@@ -89,7 +89,7 @@ every runtime, provider, credential, memory, and inference fact
   expiry, concurrency, cancellation, and fixed command-vector behavior have
   offline fake-process coverage. Desktop and phone-width browser reviews
   passed without horizontal page overflow.
-- Verification at review: 564 retained tests passed (environment-dependent
+- Verification at review: 566 retained tests passed (environment-dependent
   transport tests skip while a local Osaurus holds its port); all six
   retained dry-config commands passed. No runtime, provider, credential, or
   model was contacted and no live run was initiated.
@@ -344,7 +344,7 @@ and is intentionally not committed.
   `UNAVAILABLE`; no winner, ranking, delta, confidence value, or new score is
   derived. A state read that fails after classification keeps the member
   visible with `UNAVAILABLE` metrics instead of failing the build.
-  Verification at review: 564 retained tests passed (environment-dependent
+  Verification at review: 566 retained tests passed (environment-dependent
   transport tests skip while a local Osaurus holds its port), and all six
   retained dry-config commands passed.
 - No external plugin lifecycle is managed by this repository cleanup.

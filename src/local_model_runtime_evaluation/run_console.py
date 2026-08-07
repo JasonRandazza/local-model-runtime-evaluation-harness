@@ -150,12 +150,29 @@ class RunConsoleController:
                 entry for entry in index["entries"] if entry.get("run_id") is not None
             ]
             selected = selected_run_id
-            if selected is None and entries:
+            auto_selected = selected is None
+            if auto_selected and entries:
                 selected = str(entries[0]["run_id"])
             detail = None
             grants: dict[str, str | None] = {}
             if selected is not None:
-                bundle = self._bundle(selected)
+                try:
+                    bundle = self._bundle(selected)
+                except ConsoleError:
+                    if not auto_selected:
+                        # An explicit request for one plan still fails closed.
+                        raise
+                    # build_index vetted this bundle, so a load failure here
+                    # means the filesystem changed between calls. Keep the
+                    # index reachable instead of stranding every other plan
+                    # behind one racing auto-selection.
+                    return {
+                        "entries": entries,
+                        "missing_root": index["missing_root"],
+                        "selected_run_id": None,
+                        "detail": None,
+                        "grants": grants,
+                    }
                 detail = build_run_view(bundle.run_dir)
                 can_start, can_resume = self._action_eligibility(bundle)
                 detail["can_start"] = can_start and active is None
