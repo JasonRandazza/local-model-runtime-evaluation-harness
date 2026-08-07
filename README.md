@@ -28,6 +28,13 @@ sibling archive:
 See [docs/history.md](docs/history.md) for the historical lane summary and
 [docs/status.md](docs/status.md) for the current state.
 
+**Picking up this project?** Start with
+[docs/handoffs/2026-08-07-continuation-handoff.md](docs/handoffs/2026-08-07-continuation-handoff.md).
+It names the six files worth reading, the invariants that will cost you time if
+you miss them, and the candidate next slices — so you do not have to scan the
+repository to get oriented. `AGENTS.md` holds the rules that bind automated
+contributors.
+
 ## Install and First Run
 
 Requires macOS on Apple Silicon and Python 3.11 or later. Installing the

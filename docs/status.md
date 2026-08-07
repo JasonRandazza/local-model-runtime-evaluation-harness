@@ -31,6 +31,35 @@ inference. An offline `lmre doctor` command reports static local readiness
 every runtime, provider, credential, memory, and inference fact
 `NOT_CHECKED_LIVE`; it grants no live authority.
 
+## Release 0.4.0 (Non-Live Verified, 2026-08-07)
+
+First tagged release: `v0.4.0`, MIT licensed, with wheel and sdist attached.
+Verification record: `docs/releases/0.4.0-verification.md`.
+
+- Installability was measured, not assumed. The published wheel was downloaded
+  from the release, installed into a clean virtualenv, and driven through the
+  documented first-run path from outside any checkout: all seven console
+  scripts run, `lmre init` scaffolds a workspace, and `lmre doctor` reports
+  `harness.entry_points` and the recipe check `OFFLINE_READY`. The sdist was
+  verified the same way.
+- Five defects found and fixed that were not in any task description: the
+  comparisons page crashed entirely on a state read that failed after
+  classification; the run console index could be taken down by one racing
+  bundle; every CLI crashed before argument parsing when configuration was
+  absent; `lmre doctor` demanded checkout-only files from installed operators;
+  and the README documented an install command that could not work.
+- CI exists and is meaningful. Its first run failed and caught that the test
+  suite only ran where the package had been installed editable by hand, so a
+  fresh checkout could not run it at all.
+- **Evidence compatibility holds.** Plan hashes and recorded `input_hashes`
+  keys are unchanged, so `run-20260806-194307-801b42` stays comparable with
+  future runs and existing sealed bundles still verify. Gated on a reproducible
+  plan-hash oracle over the managed and open-mix planning paths, checked on
+  every commit of the packaging work.
+- Verification: 626 retained tests pass on Python 3.11 and 3.13; all six
+  retained dry-config commands pass. No runtime, provider, credential store, or
+  model was contacted; no managed run was started; no policy was adopted.
+
 ## Qwen JANGTQ4 and Open-Mix Live Acceptance (2026-08-06)
 
 - The prior `qwen_mxfp4__osaurus` cell remains preserved in sealed historical
@@ -310,7 +339,8 @@ and is intentionally not committed.
 
 ## Active Workflows
 
-- managed `policy` / `plan` / `run` / `resume` / `status` / `report` / `browse` / `ui`
+- managed `init` / `policy` / `plan` / `run` / `resume` / `status` / `report` /
+  `browse` / `ui`
 - Discovery proposal/show/execute
 - Approach 3 explicit recipes
 - native matrix
@@ -335,6 +365,20 @@ and is intentionally not committed.
 
 ## Open Risks
 
+- Not published to a package index. The README documents installing from the
+  repository git URL, which is verified; `pip install
+  local-model-runtime-evaluation-harness` will not resolve until the project is
+  uploaded.
+- No pinned linter configuration, so CI runs no linter. The 24 files changed for
+  0.4.0 carry 23 pre-existing findings under ruff defaults, unchanged from the
+  release baseline; the "new modules clean" convention remains manual.
+- 0.4.0 has no live acceptance run of its own. It is verified non-live, and the
+  most recent sealed live evidence predates it. That is sound because plan
+  hashes are unchanged, but a live run under the installed path has not been
+  exercised.
+- There is no earlier working release to roll back to. An installed copy of
+  pre-0.4.0 code could not start, so rollback means checking out an earlier
+  commit and using the `./bin/` wrappers.
 - The original three-cell managed acceptance still preserves its honest OptiQ
   overhead `N/A`; the missing path is superseded by the separate sealed OptiQ
   binding run rather than by rewriting that bundle.

@@ -1,8 +1,40 @@
 # Architecture
 
+## Workspace Boundary
+
+Every operator-owned tree the harness reads or writes lives under one
+**workspace root**: `config/`, `suites/`, `corpora/`, `results/`, and `.lmre/`.
+A source checkout is itself a workspace, which is why an installed copy behaves
+the same as a checkout once `lmre init` has scaffolded one.
+
+`workspace.py` resolves the root once per process, first match winning:
+
+1. `LMRE_WORKSPACE`, when set. Set but not a directory is a hard error --
+   silently substituting another root would let a run record evidence against
+   configuration the operator never chose.
+2. The nearest ancestor of the current directory holding a `.lmre-workspace`
+   marker or a `config/managed-runs/` tree.
+3. The directory two levels above the package, which is the repository root in
+   a source checkout.
+
+Resolution is cached because these are one-shot CLIs; without that, path
+constants in different modules could disagree with each other.
+
+The third rule is load-bearing, not a convenience. A checkout resolves exactly
+as it did before workspaces existed, which is what keeps plan hashes and the
+recorded `input_hashes` keys byte-identical and existing sealed runs comparable
+with future ones. See the plan-hash gate in `docs/release-checklist.md` before
+changing anything that affects where a plan input resolves.
+
+Configuration is never read at import time. A module-scope read would crash
+every command before argument parsing wherever configuration is absent, which
+is exactly an installed copy's situation; `tests/test_import_purity.py` fails
+if one is reintroduced.
+
 ## Product Flow
 
 ```text
+lmre init (optional, installed copy) -> workspace root
 adopted policy -> immutable plan -> runtime manager -> retained collectors
                -> evidence bundle -> blocked resume or sealed report
 ```
@@ -19,6 +51,8 @@ ownership of the local active-run lock.
 
 | Component | Responsibility |
 | --- | --- |
+| `workspace.py` | Workspace-root resolution and shipped-template location; the single source every path constant derives from |
+| `workspace_init.py` | `lmre init` scaffolding: copies the shipped template, creates empty result and state directories, grants nothing |
 | `artifact_profile.py` | Strict logical-root resolution from the fixed ignored machine profile |
 | `operator_policy.py` | Standing local authority, exact limits, adoption record |
 | `run_identity.py` / `managed_run_types.py` | Immutable plan, bound input hashes, name, ID, and state contracts |
