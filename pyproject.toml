@@ -4,10 +4,15 @@ build-backend = "hatchling.build"
 
 [project]
 name = "local-model-runtime-evaluation-harness"
-version = "0.3.0"
+# Single-sourced from the package so the two can never disagree; they were
+# previously maintained separately in this file and __init__.py.
+dynamic = ["version"]
 description = "Fail-closed local model runtime evaluation orchestration"
 requires-python = ">=3.11"
 dependencies = []
+
+[tool.hatch.version]
+path = "src/local_model_runtime_evaluation/__init__.py"
 
 [project.scripts]
 lmre = "local_model_runtime_evaluation.managed_run_cli:main"
