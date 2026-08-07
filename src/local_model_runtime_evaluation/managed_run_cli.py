@@ -39,6 +39,7 @@ from .operator_policy import (
 from .process_inspection import ProcessInspector
 from .results_browser_html import write_browser
 from .run_console_server import serve_console
+from .workspace_init import initialize_workspace
 from .run_identity import build_plan
 from .runtime_adapters import (
     OmlxAdapter,
@@ -439,6 +440,26 @@ def build_parser() -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
+    init = commands.add_parser(
+        "init",
+        help=(
+            "Create a workspace from the shipped default configuration; "
+            "copies files only and grants no live authority"
+        ),
+    )
+    init.add_argument(
+        "target",
+        type=Path,
+        nargs="?",
+        default=Path("."),
+        help="Workspace directory to create (default: current directory)",
+    )
+    init.add_argument(
+        "--force",
+        action="store_true",
+        help="Replace existing config, suites, and corpora trees in the target",
+    )
+
     policy = commands.add_parser(
         "policy",
         help="Show or explicitly adopt standing local authority",
@@ -623,6 +644,8 @@ def main(
             body = _command_status(args)
         elif args.command == "browse":
             body = _command_browse(args)
+        elif args.command == "init":
+            body = initialize_workspace(args.target, force=args.force)
         elif args.command == "ui":
             _command_ui(args)
             return 0

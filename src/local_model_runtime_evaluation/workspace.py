@@ -76,3 +76,34 @@ def workspace_root() -> Path:
 def reset_workspace_root_cache() -> None:
     """Forget the resolved root. For tests that relocate the workspace."""
     workspace_root.cache_clear()
+
+
+def is_source_checkout(root: Path | None = None) -> bool:
+    """Is the running package the one inside `root` as a source checkout?
+
+    True when the imported package lives under the workspace being used, which
+    is the case for a repository checkout and for an editable install of it.
+    False for an ordinary installed copy, whose package sits in site-packages.
+    Callers use this to avoid demanding checkout-only files -- `bin/` wrappers
+    and `docs/` -- from an installed operator who correctly does not have them.
+    """
+    resolved = workspace_root() if root is None else root.resolve()
+    return _PACKAGE_PARENT == resolved
+
+
+# Default operator trees shipped inside the wheel, copied out by `lmre init`.
+# Absent in a source checkout, where the canonical trees are at the root.
+WORKSPACE_TEMPLATE_DIR = Path(__file__).resolve().parent / "_workspace_template"
+WORKSPACE_TEMPLATE_TREES = ("config", "suites", "corpora")
+
+
+def workspace_template_root() -> Path:
+    """Where `lmre init` reads its default trees from.
+
+    Prefers the template shipped in the wheel; falls back to the checkout root,
+    so `lmre init` works from a source tree without duplicating these files
+    into the package just to satisfy the installed layout.
+    """
+    if WORKSPACE_TEMPLATE_DIR.is_dir():
+        return WORKSPACE_TEMPLATE_DIR
+    return _PACKAGE_PARENT
