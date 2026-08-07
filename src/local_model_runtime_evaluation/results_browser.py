@@ -19,9 +19,9 @@ from .managed_run_types import (
     SUPPORTED_MANAGED_PLAN_SCHEMA_VERSIONS,
     ManagedRunPlan,
     ManagedRunState,
+    ManagedStep,
 )
 from .run_identity import SAFE_RUN_ID
-
 
 SUPPORTED_PLAN_SCHEMA_VERSIONS = SUPPORTED_MANAGED_PLAN_SCHEMA_VERSIONS
 
@@ -527,6 +527,10 @@ _MALFORMED_COMPARISON_ID_REASON = "malformed_comparison_id"
 
 _UNATTRIBUTED_PLACEHOLDER = "(unrecognized entry)"
 
+METRICS_AVAILABLE = "AVAILABLE"
+METRICS_UNAVAILABLE = "UNAVAILABLE"
+METRICS_NOT_APPLICABLE = "N/A"
+
 
 def _unattributed_record(health: str, raw_run_dir_name: str, reason: str) -> dict:
     display_name = (
@@ -535,6 +539,184 @@ def _unattributed_record(health: str, raw_run_dir_name: str, reason: str) -> dic
         else _UNATTRIBUTED_PLACEHOLDER
     )
     return {"run_dir_name": display_name, "health": health, "reason": reason}
+
+
+def _step_raw_json(
+    run_dir: Path, state: ManagedRunState, step: ManagedStep
+) -> dict | None:
+    """Read one checksummed collector raw file without leaving the bundle."""
+    record = next((item for item in state.steps if item.step is step), None)
+    if record is None or not record.output_path:
+        return None
+    raw_path = run_dir / record.output_path / "raw.json"
+    try:
+        if raw_path.is_symlink() or not raw_path.resolve().is_relative_to(
+            run_dir.resolve()
+        ):
+            return None
+    except OSError:
+        return None
+    return _load_json(raw_path)
+
+
+def _summary_values(raw: object) -> dict | None:
+    summary = raw.get("summary") if isinstance(raw, dict) else None
+    if not isinstance(summary, dict):
+        return None
+    values = {
+        key: summary.get(key)
+        for key in (
+            "median_total_seconds",
+            "median_ttft_seconds",
+            "success_count",
+            "contract_pass_count",
+            "measured_count",
+        )
+    }
+    if any(
+        value is not None
+        and (isinstance(value, bool) or not isinstance(value, (int, float)))
+        for value in values.values()
+    ):
+        return None
+    return values
+
+
+def _matrix_metric_rows(raw: dict | None, plan: ManagedRunPlan) -> list[dict] | None:
+    cells = raw.get("cells") if isinstance(raw, dict) else None
+    if not isinstance(cells, list):
+        return None
+    by_id: dict[str, dict] = {}
+    for cell in cells:
+        cell_id = cell.get("cell_id") if isinstance(cell, dict) else None
+        if not isinstance(cell_id, str) or cell_id in by_id:
+            return None
+        by_id[cell_id] = cell
+    if set(by_id) != set(plan.cell_ids):
+        return None
+    rows = []
+    for cell_id in plan.cell_ids:
+        cell = by_id[cell_id]
+        family_id = cell.get("family_id")
+        status = cell.get("status")
+        summary = _summary_values(cell)
+        if (
+            (family_id is not None and not isinstance(family_id, str))
+            or not isinstance(status, str)
+            or summary is None
+        ):
+            return None
+        rows.append(
+            {
+                "cell_id": cell_id,
+                "family_id": family_id,
+                "status": status,
+                **summary,
+            }
+        )
+    return rows
+
+
+def _overhead_metric_rows(
+    raw: dict | None, plan: ManagedRunPlan
+) -> list[dict] | None:
+    pairs = raw.get("pairs") if isinstance(raw, dict) else None
+    if not isinstance(pairs, list):
+        return None
+    by_id: dict[str, dict] = {}
+    for pair in pairs:
+        pair_id = pair.get("pair_id") if isinstance(pair, dict) else None
+        if not isinstance(pair_id, str) or pair_id in by_id:
+            return None
+        by_id[pair_id] = pair
+    if set(by_id) != set(plan.pair_ids):
+        return None
+    rows = []
+    for pair_id in plan.pair_ids:
+        pair = by_id[pair_id]
+        direct = pair.get("direct")
+        routed = pair.get("routed")
+        direct_values = _summary_values(direct)
+        routed_values = _summary_values(routed)
+        status = pair.get("status")
+        na_reason = pair.get("na_reason")
+        direct_status = direct.get("status") if isinstance(direct, dict) else None
+        routed_status = routed.get("status") if isinstance(routed, dict) else None
+        direct_reason = (
+            direct.get("na_reason") if isinstance(direct, dict) else None
+        )
+        routed_reason = (
+            routed.get("na_reason") if isinstance(routed, dict) else None
+        )
+        text_values = (
+            status,
+            na_reason,
+            direct_status,
+            routed_status,
+            direct_reason,
+            routed_reason,
+        )
+        if (
+            any(
+                value is not None and not isinstance(value, str)
+                for value in text_values
+            )
+            or direct_values is None
+            or routed_values is None
+            or direct_status is None
+            or routed_status is None
+        ):
+            return None
+        rows.append(
+            {
+                "pair_id": pair_id,
+                "status": status,
+                "na_reason": na_reason,
+                "direct_status": direct_status,
+                "direct_na_reason": direct_reason,
+                "direct_median_total_seconds": direct_values[
+                    "median_total_seconds"
+                ],
+                "direct_median_ttft_seconds": direct_values[
+                    "median_ttft_seconds"
+                ],
+                "routed_status": routed_status,
+                "routed_na_reason": routed_reason,
+                "routed_median_total_seconds": routed_values[
+                    "median_total_seconds"
+                ],
+                "routed_median_ttft_seconds": routed_values[
+                    "median_ttft_seconds"
+                ],
+            }
+        )
+    return rows
+
+
+def _comparison_metrics(
+    run_dir: Path, plan: ManagedRunPlan, state: ManagedRunState
+) -> dict:
+    matrix_rows = _matrix_metric_rows(
+        _step_raw_json(run_dir, state, ManagedStep.MATRIX), plan
+    )
+    if plan.pair_ids:
+        overhead_rows = _overhead_metric_rows(
+            _step_raw_json(run_dir, state, ManagedStep.OVERHEAD), plan
+        )
+        overhead_status = (
+            METRICS_AVAILABLE if overhead_rows is not None else METRICS_UNAVAILABLE
+        )
+    else:
+        overhead_rows = []
+        overhead_status = METRICS_NOT_APPLICABLE
+    return {
+        "matrix_status": (
+            METRICS_AVAILABLE if matrix_rows is not None else METRICS_UNAVAILABLE
+        ),
+        "matrix_rows": matrix_rows or [],
+        "overhead_status": overhead_status,
+        "overhead_rows": overhead_rows or [],
+    }
 
 
 def _comparison_scan(run_dir: Path) -> tuple:
@@ -583,11 +765,28 @@ def _comparison_scan(run_dir: Path) -> tuple:
         "health_detail": detail,
         "accepted": accepted,
         "exclusion_reason": None if accepted else _EXCLUSION_REASONS[health],
+        "metrics": None,
     }
+    state = None
     try:
-        member["run_status"] = bundle.state.summary_state.value
+        state = bundle.state
+        member["run_status"] = state.summary_state.value
     except EvidenceError:
         pass
+    if accepted:
+        # classify_bundle verified this bundle, so a state read failure here
+        # means the filesystem changed between calls. Keep the member but
+        # report its metrics as unavailable instead of crashing the build.
+        member["metrics"] = (
+            _comparison_metrics(run_dir, plan, state)
+            if state is not None
+            else {
+                "matrix_status": METRICS_UNAVAILABLE,
+                "matrix_rows": [],
+                "overhead_status": METRICS_UNAVAILABLE,
+                "overhead_rows": [],
+            }
+        )
     return (
         "group",
         comparison_id,
@@ -663,6 +862,29 @@ def build_comparisons(results_root: Path) -> dict:
                 verdict = VERDICT_COMPARABLE
                 reason = ""
                 dimensions = baseline
+        metrics = None
+        if verdict == VERDICT_COMPARABLE:
+            accepted_members = [member for member in members if member["accepted"]]
+            metrics = {
+                "availability": [
+                    {
+                        "run_id": member["run_id"],
+                        "matrix": member["metrics"]["matrix_status"],
+                        "overhead": member["metrics"]["overhead_status"],
+                    }
+                    for member in accepted_members
+                ],
+                "matrix": [
+                    {"run_id": member["run_id"], **row}
+                    for member in accepted_members
+                    for row in member["metrics"]["matrix_rows"]
+                ],
+                "overhead": [
+                    {"run_id": member["run_id"], **row}
+                    for member in accepted_members
+                    for row in member["metrics"]["overhead_rows"]
+                ],
+            }
         groups.append(
             {
                 "comparison_id": comparison_id,
@@ -671,6 +893,7 @@ def build_comparisons(results_root: Path) -> dict:
                 "accepted_count": sum(1 for m in members if m["accepted"]),
                 "excluded_count": sum(1 for m in members if not m["accepted"]),
                 "dimensions": dimensions,
+                "metrics": metrics,
                 "members": members,
             }
         )

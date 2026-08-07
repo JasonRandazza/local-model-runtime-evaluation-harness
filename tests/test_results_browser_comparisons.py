@@ -12,9 +12,17 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 
+from local_model_runtime_evaluation.evidence_bundle import (
+    EvidenceBundle,
+    EvidenceError,
+)
 from local_model_runtime_evaluation.managed_run_types import ManagedRunPlan
 from local_model_runtime_evaluation.results_browser import (
+    HEALTH_SEALED_VERIFIED,
+    METRICS_AVAILABLE,
+    METRICS_UNAVAILABLE,
     VERDICT_COMPARABLE,
     VERDICT_INCOMPARABLE,
     VERDICT_NOT_APPLICABLE,
@@ -114,6 +122,100 @@ class BuildComparisonsTests(unittest.TestCase):
             [earlier.name, later.name],
         )
         self.assertTrue(all(m["accepted"] for m in group["members"]))
+        self.assertEqual(
+            group["metrics"]["availability"],
+            [
+                {
+                    "run_id": earlier.name,
+                    "matrix": METRICS_AVAILABLE,
+                    "overhead": METRICS_AVAILABLE,
+                },
+                {
+                    "run_id": later.name,
+                    "matrix": METRICS_AVAILABLE,
+                    "overhead": METRICS_AVAILABLE,
+                },
+            ],
+        )
+        self.assertEqual(
+            len(group["metrics"]["matrix"]),
+            2 * len(group["dimensions"]["cell_ids"]),
+        )
+        self.assertEqual(
+            len(group["metrics"]["overhead"]),
+            2 * len(group["dimensions"]["pair_ids"]),
+        )
+        first_matrix = group["metrics"]["matrix"][0]
+        self.assertEqual(first_matrix["run_id"], earlier.name)
+        self.assertEqual(
+            first_matrix["cell_id"], group["dimensions"]["cell_ids"][0]
+        )
+        self.assertEqual(first_matrix["median_total_seconds"], 1.25)
+        self.assertEqual(first_matrix["success_count"], 9)
+
+    def test_comparable_group_marks_missing_structured_metrics_unavailable(
+        self,
+    ) -> None:
+        available = make_sealed_pass(
+            self.root,
+            run_name="fixture-metrics-available",
+            entropy="a3a3a3",
+            now=datetime(2026, 7, 31, 5, 0, tzinfo=timezone.utc),
+            comparison_id=COMPARISON_ID,
+        )
+        unavailable = make_sealed_pass(
+            self.root,
+            run_name="fixture-metrics-unavailable",
+            entropy="a4a4a4",
+            now=datetime(2026, 7, 31, 6, 0, tzinfo=timezone.utc),
+            comparison_id=COMPARISON_ID,
+            structured_metrics=False,
+        )
+        group = build_comparisons(self.results_root)["groups"][0]
+        self.assertEqual(group["verdict"], VERDICT_COMPARABLE)
+        self.assertEqual(
+            group["metrics"]["availability"],
+            [
+                {
+                    "run_id": available.name,
+                    "matrix": METRICS_AVAILABLE,
+                    "overhead": METRICS_AVAILABLE,
+                },
+                {
+                    "run_id": unavailable.name,
+                    "matrix": METRICS_UNAVAILABLE,
+                    "overhead": METRICS_UNAVAILABLE,
+                },
+            ],
+        )
+        metric_run_ids = {
+            row["run_id"]
+            for section in ("matrix", "overhead")
+            for row in group["metrics"][section]
+        }
+        self.assertEqual(metric_run_ids, {available.name})
+
+    def test_state_read_race_reports_metrics_unavailable(self) -> None:
+        # classify_bundle can verify a bundle whose state file changes before
+        # the metrics read. The member must stay visible with UNAVAILABLE
+        # metrics instead of crashing the comparisons build.
+        _two_sealed(self.root)
+        with mock.patch(
+            "local_model_runtime_evaluation.results_browser.classify_bundle",
+            return_value=(HEALTH_SEALED_VERIFIED, ""),
+        ), mock.patch.object(
+            EvidenceBundle,
+            "state",
+            new_callable=mock.PropertyMock,
+            side_effect=EvidenceError("state changed after classification"),
+        ):
+            group = build_comparisons(self.results_root)["groups"][0]
+        self.assertEqual(group["verdict"], VERDICT_COMPARABLE)
+        for entry in group["metrics"]["availability"]:
+            self.assertEqual(entry["matrix"], METRICS_UNAVAILABLE)
+            self.assertEqual(entry["overhead"], METRICS_UNAVAILABLE)
+        self.assertEqual(group["metrics"]["matrix"], [])
+        self.assertEqual(group["metrics"]["overhead"], [])
 
     def test_family_mismatch_is_incomparable_with_stable_reason(self) -> None:
         make_sealed_pass(
@@ -140,6 +242,7 @@ class BuildComparisonsTests(unittest.TestCase):
         )
         # No aggregation target exists: shared dimensions are withheld.
         self.assertIsNone(group["dimensions"])
+        self.assertIsNone(group["metrics"])
         # Both individual runs stay visible as members.
         self.assertEqual(len(group["members"]), 2)
 
@@ -365,6 +468,10 @@ class ComparisonHtmlTests(unittest.TestCase):
         page_text = group_page.read_text(encoding="utf-8")
         self.assertIn(f'href="../runs/{earlier.name}.html"', page_text)
         self.assertIn(f'href="../runs/{later.name}.html"', page_text)
+        self.assertIn("Comparable recorded metrics", page_text)
+        self.assertIn("Median total seconds", page_text)
+        self.assertIn("Direct versus Osaurus overhead", page_text)
+        self.assertIn("does not calculate a winner", page_text)
         # Main index links to the comparison index.
         index_text = (self.output_root / "index.html").read_text(
             encoding="utf-8"
@@ -432,6 +539,14 @@ class ComparisonHtmlTests(unittest.TestCase):
         text = render_comparison_group(group)
         self.assertNotIn("<script>", text)
         self.assertIn("&lt;script&gt;", text)
+
+    def test_hostile_recorded_metric_is_escaped(self) -> None:
+        _two_sealed(self.root)
+        group = build_comparisons(self.results_root)["groups"][0]
+        group["metrics"]["matrix"][0]["status"] = "<script>metric()</script>"
+        text = render_comparison_group(group)
+        self.assertNotIn("<script>metric()", text)
+        self.assertIn("&lt;script&gt;metric()&lt;/script&gt;", text)
 
     def test_missing_root_and_empty_index_pages_render(self) -> None:
         missing = render_comparisons_index(

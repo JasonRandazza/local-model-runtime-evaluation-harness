@@ -521,6 +521,108 @@ def _render_unattributed_exclusions(records: list) -> str:
     return "\n".join(parts)
 
 
+def _metric_table(rows: list[dict], columns: tuple[tuple[str, str], ...]) -> str:
+    header = "".join(
+        f'<th scope="col">{html.escape(label)}</th>' for _key, label in columns
+    )
+    body = "".join(
+        "<tr>"
+        + "".join(f"<td>{_cell(row.get(key))}</td>" for key, _label in columns)
+        + "</tr>"
+        for row in rows
+    )
+    return f"<table><tr>{header}</tr>{body}</table>"
+
+
+def _render_comparable_metrics(metrics: dict | None) -> str:
+    parts = [
+        "<h2>Comparable recorded metrics</h2>",
+        (
+            "<p>Values below are read verbatim from verified bundle summaries. "
+            "The browser does not calculate a winner, ranking, delta, or "
+            "confidence value.</p>"
+        ),
+    ]
+    if metrics is None:
+        parts.append("<p>Recorded metrics are unavailable.</p>")
+        return "\n".join(parts)
+
+    parts.append("<h3>Availability</h3>")
+    parts.append(
+        _metric_table(
+            metrics.get("availability", []),
+            (
+                ("run_id", "Run ID"),
+                ("matrix", "Matrix metrics"),
+                ("overhead", "Overhead metrics"),
+            ),
+        )
+    )
+
+    parts.append("<h3>Matrix</h3>")
+    matrix_rows = metrics.get("matrix", [])
+    if matrix_rows:
+        parts.append(
+            _metric_table(
+                matrix_rows,
+                (
+                    ("run_id", "Run ID"),
+                    ("cell_id", "Cell ID"),
+                    ("family_id", "Family"),
+                    ("status", "Status"),
+                    ("median_total_seconds", "Median total seconds"),
+                    ("median_ttft_seconds", "Median TTFT seconds"),
+                    ("success_count", "Successes"),
+                    ("contract_pass_count", "Contract passes"),
+                    ("measured_count", "Measured"),
+                ),
+            )
+        )
+    else:
+        parts.append("<p>No verified matrix summary rows are available.</p>")
+
+    parts.append("<h3>Direct versus Osaurus overhead</h3>")
+    overhead_rows = metrics.get("overhead", [])
+    if overhead_rows:
+        parts.append(
+            _metric_table(
+                overhead_rows,
+                (
+                    ("run_id", "Run ID"),
+                    ("pair_id", "Pair ID"),
+                    ("status", "Pair status"),
+                    ("na_reason", "Pair N/A reason"),
+                    ("direct_status", "Direct status"),
+                    ("direct_na_reason", "Direct N/A reason"),
+                    (
+                        "direct_median_total_seconds",
+                        "Direct median total seconds",
+                    ),
+                    (
+                        "direct_median_ttft_seconds",
+                        "Direct median TTFT seconds",
+                    ),
+                    ("routed_status", "Routed status"),
+                    ("routed_na_reason", "Routed N/A reason"),
+                    (
+                        "routed_median_total_seconds",
+                        "Routed median total seconds",
+                    ),
+                    (
+                        "routed_median_ttft_seconds",
+                        "Routed median TTFT seconds",
+                    ),
+                ),
+            )
+        )
+    else:
+        parts.append(
+            "<p>No verified overhead summary rows are available or overhead "
+            "is recorded as N/A for this plan.</p>"
+        )
+    return "\n".join(parts)
+
+
 def render_comparison_group(group: dict) -> str:
     title = f"Comparison: {group['comparison_id']}"
     parts = [
@@ -545,6 +647,9 @@ def render_comparison_group(group: dict) -> str:
         parts.append("<p>Shared dimensions are shown only for comparable groups.</p>")
     else:
         parts.append(_kv_table(group["dimensions"]))
+
+    if group["verdict"] == VERDICT_COMPARABLE:
+        parts.append(_render_comparable_metrics(group.get("metrics")))
 
     parts.append("<h2>Members</h2>")
     header = "".join(
