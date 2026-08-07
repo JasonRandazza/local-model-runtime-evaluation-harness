@@ -6,7 +6,6 @@ import unittest
 from pathlib import Path
 
 from local_model_runtime_evaluation.rag_config import (
-    default_rag_cells,
     RagCorpus,
     RagDefaults,
     RagError,
