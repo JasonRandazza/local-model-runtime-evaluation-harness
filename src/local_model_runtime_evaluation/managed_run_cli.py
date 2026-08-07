@@ -3,18 +3,19 @@
 from __future__ import annotations
 
 import argparse
-from contextlib import contextmanager
 import json
 import os
 import platform
 import re
 import sys
 import time
+from collections.abc import Sequence
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Sequence
 
 from .artifact_profile import DEFAULT_MACHINE_PROFILE_PATH
 from .comparison_class_inspect import inspect_comparison_class
+from .doctor import render_text, run_diagnostics
 from .evidence_bundle import EvidenceBundle
 from .free_bind import (
     adopt_binding,
@@ -36,8 +37,8 @@ from .operator_policy import (
     load_adopted_policy,
 )
 from .process_inspection import ProcessInspector
-from .doctor import render_text, run_diagnostics
 from .results_browser_html import write_browser
+from .run_console_server import serve_console
 from .run_identity import build_plan
 from .runtime_adapters import (
     OmlxAdapter,
@@ -47,7 +48,6 @@ from .runtime_adapters import (
 )
 from .runtime_manager import RuntimeManager
 from .transport import LoopbackTransport
-
 
 DEFAULT_STATE_DIR = Path(".lmre")
 DEFAULT_RESULTS_DIR = Path("results/runs")
@@ -336,6 +336,21 @@ def _command_browse(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
+def _command_ui(args: argparse.Namespace) -> None:
+    serve_console(
+        results_root=args.results_dir,
+        state_root=args.state_dir,
+        on_ready=lambda origin: _emit(
+            {
+                "live_authority": False,
+                "ok": True,
+                "origin": origin,
+                "status": "RUN_CONSOLE_READY",
+            }
+        ),
+    )
+
+
 def _command_doctor(
     args: argparse.Namespace, machine_profile_path: Path
 ) -> dict[str, object] | None:
@@ -511,6 +526,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path("results/browser"),
     )
 
+    commands.add_parser(
+        "ui",
+        help=(
+            "Start the fixed-loopback run console over existing immutable plans; "
+            "starting the console grants no live authority"
+        ),
+    )
+
     doctor = commands.add_parser(
         "doctor",
         help="Report offline static readiness; live facts are never checked",
@@ -600,6 +623,9 @@ def main(
             body = _command_status(args)
         elif args.command == "browse":
             body = _command_browse(args)
+        elif args.command == "ui":
+            _command_ui(args)
+            return 0
         elif args.command == "doctor":
             body = _command_doctor(args, machine_profile_path)
             if body is None:

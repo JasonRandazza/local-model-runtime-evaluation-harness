@@ -229,6 +229,40 @@ lease through overhead. Cleanup uses the fixed `osaurus stop` command only for
 a harness-owned or reclaimed Osaurus lease; a matching attached Osaurus
 process remains untouched.
 
+## Functional Run Console
+
+After policy adoption and immutable planning, the same managed workflow can be
+inspected through a fixed local web console:
+
+```bash
+./bin/lmre ui
+```
+
+Open the printed `http://127.0.0.1:8765` origin. Starting the console is
+non-live and grants no inference authority. It lists existing plans, shows
+their checksummed evidence state and runtime ownership, and offers only the
+managed action currently allowed by the bundle state.
+
+To start or resume, enter the complete displayed SHA-256 plan hash and select
+the explicit live-action acknowledgement. The browser form carries a fresh,
+single-use grant that expires after ten minutes and is bound to the action,
+run identity, and exact current plan hash. Loading a newer page invalidates an
+older grant for the same action. The console never creates or adopts policy,
+creates or edits plans, changes providers, accepts endpoints or commands, or
+serves arbitrary files.
+
+Only one console-owned managed child may run at a time. The child is the
+existing fixed `lmre run` or `lmre resume` command, so the adopted policy,
+memory floor, one-lane execution, 60-second reclaim notice, evidence journal,
+cleanup, and sealing rules remain authoritative. Closing a browser tab does
+not cancel a run. The console's Cancel action sends `SIGINT` only to its exact
+child; stopping the console follows the same exact-child path and may use
+bounded `SIGTERM` after the grace period, but never force kill.
+
+The console does not reconnect Osaurus providers. If evidence becomes
+`PARTIAL_BLOCKED`, reconnect the existing provider in the Osaurus UI, reload
+the run page, and explicitly authorize the offered overhead-only resume.
+
 ## Runtime Ownership
 
 A managed lease has one of three ownership states:

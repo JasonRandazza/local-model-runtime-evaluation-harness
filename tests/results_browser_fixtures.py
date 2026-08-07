@@ -237,6 +237,23 @@ def make_sealed_pass(
     return bundle.run_dir
 
 
+def make_pending_plan(
+    root: Path,
+    *,
+    run_name: str = "fixture-pending-plan",
+    entropy: str = "ababab",
+    comparison_id: str | None = None,
+) -> Path:
+    bundle = _make_bundle(
+        root,
+        run_name=run_name,
+        entropy=entropy,
+        now=datetime(2026, 7, 31, 4, 30, tzinfo=timezone.utc),
+        comparison_id=comparison_id,
+    )
+    return bundle.run_dir
+
+
 def make_partial_blocked_with_attempts(root: Path) -> Path:
     bundle = _make_bundle(
         root,

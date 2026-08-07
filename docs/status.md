@@ -9,6 +9,13 @@ provider reconnect. A read-only sealed-results browser (`lmre browse`)
 renders that evidence as static local HTML; it grants no run, lifecycle,
 provider, or credential authority.
 
+A functional fixed-loopback run console (`lmre ui`) now presents existing
+immutable plans, exact evidence state, and runtime ownership. Starting the
+console grants no live authority; start or resume requires the complete plan
+hash, explicit acknowledgement, and a fresh single-use action grant. The UI
+delegates execution to the existing managed CLI and does not create policy,
+plans, providers, endpoints, or commands.
+
 Committed model configuration is now machine-portable. A strict, gitignored
 `.lmre/machine-profile.json` supplies the two approved local artifact roots;
 new managed plans checksum that profile so changed mappings fail before
@@ -49,6 +56,43 @@ every runtime, provider, credential, memory, and inference fact
   were individually released, the operator-owned Osaurus PID was attached and
   recorded untouched across all six leases, cleanup completed, and the run
   lock was removed.
+
+## OmniRoute-Assisted UI Slice (Recorded 2026-08-06)
+
+- OmniRoute MCP `3.8.49` was reachable and healthy for this slice. Its named
+  LMRE context skill remained unavailable and broader CLI/config skill coverage
+  was incomplete, so no repository context integration was inferred.
+- After explicit approval, only sanitized architecture and lifecycle packets
+  were sent externally. They excluded credentials, source code, local paths,
+  run identities, raw evidence, model responses, and machine configuration.
+- Short bounded delegations covered information hierarchy, loopback server
+  structure, route and session design, threat review, and offline test cases.
+  Their proposals were treated as review input and reconciled against local
+  repository rules; unsafe force-kill and UI-as-evidence suggestions were
+  rejected.
+- OmniRoute received no Git, filesystem, process, provider, evidence-write, or
+  live-run authority. Improving its reusable LMRE context skill remains a
+  separate slice owned by the concurrent OmniRoute workstream.
+
+## Run-Orchestration UI MVP (Non-Live Verified, 2026-08-06)
+
+- `lmre ui` binds only `127.0.0.1:8765`, renders server-side HTML with no
+  JavaScript, and reads existing managed bundles through the retained evidence
+  and results-browser boundaries.
+- A start or overhead-only resume is shown only when persisted evidence allows
+  it. The full plan hash, explicit acknowledgement, same-origin CSRF proof, and
+  a fresh ten-minute single-use action grant are all required.
+- One fixed managed-CLI child may run at a time. UI memory is presentation-only;
+  persisted evidence remains truth. Cancel sends exact-child `SIGINT`; console
+  shutdown may follow with bounded exact-child `SIGTERM`, never force kill.
+- Host, Origin/Referer, CSRF, safe-run-ID, HTML escaping, action replay,
+  expiry, concurrency, cancellation, and fixed command-vector behavior have
+  offline fake-process coverage. Desktop and phone-width browser reviews
+  passed without horizontal page overflow.
+- Verification at review: 564 retained tests passed (environment-dependent
+  transport tests skip while a local Osaurus holds its port); all six
+  retained dry-config commands passed. No runtime, provider, credential, or
+  model was contacted and no live run was initiated.
 
 ## Heterogeneous Open-Mix Managed Execution (Offline-Verified, 2026-08-05)
 
@@ -259,7 +303,7 @@ and is intentionally not committed.
 
 ## Active Workflows
 
-- managed `policy` / `plan` / `run` / `resume` / `status` / `report` / `browse`
+- managed `policy` / `plan` / `run` / `resume` / `status` / `report` / `browse` / `ui`
 - Discovery proposal/show/execute
 - Approach 3 explicit recipes
 - native matrix

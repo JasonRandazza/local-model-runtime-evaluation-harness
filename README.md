@@ -40,6 +40,7 @@ See [docs/history.md](docs/history.md) for the historical lane summary and
 | `./bin/lmre-rag` | Run oracle or keyword RAG evaluation |
 | `./bin/lmre-overhead` | Compare direct and Osaurus-routed latency for native backends |
 | `./bin/lmre browse` | Generate the read-only static HTML browser for sealed evidence |
+| `./bin/lmre ui` | Inspect and explicitly start an existing immutable plan from the fixed-loopback console |
 | `./bin/lmre doctor` | Report offline readiness of local config, artifacts, and policy |
 | `./bin/lmre binding` | Propose, inspect, validate, and adopt a non-live same-family cell declaration |
 | `./bin/lmre open-mix inspect` | Validate a checked-in heterogeneous comparison set and its local artifacts without live contact |
@@ -89,6 +90,7 @@ Operator documentation:
 - [RAG](docs/rag.md)
 - [Routing overhead](docs/overhead.md)
 - [Results browser](docs/results-browser.md)
+- [Run console](docs/run-console.md)
 - [Offline doctor](docs/doctor.md)
 - [Architecture](docs/architecture.md)
 
@@ -132,5 +134,6 @@ starting services.
 Open-mix inspection and planning remain non-live. The managed execution adapter
 can run an explicitly authorized immutable open-mix plan sequentially, records
 family-qualified evidence, and preserves unsupported member-local overhead as
-`N/A`. This implementation has offline test coverage; real-model acceptance is
-a separate explicitly authorized slice.
+`N/A`. The adapter has offline test coverage and sealed live acceptance through
+`run-20260806-194307-801b42`; every future live plan still requires explicit
+authorization under the adopted policy.
