@@ -1,0 +1,73 @@
+BASE=5208163a56c4325b7be790d250e35b80f63d38f0
+HEAD=WORKING_TREE full Step 1
+
+ M config/matrix/gemma-4-12b-qat-campaign.json
+ M docs/matrix.md
+ M src/local_model_runtime_evaluation/matrix_config.py
+ M src/local_model_runtime_evaluation/matrix_runner.py
+ M src/local_model_runtime_evaluation/overhead_cli.py
+ M src/local_model_runtime_evaluation/overhead_runner.py
+ M src/local_model_runtime_evaluation/preference_cli.py
+ M src/local_model_runtime_evaluation/preference_collect.py
+ M src/local_model_runtime_evaluation/preference_judge.py
+ M src/local_model_runtime_evaluation/rag_cli.py
+ M src/local_model_runtime_evaluation/rag_collect.py
+ M tests/test_matrix_cli.py
+ M tests/test_matrix_config.py
+ M tests/test_overhead_config.py
+ M tests/test_preference_judge.py
+?? config/matrix/cells/ornith_jang_4m__omlx.json
+?? config/matrix/cells/ornith_jang_4m__optiq.json
+?? config/matrix/cells/ornith_jang_4m__osaurus.json
+?? config/matrix/cells/ornith_optiq_4bit__omlx.json
+?? config/matrix/cells/ornith_optiq_4bit__optiq.json
+?? config/matrix/cells/ornith_optiq_4bit__osaurus.json
+?? config/matrix/cells/ornith_oq4__omlx.json
+?? config/matrix/cells/ornith_oq4__optiq.json
+?? config/matrix/cells/ornith_oq4__osaurus.json
+?? config/matrix/families/
+?? config/matrix/omlx-roots/ornith_jang_4m/
+?? config/matrix/omlx-roots/ornith_optiq_4bit/
+?? config/matrix/omlx-roots/ornith_oq4/
+?? config/matrix/ornith-35b-campaign.json
+
+ config/matrix/gemma-4-12b-qat-campaign.json        |   1 +
+ docs/matrix.md                                     |  52 +++++-
+ .../matrix_config.py                               | 135 +++++++++------
+ .../matrix_runner.py                               |  12 +-
+ src/local_model_runtime_evaluation/overhead_cli.py |   7 +-
+ .../overhead_runner.py                             |   7 +-
+ .../preference_cli.py                              |   7 +-
+ .../preference_collect.py                          |   8 +-
+ .../preference_judge.py                            |   5 +-
+ src/local_model_runtime_evaluation/rag_cli.py      |   5 +-
+ src/local_model_runtime_evaluation/rag_collect.py  |   9 +-
+ tests/test_matrix_cli.py                           |  36 +++-
+ tests/test_matrix_config.py                        | 183 +++++++++++++++++++--
+ tests/test_overhead_config.py                      |   7 +-
+ tests/test_preference_judge.py                     |   7 +-
+ 15 files changed, 392 insertions(+), 89 deletions(-)
+
+5208163 Add Ornith multi-family matrix Step 1 implementation plan.
+334026e Add multi-family Ornith-first design spec.
+49ded49 Pin OptiQ Osaurus route id and free busy oMLX ports.
+08aa0e2 Add lmre-overhead for Osaurus router-tax measurement.
+f802d33 Add Osaurus routing overhead implementation plan.
+
+=== UNTRACKED KEY FILES ===
+config/matrix/cells/ornith_jang_4m__omlx.json
+config/matrix/cells/ornith_jang_4m__optiq.json
+config/matrix/cells/ornith_jang_4m__osaurus.json
+config/matrix/cells/ornith_optiq_4bit__omlx.json
+config/matrix/cells/ornith_optiq_4bit__optiq.json
+config/matrix/cells/ornith_optiq_4bit__osaurus.json
+config/matrix/cells/ornith_oq4__omlx.json
+config/matrix/cells/ornith_oq4__optiq.json
+config/matrix/cells/ornith_oq4__osaurus.json
+config/matrix/families/gemma-4-12b-qat.json
+config/matrix/families/ornith-35b.json
+config/matrix/omlx-roots/ornith_jang_4m/README.md
+config/matrix/omlx-roots/ornith_jang_4m/ornith-1.0-35b-jang_4m
+config/matrix/omlx-roots/ornith_optiq_4bit/README.md
+config/matrix/omlx-roots/ornith_oq4/README.md
+config/matrix/ornith-35b-campaign.json

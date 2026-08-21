@@ -48,7 +48,6 @@ Repository executable truth wins over summaries. Read, in this order:
 7. `docs/run-console.md`
 8. `docs/superpowers/specs/2026-07-24-harness-north-star-vision.md`
 9. `docs/superpowers/specs/2026-08-06-run-orchestration-ui-mvp.md`
-10. `docs/omniroute-claude-code.md` if OmniRoute will be used
 
 Use Graphify for navigation only and verify conclusions against files and
 tests. The retired Stage 0–2, Package 2, personal-selection, and native-plugin
@@ -196,15 +195,4 @@ credible and repeatable:
 Keep this as a bounded release slice. Do not add cloud services, automatic
 provider editing, arbitrary commands/endpoints, installer-driven model
 downloads, or a generalized plugin system.
-
-## OmniRoute boundary
-
-OmniRoute may reduce manager-token use, but it is an external routing boundary.
-Follow `docs/omniroute-claude-code.md`. Do not assume the named LMRE context
-skill works: it was registered but its fixed wrapper returned `Skill not
-found` during the latest check. Direct, minimal sanitized packets remain the
-fallback. Obtain current-session approval before transmitting project context,
-and exclude credentials, local paths, raw evidence, run identities, model
-responses, and machine-specific configuration unless Jason explicitly changes
-that boundary.
 

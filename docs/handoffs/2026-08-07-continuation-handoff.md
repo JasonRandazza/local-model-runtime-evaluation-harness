@@ -30,7 +30,7 @@ are touching, when you touch it:
 `managed-runs.md` (policy/plan/run/resume), `run-console.md` (`lmre ui`),
 `results-browser.md` (`lmre browse` and comparisons), `doctor.md`,
 `discovery.md`, `matrix.md`, `preference.md`, `rag.md`, `overhead.md`,
-`omniroute-claude-code.md` (external delegation), `history.md` (retired lanes).
+`history.md` (retired lanes).
 
 ### Navigating code
 
@@ -206,27 +206,7 @@ hard line breaks. Scoping it to a pull-request diff would work.
 
 ---
 
-## 7. OmniRoute, if you use it
-
-An OmniRoute MCP server can route work to zero-cost external models to conserve
-subscription tokens. Read `docs/omniroute-claude-code.md` and
-`.claude/skills/omniroute-offload/SKILL.md` first.
-
-Measured behavior, so you do not rediscover it: routing with an explicit model
-works and costs nothing on the free lanes; **no combos are configured**, so
-combo-selection tools fail; the registered LMRE context skill is listed but
-returns `Skill not found`; and **long generations time out** at the MCP call
-boundary, so it is useful for short exchanges and web research but not bulk
-drafting.
-
-Obtain current-session approval before transmitting project context, and exclude
-credentials, source code, local paths, run identities, raw evidence, model
-outputs, and machine-specific configuration. Worker output is advisory discovery
-evidence, never acceptance.
-
----
-
-## 8. What the manager owns
+## 7. What the manager owns
 
 Reading the actual diff, running verification locally, safety and boundary
 decisions, integration, staging, and final acceptance. A subagent or external

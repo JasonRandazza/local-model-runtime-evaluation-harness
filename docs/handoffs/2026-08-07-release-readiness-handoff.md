@@ -75,19 +75,3 @@ assumed: whether the supported distribution shape is the repository checkout
 comparability against existing sealed evidence). Get that answer before
 implementing.
 
-## OmniRoute
-
-Guide: `docs/omniroute-claude-code.md`. Skill:
-`.claude/skills/omniroute-offload/SKILL.md`.
-
-Verified working: routing with an explicit model, zero cost on the free lanes.
-Verified broken: no combos configured, so combo-selection tools fail; the
-registered `chatgpt-lmre-context` skill is listed but returns
-`Skill not found`. Newly measured: **long generations time out** at the MCP
-call boundary — short exchanges only. Do not plan a slice around bulk
-offload until that is retested.
-
-The sanitization boundary is unchanged. Obtain current-session approval before
-transmitting project context, and exclude credentials, source code, local
-paths, run identities, raw evidence, model outputs, and machine-specific
-configuration.

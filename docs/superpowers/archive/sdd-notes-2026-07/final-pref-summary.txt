@@ -1,0 +1,25 @@
+BASE=e4c992ee24e6b082e6322f46a5cc34cfac92ea6e
+ M docs/preference.md
+ M src/local_model_runtime_evaluation/preference_cli.py
+ M src/local_model_runtime_evaluation/preference_collect.py
+ M src/local_model_runtime_evaluation/preference_config.py
+ M src/local_model_runtime_evaluation/preference_judge.py
+ M tests/test_preference_cli.py
+ M tests/test_preference_collect.py
+ M tests/test_preference_config.py
+ M tests/test_preference_judge.py
+ M tests/test_preference_review.py
+?? config/matrix/omlx-roots/ornith_optiq_4bit/mlx-community__Ornith-1.0-35B-OptiQ-4bit
+?? config/matrix/omlx-roots/ornith_oq4/Ornith-1.0-35B-MLX-oQ4
+?? config/preference/
+ docs/preference.md                                 | 81 ++++++++++++++++++---
+ .../preference_cli.py                              | 80 +++++++++++++++++----
+ .../preference_collect.py                          |  6 +-
+ .../preference_config.py                           | 82 ++++++++++++++++++++--
+ .../preference_judge.py                            | 38 +++++++++-
+ tests/test_preference_cli.py                       | 29 ++++++++
+ tests/test_preference_collect.py                   |  2 +
+ tests/test_preference_config.py                    | 35 +++++++--
+ tests/test_preference_judge.py                     |  1 +
+ tests/test_preference_review.py                    |  6 +-
+ 10 files changed, 316 insertions(+), 44 deletions(-)
