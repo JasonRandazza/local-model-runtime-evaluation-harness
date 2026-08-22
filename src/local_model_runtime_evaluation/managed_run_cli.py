@@ -39,6 +39,7 @@ from .operator_policy import (
 from .process_inspection import ProcessInspector
 from .results_browser_html import write_browser
 from .run_console_server import serve_console
+from .ruling_cli import add_ruling_parser, command_ruling
 from .run_identity import build_plan
 from .runtime_adapters import (
     OmlxAdapter,
@@ -622,6 +623,8 @@ def build_parser() -> argparse.ArgumentParser:
     ):
         command = binding_commands.add_parser(name, help=help_text)
         command.add_argument("binding_id")
+
+    add_ruling_parser(commands)
     return parser
 
 
@@ -659,6 +662,8 @@ def main(
             body = _command_open_mix(args, machine_profile_path)
         elif args.command == "binding":
             body = _command_binding(args, machine_profile_path)
+        elif args.command == "ruling":
+            body = command_ruling(args)
         else:
             body = _command_report(args)
         _emit(body)
