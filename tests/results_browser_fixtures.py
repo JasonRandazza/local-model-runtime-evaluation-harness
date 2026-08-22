@@ -42,6 +42,31 @@ _OVERHEAD_REPORT = """# Osaurus routing overhead
 | fake-pair-2 (optiq) | — | — | N/A (optiq pair skipped: port busy) | — |
 """
 
+_PREFERENCE_REPORT = """# Preference tally
+
+Family: `fake-family-1b`
+
+Latency was not used for preference scoring.
+"""
+
+_RAG_ORACLE_REPORT = """# RAG oracle score
+
+Family: `fake-family-1b`
+
+Mode: `oracle`
+
+Latency was not used for RAG scoring.
+"""
+
+_RAG_KEYWORD_REPORT = """# RAG keyword score
+
+Family: `fake-family-1b`
+
+Mode: `keyword`
+
+Latency was not used for RAG scoring.
+"""
+
 
 def _make_bundle(
     root: Path,
@@ -80,14 +105,12 @@ def _write_output(
     attempt: int,
     report_md: str,
     raw: dict,
+    filename: str = "raw.json",
 ) -> str:
     output_dir = bundle.step_attempt_dir(step, attempt)
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "report.md").write_text(report_md, encoding="utf-8")
-    (output_dir / "raw.json").write_text(
-        json.dumps(raw),
-        encoding="utf-8",
-    )
+    (output_dir / filename).write_text(json.dumps(raw), encoding="utf-8")
     return output_dir.relative_to(bundle.run_dir).as_posix()
 
 
@@ -137,6 +160,58 @@ def _overhead_raw(bundle: EvidenceBundle) -> dict:
             }
             for index, pair_id in enumerate(bundle.plan.pair_ids)
         ],
+    }
+
+
+_RAG_RECALL_BASE = 0.25
+
+
+def _preference_raw(bundle: EvidenceBundle) -> dict:
+    total_judgments = len(bundle.plan.cell_ids) + 4
+    cells = {}
+    for index, cell_id in enumerate(bundle.plan.cell_ids):
+        wins = index + 1
+        losses = total_judgments - wins
+        ties = 0
+        rows = wins + losses
+        win_rate = round(wins / rows, 3) if rows else None
+        cells[cell_id] = {
+            "wins": wins,
+            "losses": losses,
+            "ties": ties,
+            "win_rate": win_rate,
+        }
+    return {
+        "schema_version": "preference-campaign-1.0.0",
+        "run_id": bundle.plan.identity.run_id,
+        "suite_id": None,
+        "cells": cells,
+    }
+
+
+def _rag_raw(bundle: EvidenceBundle, *, mode: str) -> dict:
+    prompts = {
+        "prompt-1": {"hits": 3, "total": 4},
+        "prompt-2": {"hits": 2, "total": 4},
+    }
+    cells = {}
+    for index, cell_id in enumerate(bundle.plan.cell_ids):
+        hit_rate = round(0.8 + 0.05 * (index + 1), 3)
+        recall = round(_RAG_RECALL_BASE + 0.05 * (index + 1), 3)
+        precision = round(_RAG_RECALL_BASE + 0.02 * (index + 1), 3)
+        cells[cell_id] = {
+            "mean_hit_rate": hit_rate,
+            "prompts": prompts,
+        }
+        if mode == "keyword":
+            cells[cell_id]["mean_recall"] = recall
+            cells[cell_id]["mean_precision"] = precision
+    return {
+        "schema_version": "rag-campaign-1.0.0",
+        "run_id": bundle.plan.identity.run_id,
+        "suite_id": None,
+        "mode": mode,
+        "cells": cells,
     }
 
 
@@ -198,6 +273,33 @@ def _build_full_pass(
                 else {"family": "fake-family-1b", "stub": True}
             )
             output_path = _write_output(bundle, step, 1, _OVERHEAD_REPORT, raw)
+        elif step is ManagedStep.PREFERENCE:
+            raw = (
+                _preference_raw(bundle)
+                if structured_metrics
+                else {"family": "fake-family-1b", "stub": True}
+            )
+            output_path = _write_output(
+                bundle, step, 1, _PREFERENCE_REPORT, raw, filename="tally.json"
+            )
+        elif step is ManagedStep.RAG_ORACLE:
+            raw = (
+                _rag_raw(bundle, mode="oracle")
+                if structured_metrics
+                else {"family": "fake-family-1b", "stub": True}
+            )
+            output_path = _write_output(
+                bundle, step, 1, _RAG_ORACLE_REPORT, raw, filename="scores.json"
+            )
+        elif step is ManagedStep.RAG_KEYWORD:
+            raw = (
+                _rag_raw(bundle, mode="keyword")
+                if structured_metrics
+                else {"family": "fake-family-1b", "stub": True}
+            )
+            output_path = _write_output(
+                bundle, step, 1, _RAG_KEYWORD_REPORT, raw, filename="scores.json"
+            )
         bundle.transition_step(step, StepState.PASS, output_path=output_path)
     _add_lifecycle_pair(bundle)
     bundle.mark_cleanup_complete()

@@ -15,6 +15,8 @@ import re
 from pathlib import Path
 
 from .evidence_bundle import EvidenceBundle, EvidenceError
+from .cell_metrics import matrix_rows as _matrix_metric_rows
+from .cell_metrics import summary_values as _summary_values
 from .managed_run_types import (
     SUPPORTED_MANAGED_PLAN_SCHEMA_VERSIONS,
     ManagedRunPlan,
@@ -557,64 +559,6 @@ def _step_raw_json(
     except OSError:
         return None
     return _load_json(raw_path)
-
-
-def _summary_values(raw: object) -> dict | None:
-    summary = raw.get("summary") if isinstance(raw, dict) else None
-    if not isinstance(summary, dict):
-        return None
-    values = {
-        key: summary.get(key)
-        for key in (
-            "median_total_seconds",
-            "median_ttft_seconds",
-            "success_count",
-            "contract_pass_count",
-            "measured_count",
-        )
-    }
-    if any(
-        value is not None
-        and (isinstance(value, bool) or not isinstance(value, (int, float)))
-        for value in values.values()
-    ):
-        return None
-    return values
-
-
-def _matrix_metric_rows(raw: dict | None, plan: ManagedRunPlan) -> list[dict] | None:
-    cells = raw.get("cells") if isinstance(raw, dict) else None
-    if not isinstance(cells, list):
-        return None
-    by_id: dict[str, dict] = {}
-    for cell in cells:
-        cell_id = cell.get("cell_id") if isinstance(cell, dict) else None
-        if not isinstance(cell_id, str) or cell_id in by_id:
-            return None
-        by_id[cell_id] = cell
-    if set(by_id) != set(plan.cell_ids):
-        return None
-    rows = []
-    for cell_id in plan.cell_ids:
-        cell = by_id[cell_id]
-        family_id = cell.get("family_id")
-        status = cell.get("status")
-        summary = _summary_values(cell)
-        if (
-            (family_id is not None and not isinstance(family_id, str))
-            or not isinstance(status, str)
-            or summary is None
-        ):
-            return None
-        rows.append(
-            {
-                "cell_id": cell_id,
-                "family_id": family_id,
-                "status": status,
-                **summary,
-            }
-        )
-    return rows
 
 
 def _overhead_metric_rows(
