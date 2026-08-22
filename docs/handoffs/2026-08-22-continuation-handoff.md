@@ -17,8 +17,10 @@ the candidate next slices.
 | 4 | `CHANGELOG.md` | What changed and what it means for evidence. |
 | 5 | This file, section 3 onward | Current state and what is actually next. |
 
-`docs/status.md` and `docs/architecture.md` predate this cycle. They are still
-broadly right about the harness but say nothing about rulings.
+`docs/status.md` and `docs/architecture.md` are current as of this cycle and
+both describe rulings. `status.md` keeps only the recent dated cycles; earlier
+ones live in `docs/status-archive.md`, which is history and not required
+reading.
 
 Navigate code with the Graphify graph (`graphify query "<question>"`) before
 grepping. Read raw source when you need exact lines.

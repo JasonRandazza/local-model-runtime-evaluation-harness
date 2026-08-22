@@ -91,6 +91,12 @@ instructions are not active commands.
   a full cycle behind once: still accurate about the harness, silent about
   everything shipped since. A status doc that is merely stale still misleads
   whoever reads it cold.
+- `docs/status.md` holds the two or three most recent dated cycles plus the
+  current-state sections. Older dated entries move to
+  `docs/status-archive.md`, newest first. Current state -- accepted evidence,
+  active workflows, open risks, machine state -- lives only in `status.md` and
+  is never copied into the archive, so the two cannot disagree about what is
+  true now. Handoffs supersede rather than accumulate for the same reason.
 - Keep retired project history in the sibling archive, not the active Graphify
   corpus.
 - Run the retained Python suite and all dry-config commands after relevant
