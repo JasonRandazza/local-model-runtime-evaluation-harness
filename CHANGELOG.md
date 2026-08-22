@@ -5,7 +5,47 @@ but never the meaning of already-sealed evidence.
 
 ## Unreleased
 
+### Added
+
+- **Rulings.** The harness now draws the conclusion its evidence supports
+  instead of stopping one step short. A **rubric** is a checked-in declaration
+  of criteria -- the quality floors a cell must clear, and the single metric
+  that orders whatever clears them -- and a **ruling** is the conclusion drawn
+  from one sealed run under one rubric, naming the cell to serve.
+  `lmre-managed ruling make --run <dir> --rubric <file>` produces one and
+  `lmre-managed ruling list` indexes what has been concluded, both emitting
+  JSON on stdout. Producing a ruling contacts no runtime, provider, credential
+  store, or model, and requires no adopted policy: interpreting evidence is not
+  an act of running anything.
+
+  A ruling names a **cell**, never a native server, because the diagonal runs a
+  different quant per server and the evidence cannot support a server-level
+  claim. Floors gate and one metric orders the survivors -- never a weighted
+  score. When no cell clears every floor the outcome says so rather than
+  naming the least-bad candidate.
+
+  The rubric is hashed into the ruling but never into the plan or
+  `input_hashes`, so **changing a rubric leaves sealed evidence untouched and
+  still comparable** -- old evidence can be re-ruled under new criteria without
+  re-running any model. A later ruling supersedes an earlier one by being a
+  separate file; the earlier ruling is never edited or removed, and superseding
+  is derived when the directory is read. Rulings live under the results tree
+  rather than in version control, following the same boundary as the evidence
+  they cite.
+
+  Fails closed: an unsealed, corrupt, or incomplete run produces no ruling, and
+  a rubric that gates on a metric the run cannot supply produces no ruling
+  rather than one with a floor silently skipped.
+
 ### Changed
+
+- Rubric metric names now carry the step that produced them: `rag.fact_hit_rate`
+  and friends became `rag_oracle.fact_hit_rate`, `rag_keyword.fact_hit_rate`,
+  `rag_keyword.retrieval_recall` and `rag_keyword.retrieval_precision`. Two
+  steps produce RAG scores, so an unprefixed name could not say which one a
+  floor gated on, and retrieval metrics only exist in keyword mode. No sealed
+  evidence changes meaning.
+
 
 - `--cells` on `lmre-preference` and `lmre-rag` must now be a subset of the
   selected family's recipe. A cell outside it was already rejected, but only
