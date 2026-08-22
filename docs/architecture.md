@@ -37,7 +37,13 @@ if one is reintroduced.
 lmre init (optional, installed copy) -> workspace root
 adopted policy -> immutable plan -> runtime manager -> retained collectors
                -> evidence bundle -> blocked resume or sealed report
+                                  -> rubric -> ruling (names the cell to serve)
 ```
+
+The ruling arm is read-only and needs no authority: it consumes a sealed bundle
+and a checked-in rubric, and contacts no runtime, provider, credential store, or
+model. It is a separate act from running, deliberately — a run produces
+measurements, a ruling interprets them.
 
 Planning and preflight do not silently download, copy, relocate, or remap model
 weights. A family is executable only when its complete native triple passes
@@ -74,6 +80,11 @@ ownership of the local active-run lock.
 | `credentials.py` | Bounded local credential retrieval without value disclosure |
 | `resources.py` | Host memory and resource-floor checks |
 | `measurement.py` / `token_counter.py` | Qualified timing and token evidence |
+| `rubric.py` | Strict rubric loading: closed metric vocabulary, ordered floors, exactly one ordering metric |
+| `cell_metrics.py` | Per-cell matrix, preference, and RAG metric extraction from a sealed bundle |
+| `ruling.py` | `build_ruling`: fail-closed interpretation of one sealed run under one rubric; never raises |
+| `ruling_store.py` | One ruling per file, written once and never overwritten; superseding derived at read time |
+| `ruling_cli.py` | `ruling make` and `ruling list` on the managed CLI; grants no authority |
 | `results_browser.py` / `results_browser_html.py` | Read-only sealed-evidence interpretation and static HTML presentation |
 | `run_console.py` / `run_console_html.py` / `run_console_server.py` | Fixed-loopback presentation, exact-plan authority form, and one fixed managed-CLI child |
 | `doctor.py` | Offline static-readiness diagnostics over existing validators; no live contact |
@@ -166,6 +177,20 @@ Reports must preserve:
 Missing exact Osaurus routes produce sealed `PARTIAL_BLOCKED` evidence. After
 the operator reconnects the existing provider in the UI, resume verifies the
 sealed attempt and runs only a new overhead attempt.
+
+Rulings are **derived, not measured**, so they are never sealed. They are
+written beneath the results tree alongside the evidence they cite, one file per
+ruling, and record the run id, plan hash, plan dimensions, and the rubric's id,
+revision and hash. Because the rubric is hashed into the ruling and never into
+the plan or `input_hashes`, changing a rubric leaves sealed evidence untouched
+and still comparable, and old evidence can be re-ruled under new criteria
+without re-running any model. A later ruling supersedes an earlier one by being
+a separate file; nothing rewrites or removes the earlier conclusion, which was
+honest under the rubric and evidence of its moment.
+
+A ruling names a cell and never a native server: the native diagonal runs a
+different quant per server, so stack and quant vary together and the evidence
+cannot support a server-level claim.
 
 Raw outputs do not automatically become durable decisions. Canonical current
 evidence is indexed in [status.md](status.md).

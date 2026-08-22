@@ -86,6 +86,11 @@ instructions are not active commands.
 ## Repository Hygiene
 
 - Keep current operator documentation under `docs/`.
+- **Closing out a ticket or a session includes refreshing `docs/status.md` and
+  `docs/architecture.md`**, alongside `CHANGELOG.md` and a handoff. Both drifted
+  a full cycle behind once: still accurate about the harness, silent about
+  everything shipped since. A status doc that is merely stale still misleads
+  whoever reads it cold.
 - Keep retired project history in the sibling archive, not the active Graphify
   corpus.
 - Run the retained Python suite and all dry-config commands after relevant

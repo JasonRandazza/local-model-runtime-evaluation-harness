@@ -23,6 +23,23 @@ repository checkout. A source checkout resolves exactly as before, which keeps
 plan hashes and recorded input paths byte-identical and existing sealed runs
 comparable with future ones. Installing grants no authority to run inference.
 
+The harness now draws the conclusion its evidence supports. A **rubric** is
+checked-in configuration naming the quality floors a cell must clear and the
+single metric that orders whatever clears them; a **ruling** is the conclusion
+drawn from one sealed run under one rubric, naming the cell to serve.
+`lmre-managed ruling make` produces one and `ruling list` indexes what has been
+concluded. Producing a ruling contacts no runtime, provider, credential store,
+or model and requires no adopted policy: interpreting evidence is not an act of
+running anything. A ruling names a cell and never a native server, because the
+diagonal runs a different quant per server and the evidence cannot support a
+server-level claim.
+
+Rulings are derived, so they are never sealed. The rubric is hashed into the
+ruling but never into the plan or `input_hashes`, which is what lets a change
+of criteria re-rule old evidence instead of invalidating it. A later ruling
+supersedes an earlier one by being a separate file; the earlier ruling is never
+edited or removed.
+
 Committed model configuration is now machine-portable. A strict, gitignored
 `.lmre/machine-profile.json` supplies the two approved local artifact roots;
 new managed plans checksum that profile so changed mappings fail before
@@ -30,6 +47,44 @@ inference. An offline `lmre doctor` command reports static local readiness
 (profile, configuration, resolved artifacts, adopted policy) and labels
 every runtime, provider, credential, memory, and inference fact
 `NOT_CHECKED_LIVE`; it grants no live authority.
+
+## Rulings (Non-Live Verified, 2026-08-22)
+
+Closed issue #36 via PR #38; documentation in PR #39.
+
+- `rubric.py` loads and validates a rubric: identity, an ordered list of
+  `{metric, comparator, value}` floors, and exactly one `{metric, direction}`
+  ordering. Metric names come from a closed vocabulary; an unknown name, a
+  missing or duplicated ordering, or an id disagreeing with the file name is a
+  load error.
+- `cell_metrics.py` extracts per-cell metrics from a sealed bundle for matrix,
+  preference and RAG. Preference and RAG were previously computed and written
+  but never read back out through any metric layer.
+- `ruling.py` provides `build_ruling`, which **never raises**: an unsealed,
+  corrupt or incomplete run, or a rubric naming a metric the run cannot supply,
+  each yields an `UNAVAILABLE` outcome carrying a code and a reason. When no
+  cell clears every floor the outcome says so rather than naming the least-bad
+  candidate.
+- `ruling_store.py` writes one ruling per file, atomically, and never
+  overwrites; superseding is derived when the directory is read, so the earlier
+  file is untouched. Rulings live under the results tree, not version control.
+- `ruling_cli.py` adds `ruling make` and `ruling list` to the managed CLI,
+  emitting JSON on stdout like every other managed command.
+
+Metric names now carry the step that produced them: `rag.fact_hit_rate` became
+`rag_oracle.fact_hit_rate` and `rag_keyword.fact_hit_rate`, and retrieval
+recall and precision are keyword-only, because two steps produce RAG scores and
+an unprefixed name could not say which one a floor gated on. No sealed evidence
+changes meaning.
+
+Verified non-live: 706 tests pass with no skips, all six `dry-config` commands
+exit 0, and CI is green on 3.11 and 3.13. The plan-hash gate is unaffected —
+nothing under `config/`, no workspace resolution and no plan types were touched,
+so `input_hashes` keys cannot have moved. Every non-trivial protection was
+proven to bind by disabling it and confirming the corresponding test fails.
+
+Aggregating repeat runs, and rendering rulings in the browser or run console,
+are deliberately out of scope.
 
 ## Release 0.4.0 (Non-Live Verified, 2026-08-07)
 
@@ -340,7 +395,7 @@ and is intentionally not committed.
 ## Active Workflows
 
 - managed `init` / `policy` / `plan` / `run` / `resume` / `status` / `report` /
-  `browse` / `ui`
+  `browse` / `ui` / `ruling`
 - Discovery proposal/show/execute
 - Approach 3 explicit recipes
 - native matrix
@@ -349,6 +404,10 @@ and is intentionally not committed.
 - direct-versus-Osaurus overhead
 - read-only sealed-results browser with sealed cross-run comparison
   ([results-browser.md](results-browser.md))
+- rulings over sealed evidence under a checked-in rubric
+  ([ADR-0004](adr/0004-rulings-name-cells-not-servers.md),
+  [ADR-0005](adr/0005-constraint-then-order.md),
+  [ADR-0006](adr/0006-rubric-stays-out-of-the-plan-hash.md))
 - offline readiness doctor ([doctor.md](doctor.md))
 - checked-in controlled comparison classes bound into immutable managed plans
   ([controlled-expansion contract](superpowers/specs/2026-08-05-controlled-expansion-comparison-class.md))
@@ -369,9 +428,10 @@ and is intentionally not committed.
   repository git URL, which is verified; `pip install
   local-model-runtime-evaluation-harness` will not resolve until the project is
   uploaded.
-- No pinned linter configuration, so CI runs no linter. The 24 files changed for
-  0.4.0 carry 23 pre-existing findings under ruff defaults, unchanged from the
-  release baseline; the "new modules clean" convention remains manual.
+- No pinned linter configuration, so CI runs no linter. The files changed for 0.4.0
+  carry 23 pre-existing findings under ruff defaults; later cycles, including
+  rulings, have not been measured against a pinned config at all. The "new
+  modules clean" convention remains manual and undocumented.
 - 0.4.0 has no live acceptance run of its own. It is verified non-live, and the
   most recent sealed live evidence predates it. That is sound because plan
   hashes are unchanged, but a live run under the installed path has not been
