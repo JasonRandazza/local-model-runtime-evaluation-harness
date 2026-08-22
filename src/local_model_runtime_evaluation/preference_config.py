@@ -99,9 +99,14 @@ def resolve_preference_selection(
     if resolved_family not in resolved_recipes:
         raise PreferenceError("preference family recipe is missing")
 
-    resolved_cells = cells if cells is not None else resolved_recipes[resolved_family]
+    recipe_cells = resolved_recipes[resolved_family]
+    resolved_cells = cells if cells is not None else recipe_cells
     if not resolved_cells:
         raise PreferenceError("cells filter is empty")
+
+    unknown = set(resolved_cells) - set(recipe_cells)
+    if unknown:
+        raise PreferenceError("cells filter is not in family recipe")
 
     return PreferenceSelection(resolved_family, resolved_cells)
 

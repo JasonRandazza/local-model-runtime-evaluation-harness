@@ -31,7 +31,7 @@ Pair ids come from `--pairs` or the selected family’s recipe in `config/overhe
 }
 ```
 
-Pair definitions live in `config/overhead/pairs/` (`oq4_fp16.json`, `optiq_4bit.json`).
+Pair definitions live in `config/overhead/pairs/` (`oq4_fp16.json`, `optiq_4bit.json`). Each file’s `pair_id` must equal its file name, because runs are attributed by the requested id.
 
 ### Ornith override
 

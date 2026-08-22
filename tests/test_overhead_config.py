@@ -36,14 +36,21 @@ class OverheadConfigTests(unittest.TestCase):
             "routed_base_url": "http://127.0.0.1:8100/v1",
             "routed_model_id": "omlx/gemma-4-12B-it-qat-oQ4-fp16",
         }
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-            json.dump(bad, handle)
-            path = Path(handle.name)
-        try:
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "oq4_fp16.json"
+            path.write_text(json.dumps(bad), encoding="utf-8")
             with self.assertRaises(OverheadError):
                 OverheadPair.load(path)
-        finally:
-            path.unlink(missing_ok=True)
+
+    def test_reject_pair_id_that_disagrees_with_file_name(self) -> None:
+        renamed = json.loads(
+            (ROOT / "config/overhead/pairs/oq4_fp16.json").read_text(encoding="utf-8")
+        )
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "optiq_4bit.json"
+            path.write_text(json.dumps(renamed), encoding="utf-8")
+            with self.assertRaises(OverheadError):
+                OverheadPair.load(path)
 
     def test_make_routed_measure_cell_uses_osaurus_endpoint(self) -> None:
         family = load_family("gemma-4-12b-qat")

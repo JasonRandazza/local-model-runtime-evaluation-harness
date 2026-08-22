@@ -3,6 +3,21 @@
 Notable operator-visible changes. Pre-1.0: minor versions may change behavior,
 but never the meaning of already-sealed evidence.
 
+## Unreleased
+
+### Changed
+
+- `--cells` on `lmre-preference` and `lmre-rag` must now be a subset of the
+  selected family's recipe. A cell outside it was already rejected, but only
+  later, by cell loading; it now fails at selection with
+  `cells filter is not in family recipe`, matching `--pairs` on
+  `lmre-overhead`.
+- An overhead pair file whose `pair_id` disagrees with its file name is now
+  rejected by `OverheadPair.load`. Callers load pairs by requested id and
+  attribute results under that id, so such a file would previously have been
+  mislabeled in sealed evidence rather than refused. All shipped pair files
+  already agree; no sealed evidence changes meaning.
+
 ## 0.4.0 (2026-08-07)
 
 First tagged release. Verification record:

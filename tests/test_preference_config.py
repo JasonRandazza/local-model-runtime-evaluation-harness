@@ -70,6 +70,13 @@ class PreferenceConfigTests(unittest.TestCase):
             ),
         )
 
+    def test_resolve_rejects_cell_outside_family_recipe(self) -> None:
+        with self.assertRaises(PreferenceError):
+            resolve_preference_selection(
+                family_id="gemma-4-12b-qat",
+                cells=("ornith_jang_4m__osaurus",),
+            )
+
     def test_resolve_missing_family_fails(self) -> None:
         empty = PreferenceDefaults(family_id="", cells=())
         with self.assertRaises(PreferenceError):

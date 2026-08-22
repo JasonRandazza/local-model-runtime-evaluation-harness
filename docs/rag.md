@@ -20,7 +20,7 @@ RAG resolves a matrix **family** first, then that family’s cell recipe:
 2. Else `config/rag/defaults.json` → `family_id` (checked-in default: **`gemma-4-12b-qat`**)
 3. Else fail closed — family is required
 
-Cell ids come from `--cells` or the selected family’s recipe in `config/rag/family-cells.json`. Every cell must load for the selected matrix family; mixed-family lists are rejected.
+Cell ids come from `--cells` or the selected family’s recipe in `config/rag/family-cells.json`. A `--cells` filter must be a subset of that recipe; anything outside it, including a mixed-family list, is rejected before any cell loads.
 
 ### Default family (Gemma)
 

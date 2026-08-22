@@ -13,23 +13,18 @@ resolves, so `git diff <base>..<head>` regenerates them), the per-task briefs
 their commit messages), and the review packages (verbatim dumps of source files
 that are still in `src/`).
 
-## Findings still open (verified 2026-08-21)
+## Deferred findings, now closed (2026-08-21)
 
-`final-review-step3.md` approved Step 3 with three follow-ups. Two still hold:
+`final-review-step3.md` approved Step 3 with three follow-ups. All three are
+resolved:
 
-- `resolve_rag_selection` (`rag_config.py`) and `resolve_preference_selection`
-  (`preference_config.py`) accept a `--cells` filter without checking it
-  against the family recipe. `resolve_overhead_selection` does check
-  (`pairs filter is not in family recipe`). Behavior is still fail-closed —
-  a foreign cell is rejected later by `Cell.load` → `validate_for_family` —
-  so this is error-message quality, not a correctness hole.
-- `OverheadPair.load` (`overhead_config.py`) validates `pair_id` is non-empty
-  but never checks it against the filename stem. Every caller loads by
-  `pairs_root / f"{pair_id}.json"` and then attributes results under the
-  *requested* id, so a hand-edited file whose inner `pair_id` disagrees with
-  its name would be silently mislabeled in evidence. All six shipped pair
-  files agree today.
-
-The third — `DEFAULT_RAG_CELLS` doing file I/O at import time — is fixed.
-It is now the `default_rag_cells()` function, explicitly documented as
-uncached.
+- The missing `--cells` membership check in `resolve_rag_selection`
+  (`rag_config.py`) is in place, as is the same check in
+  `resolve_preference_selection` (`preference_config.py`), which had the same
+  gap. Both now match `resolve_overhead_selection`.
+- `OverheadPair.load` (`overhead_config.py`) now rejects a `pair_id` that
+  disagrees with its file name. Callers load by
+  `pairs_root / f"{pair_id}.json"` and attribute results under the requested
+  id, so a hand-edited file could have been silently mislabeled in evidence.
+- `DEFAULT_RAG_CELLS` no longer does file I/O at import time; it is the
+  `default_rag_cells()` function, explicitly documented as uncached.

@@ -144,6 +144,8 @@ class OverheadPair:
         pair_id = str(data["pair_id"])
         if not pair_id:
             raise OverheadError("pair_id is invalid")
+        if pair_id != path.stem:
+            raise OverheadError("pair_id must match its file name")
 
         direct_cell_id = str(data["direct_cell_id"])
         backend_cell_id = str(data["backend_cell_id"])

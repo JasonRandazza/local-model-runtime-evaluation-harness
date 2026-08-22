@@ -97,9 +97,14 @@ def resolve_rag_selection(
     if resolved_family not in resolved_recipes:
         raise RagError("rag family recipe is missing")
 
-    resolved_cells = cells if cells is not None else resolved_recipes[resolved_family]
+    recipe_cells = resolved_recipes[resolved_family]
+    resolved_cells = cells if cells is not None else recipe_cells
     if not resolved_cells:
         raise RagError("cells filter is empty")
+
+    unknown = set(resolved_cells) - set(recipe_cells)
+    if unknown:
+        raise RagError("cells filter is not in family recipe")
 
     return RagSelection(resolved_family, resolved_cells)
 
