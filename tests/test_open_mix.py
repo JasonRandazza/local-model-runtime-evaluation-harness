@@ -12,9 +12,9 @@ from unittest.mock import MagicMock, patch
 
 from local_model_runtime_evaluation.artifact_profile import load_artifact_roots
 from local_model_runtime_evaluation.evidence_bundle import EvidenceBundle
+from local_model_runtime_evaluation.lineup import _open_mix_context
 from local_model_runtime_evaluation.managed_run import (
     ManagedCollectorHooks,
-    _open_mix_context,
     _required_routes,
     default_collector_hooks,
     execute_managed_run,

@@ -17,7 +17,7 @@ from local_model_runtime_evaluation.managed_run_types import (
 )
 from local_model_runtime_evaluation.free_bind import adopt_binding, propose_binding
 from local_model_runtime_evaluation.artifact_profile import load_artifact_roots
-from local_model_runtime_evaluation.managed_run import _campaign_for_plan
+from local_model_runtime_evaluation.lineup import _campaign_for_plan
 from local_model_runtime_evaluation.run_identity import (
     MACHINE_PROFILE_INPUT,
     RunIdentityError,
