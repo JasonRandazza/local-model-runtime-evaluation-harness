@@ -224,6 +224,8 @@ class RulingTests(unittest.TestCase):
         self.assertTrue(ruling["run_id"])
         self.assertTrue(ruling["plan_hash"])
         self.assertEqual(ruling["created_at"], "2026-08-22T12:00:00Z")
+        self.assertTrue(ruling["ruling_id"].endswith("--fixture-rubric--20260822T120000Z"))
+        self.assertNotIn(":", ruling["ruling_id"])  # must be a safe file name
 
     def test_tie_break_does_not_depend_on_arrival_order(self) -> None:
         # Same measured value for every survivor: only the cell_id tie-break

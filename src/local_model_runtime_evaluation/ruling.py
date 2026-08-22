@@ -177,6 +177,8 @@ def build_ruling(run_dir: Path, rubric: Rubric, *, now: datetime | None = None) 
     """Rule over one sealed run. Never raises; every failure is a value."""
     stamp = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     created_at = stamp.isoformat().replace("+00:00", "Z")
+    # A compact stamp so a ruling id is also a safe file name.
+    slug = stamp.strftime("%Y%m%dT%H%M%SZ")
 
     health, detail = classify_bundle(run_dir)
     if health != HEALTH_SEALED_VERIFIED:
@@ -235,7 +237,7 @@ def build_ruling(run_dir: Path, rubric: Rubric, *, now: datetime | None = None) 
 
     return {
         "schema_version": SCHEMA_VERSION,
-        "ruling_id": f"{plan.identity.run_id}--{rubric.rubric_id}--{created_at}",
+        "ruling_id": f"{plan.identity.run_id}--{rubric.rubric_id}--{slug}",
         "created_at": created_at,
         "run_id": plan.identity.run_id,
         "plan_hash": plan.plan_hash,
