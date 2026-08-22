@@ -181,6 +181,24 @@ _Avoid_: rating, vote, eval
 A token count reported by the runtime itself. A count the harness derived is
 _estimated_, and the two are never compared as if equal.
 
+### Rulings
+
+**Ruling**:
+A conclusion drawn from one comparison group under a stated rubric, naming the
+cell to serve. Derived rather than measured, and so never sealed.
+_Avoid_: verdict, judgment, recommendation, score, winner
+
+**Rubric**:
+The criteria a ruling is made under: the quality floors a cell must clear, then
+the single metric that orders whatever clears them.
+_Avoid_: policy, weights, scoring config, thresholds
+
+**Supersede**:
+What one ruling does to an earlier ruling over the same comparison group. The
+earlier ruling is not corrected or removed; it recorded an honest conclusion
+under the rubric and evidence of its moment.
+_Avoid_: overwrite, invalidate, replace
+
 ### Workspace and artifacts
 
 **Workspace root**:
