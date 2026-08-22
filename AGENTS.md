@@ -76,7 +76,11 @@ instructions are not active commands.
 - Never print, serialize, log, commit, or place credentials in prompts or
   artifacts.
 - Keep generated raw results out of Git.
-- Preserve honest PASS/FAIL/N/A and `EXECUTED_UNSEALED` states.
+- Preserve honest `PASS`/`FAIL`/`N/A`/`INCOMPARABLE` step states,
+  `PARTIAL_BLOCKED` run states, and `EXECUTED_UNSEALED`. `N/A` means the
+  step did not apply; `INCOMPARABLE` means it ran but its evidence cannot
+  be set beside the other cells'. Never collapse one into the other.
+  See `CONTEXT.md` for the full vocabulary.
 - Do not promote generated output into durable conclusions without review.
 
 ## Repository Hygiene
@@ -90,3 +94,17 @@ instructions are not active commands.
   explicitly requested.
 - Do not delete external model weights or caches as part of catalog or
   documentation cleanup. Storage reclamation is a separately authorized task.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `JasonRandazza/local-model-runtime-evaluation-harness`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary, label strings unchanged. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
