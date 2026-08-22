@@ -127,3 +127,63 @@ def rag_rows(payload: dict | None, plan: ManagedRunPlan) -> list[dict] | None:
             }
         )
     return rows
+
+
+def summary_values(raw: object) -> dict | None:
+    """Pull the five matrix summary numbers, or None if any is not a number."""
+    summary = raw.get("summary") if isinstance(raw, dict) else None
+    if not isinstance(summary, dict):
+        return None
+    values = {
+        key: summary.get(key)
+        for key in (
+            "median_total_seconds",
+            "median_ttft_seconds",
+            "success_count",
+            "contract_pass_count",
+            "measured_count",
+        )
+    }
+    if any(
+        value is not None
+        and (isinstance(value, bool) or not isinstance(value, (int, float)))
+        for value in values.values()
+    ):
+        return None
+    return values
+
+
+def matrix_rows(raw: dict | None, plan: ManagedRunPlan) -> list[dict] | None:
+    """Emit one matrix row per cell from a parsed matrix `raw.json`."""
+    cells = raw.get("cells") if isinstance(raw, dict) else None
+    if not isinstance(cells, list):
+        return None
+    by_id: dict[str, dict] = {}
+    for cell in cells:
+        cell_id = cell.get("cell_id") if isinstance(cell, dict) else None
+        if not isinstance(cell_id, str) or cell_id in by_id:
+            return None
+        by_id[cell_id] = cell
+    if set(by_id) != set(plan.cell_ids):
+        return None
+    rows = []
+    for cell_id in plan.cell_ids:
+        cell = by_id[cell_id]
+        family_id = cell.get("family_id")
+        status = cell.get("status")
+        summary = summary_values(cell)
+        if (
+            (family_id is not None and not isinstance(family_id, str))
+            or not isinstance(status, str)
+            or summary is None
+        ):
+            return None
+        rows.append(
+            {
+                "cell_id": cell_id,
+                "family_id": family_id,
+                "status": status,
+                **summary,
+            }
+        )
+    return rows
