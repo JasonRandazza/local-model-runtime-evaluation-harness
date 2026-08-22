@@ -11,7 +11,7 @@ VALID = {
     "rubric_id": "serve-fastest-that-passes",
     "revision": "1",
     "floors": [
-        {"metric": "rag.fact_hit_rate", "comparator": ">=", "value": 0.8},
+        {"metric": "rag_oracle.fact_hit_rate", "comparator": ">=", "value": 0.8},
     ],
     "order_by": {"metric": "matrix.median_total_seconds", "direction": "asc"},
 }
@@ -30,7 +30,7 @@ class RubricLoadTests(unittest.TestCase):
         self.assertEqual(rubric.rubric_id, "serve-fastest-that-passes")
         self.assertEqual(rubric.revision, "1")
         self.assertEqual(len(rubric.floors), 1)
-        self.assertEqual(rubric.floors[0].metric, "rag.fact_hit_rate")
+        self.assertEqual(rubric.floors[0].metric, "rag_oracle.fact_hit_rate")
         self.assertEqual(rubric.floors[0].comparator, ">=")
         self.assertEqual(rubric.floors[0].value, 0.8)
         self.assertEqual(rubric.order_by.metric, "matrix.median_total_seconds")
@@ -42,7 +42,7 @@ class RubricLoadTests(unittest.TestCase):
         bad_floor = {
             **VALID,
             "floors": [
-                {"metric": "rag.fact_hit_rat", "comparator": ">=", "value": 0.8}
+                {"metric": "rag_oracle.fact_hit_rat", "comparator": ">=", "value": 0.8}
             ],
         }
         bad_order = {
@@ -76,18 +76,18 @@ class RubricLoadTests(unittest.TestCase):
             "floor not an object": {**VALID, "floors": ["fast"]},
             "floor missing comparator": {
                 **VALID,
-                "floors": [{"metric": "rag.fact_hit_rate", "value": 0.8}],
+                "floors": [{"metric": "rag_oracle.fact_hit_rate", "value": 0.8}],
             },
             "unknown comparator": {
                 **VALID,
                 "floors": [
-                    {"metric": "rag.fact_hit_rate", "comparator": "~=", "value": 0.8}
+                    {"metric": "rag_oracle.fact_hit_rate", "comparator": "~=", "value": 0.8}
                 ],
             },
             "value not numeric": {
                 **VALID,
                 "floors": [
-                    {"metric": "rag.fact_hit_rate", "comparator": ">=", "value": "0.8"}
+                    {"metric": "rag_oracle.fact_hit_rate", "comparator": ">=", "value": "0.8"}
                 ],
             },
             "unknown direction": {

@@ -163,6 +163,9 @@ def _overhead_raw(bundle: EvidenceBundle) -> dict:
     }
 
 
+_RAG_RECALL_BASE = 0.25
+
+
 def _preference_raw(bundle: EvidenceBundle) -> dict:
     total_judgments = len(bundle.plan.cell_ids) + 4
     cells = {}
@@ -186,9 +189,7 @@ def _preference_raw(bundle: EvidenceBundle) -> dict:
     }
 
 
-def _rag_raw(
-    bundle: EvidenceBundle, *, mode: str, recall_offset: float = 0.25
-) -> dict:
+def _rag_raw(bundle: EvidenceBundle, *, mode: str) -> dict:
     prompts = {
         "prompt-1": {"hits": 3, "total": 4},
         "prompt-2": {"hits": 2, "total": 4},
@@ -196,8 +197,8 @@ def _rag_raw(
     cells = {}
     for index, cell_id in enumerate(bundle.plan.cell_ids):
         hit_rate = round(0.8 + 0.05 * (index + 1), 3)
-        recall = round(recall_offset + 0.05 * (index + 1), 3)
-        precision = round(recall_offset + 0.02 * (index + 1), 3)
+        recall = round(_RAG_RECALL_BASE + 0.05 * (index + 1), 3)
+        precision = round(_RAG_RECALL_BASE + 0.02 * (index + 1), 3)
         cells[cell_id] = {
             "mean_hit_rate": hit_rate,
             "prompts": prompts,
@@ -282,12 +283,20 @@ def _build_full_pass(
                 bundle, step, 1, _PREFERENCE_REPORT, raw, filename="tally.json"
             )
         elif step is ManagedStep.RAG_ORACLE:
-            raw = _rag_raw(bundle, mode="oracle")
+            raw = (
+                _rag_raw(bundle, mode="oracle")
+                if structured_metrics
+                else {"family": "fake-family-1b", "stub": True}
+            )
             output_path = _write_output(
                 bundle, step, 1, _RAG_ORACLE_REPORT, raw, filename="scores.json"
             )
         elif step is ManagedStep.RAG_KEYWORD:
-            raw = _rag_raw(bundle, mode="keyword", recall_offset=0.25)
+            raw = (
+                _rag_raw(bundle, mode="keyword")
+                if structured_metrics
+                else {"family": "fake-family-1b", "stub": True}
+            )
             output_path = _write_output(
                 bundle, step, 1, _RAG_KEYWORD_REPORT, raw, filename="scores.json"
             )

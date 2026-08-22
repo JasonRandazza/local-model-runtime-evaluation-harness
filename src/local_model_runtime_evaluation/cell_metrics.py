@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .evidence_bundle import ManagedRunPlan, ManagedRunState, ManagedStep
+from .managed_run_types import ManagedRunPlan, ManagedRunState, ManagedStep
 
 
 def _is_int(value: object) -> bool:

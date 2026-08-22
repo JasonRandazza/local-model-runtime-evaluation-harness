@@ -25,9 +25,10 @@ METRICS = frozenset({
     "preference.wins",
     "preference.losses",
     "preference.ties",
-    "rag.fact_hit_rate",
-    "rag.retrieval_recall",
-    "rag.retrieval_precision",
+    "rag_oracle.fact_hit_rate",
+    "rag_keyword.fact_hit_rate",
+    "rag_keyword.retrieval_recall",
+    "rag_keyword.retrieval_precision",
 })
 
 
