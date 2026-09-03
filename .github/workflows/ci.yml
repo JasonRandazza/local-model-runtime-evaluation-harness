@@ -38,6 +38,15 @@ jobs:
       - name: Run the retained suite
         run: python -m pytest tests/ -q
 
+      - name: Lint (advisory)
+        # Non-blocking: this repo has never been linted, so the build would go
+        # red on day one for reasons unrelated to any change. Cleared once the
+        # existing violations are resolved.
+        continue-on-error: true
+        run: |
+          python -m pip install --quiet ruff
+          python -m ruff check .
+
       - name: Byte-compile
         run: python -m compileall -q src/ tests/
 

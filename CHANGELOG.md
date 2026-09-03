@@ -7,6 +7,13 @@ but never the meaning of already-sealed evidence.
 
 ### Added
 
+- **Linter configuration.** Added a `[tool.ruff]` section to `pyproject.toml`
+  (line-length 79, target py311, rule set E/F/W/I/UP/B), pinned `ruff==0.16.5`
+  in a `dev` dependency group, and added a non-blocking lint step to CI so the
+  existing violation count can be cleared before the gate goes live.
+
+### Added
+
 - **Rulings.** The harness now draws the conclusion its evidence supports
   instead of stopping one step short. A **rubric** is a checked-in declaration
   of criteria -- the quality floors a cell must clear, and the single metric
