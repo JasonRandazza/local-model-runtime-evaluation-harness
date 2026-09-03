@@ -44,6 +44,17 @@ path = "src/local_model_runtime_evaluation/__init__.py"
 pythonpath = [".", "src"]
 testpaths = ["tests"]
 
+[tool.ruff]
+line-length = 79
+target-version = "py311"
+exclude = ["graphify-out", "results"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[dependency-groups]
+dev = ["ruff==0.16.5", "pytest"]
+
 [project.scripts]
 lmre = "local_model_runtime_evaluation.managed_run_cli:main"
 lmre-approach3 = "local_model_runtime_evaluation.approach3_cli:main"
