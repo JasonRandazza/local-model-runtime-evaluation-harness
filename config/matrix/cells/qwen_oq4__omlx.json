@@ -8,7 +8,10 @@
   "start_command": [
     "omlx", "serve",
     "--model-dir", "{LMRE_OMLX_CATALOG}",
-    "--host", "127.0.0.1", "--port", "8100"
+    "--host", "127.0.0.1", "--port", "8100",
+    "--max-concurrent-requests", "1",
+    "--memory-guard", "off",
+    "--no-cache"
   ],
   "stop_command": [],
   "health_path": "/health",

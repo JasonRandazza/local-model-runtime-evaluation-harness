@@ -5,6 +5,17 @@ but never the meaning of already-sealed evidence.
 
 ## Unreleased
 
+### Changed
+
+- Volatile upstream runtime defaults are now pinned to fixed values. OptiQ's
+  `--max-context` defaulted to `auto` (a RAM-dependent KV cap); it is pinned to
+  `8192`. oMLX's `--max-concurrent-requests` (default 8), `--memory-guard`
+  (tiered, RAM-dependent), and paged SSD cache (on by default) are pinned to
+  `1`, `off`, and `--no-cache` respectively. All three made TTFT and throughput
+  depend on the host machine or on disk warmth; the pins make them
+  reproducible. Runs planned before this change read `INCOMPARABLE` against
+  runs planned after -- the measurement genuinely changed.
+
 ### Added
 
 - **Linter configuration.** Added a `[tool.ruff]` section to `pyproject.toml`
