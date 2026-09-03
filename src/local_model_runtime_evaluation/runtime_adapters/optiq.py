@@ -30,6 +30,8 @@ class OptiqAdapter(LoopbackRuntimeAdapter):
             "--no-anthropic",
             "--no-responses",
             "--no-auth",
+            "--max-context",
+            "8192",
         )
         if cell.start_command != expected:
             raise RuntimeAdapterError("OptiQ start command is not fixed")

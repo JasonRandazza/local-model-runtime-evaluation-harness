@@ -56,6 +56,8 @@ class OmlxAdapter(LoopbackRuntimeAdapter):
             or "--model-dir" not in command
             or "--host" not in command
             or "--port" not in command
+            or "--max-concurrent-requests" not in command
+            or "--memory-guard" not in command
         ):
             raise RuntimeAdapterError("oMLX start command is not fixed")
         if command[command.index("--host") + 1] != "127.0.0.1":
@@ -65,6 +67,18 @@ class OmlxAdapter(LoopbackRuntimeAdapter):
         if "--base-path" in command:
             raise RuntimeAdapterError(
                 "oMLX base path is managed by the harness"
+            )
+        if command[command.index("--max-concurrent-requests") + 1] != "1":
+            raise RuntimeAdapterError(
+                "oMLX max concurrent requests must be pinned to 1"
+            )
+        if command[command.index("--memory-guard") + 1] != "off":
+            raise RuntimeAdapterError(
+                "oMLX memory guard must be off"
+            )
+        if "--no-cache" not in command:
+            raise RuntimeAdapterError(
+                "oMLX paged cache must be disabled"
             )
         if cell.stop_command:
             raise RuntimeAdapterError("oMLX stop command must be empty")

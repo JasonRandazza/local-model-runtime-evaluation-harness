@@ -8,7 +8,8 @@
   "start_command": [
     "optiq", "serve", "--model", "{artifact_path}",
     "--host", "127.0.0.1", "--port", "8080",
-    "--no-anthropic", "--no-responses", "--no-auth"
+    "--no-anthropic", "--no-responses", "--no-auth",
+    "--max-context", "8192"
   ],
   "stop_command": [],
   "health_path": "/health",

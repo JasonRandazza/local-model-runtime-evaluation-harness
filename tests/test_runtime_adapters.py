@@ -124,6 +124,11 @@ def _omlx() -> Cell:
             "127.0.0.1",
             "--port",
             "8100",
+            "--max-concurrent-requests",
+            "1",
+            "--memory-guard",
+            "off",
+            "--no-cache",
         ),
         stop_command=(),
         health_path="/health",
@@ -152,6 +157,8 @@ def _optiq() -> Cell:
             "--no-anthropic",
             "--no-responses",
             "--no-auth",
+            "--max-context",
+            "8192",
         ),
         stop_command=(),
         health_path="/health",
@@ -398,6 +405,11 @@ class RuntimeAdapterTests(unittest.TestCase):
                     "127.0.0.1",
                     "--port",
                     "8100",
+                    "--max-concurrent-requests",
+                    "1",
+                    "--memory-guard",
+                    "off",
+                    "--no-cache",
                 ),
                 stop_command=(),
                 health_path=cell.health_path,
@@ -460,6 +472,103 @@ class RuntimeAdapterTests(unittest.TestCase):
             "base path is managed by the harness",
         ):
             adapter.requirement_from_cell(cell)
+
+    def test_omlx_rejects_max_concurrent_requests_not_one(self) -> None:
+        cell = _omlx()
+        command = list(cell.start_command)
+        command[command.index("--max-concurrent-requests") + 1] = "8"
+        adapter = OmlxAdapter(inspector=FakeInspector(None))
+        with self.assertRaisesRegex(
+            RuntimeAdapterError,
+            "max concurrent requests must be pinned to 1",
+        ):
+            adapter.requirement_from_cell(Cell(
+                cell_id=cell.cell_id,
+                quant=cell.quant,
+                server=cell.server,
+                base_url=cell.base_url,
+                model_id=cell.model_id,
+                artifact_path=cell.artifact_path,
+                start_command=tuple(command),
+                stop_command=cell.stop_command,
+                health_path=cell.health_path,
+                notes=cell.notes,
+            ))
+
+    def test_omlx_rejects_memory_guard_not_off(self) -> None:
+        cell = _omlx()
+        command = list(cell.start_command)
+        command[command.index("--memory-guard") + 1] = "balanced"
+        adapter = OmlxAdapter(inspector=FakeInspector(None))
+        with self.assertRaisesRegex(
+            RuntimeAdapterError,
+            "memory guard must be off",
+        ):
+            adapter.requirement_from_cell(Cell(
+                cell_id=cell.cell_id,
+                quant=cell.quant,
+                server=cell.server,
+                base_url=cell.base_url,
+                model_id=cell.model_id,
+                artifact_path=cell.artifact_path,
+                start_command=tuple(command),
+                stop_command=cell.stop_command,
+                health_path=cell.health_path,
+                notes=cell.notes,
+            ))
+
+    def test_omlx_rejects_flags_absent_entirely(self) -> None:
+        # A flag that is absent (not merely wrong) must still raise
+        # RuntimeAdapterError, never a bare ValueError from .index().
+        for flag, value in (
+            ("--max-concurrent-requests", "1"),
+            ("--memory-guard", "off"),
+        ):
+            with self.subTest(flag=flag):
+                cell = _omlx()
+                parts = list(cell.start_command)
+                i = parts.index(flag)
+                del parts[i:i + 2]
+                adapter = OmlxAdapter(inspector=FakeInspector(None))
+                with self.assertRaisesRegex(
+                    RuntimeAdapterError,
+                    "start command is not fixed",
+                ):
+                    adapter.requirement_from_cell(Cell(
+                        cell_id=cell.cell_id,
+                        quant=cell.quant,
+                        server=cell.server,
+                        base_url=cell.base_url,
+                        model_id=cell.model_id,
+                        artifact_path=cell.artifact_path,
+                        start_command=tuple(parts),
+                        stop_command=cell.stop_command,
+                        health_path=cell.health_path,
+                        notes=cell.notes,
+                    ))
+
+    def test_omlx_rejects_missing_no_cache(self) -> None:
+        cell = _omlx()
+        command = tuple(
+            part for part in cell.start_command if part != "--no-cache"
+        )
+        adapter = OmlxAdapter(inspector=FakeInspector(None))
+        with self.assertRaisesRegex(
+            RuntimeAdapterError,
+            "paged cache must be disabled",
+        ):
+            adapter.requirement_from_cell(Cell(
+                cell_id=cell.cell_id,
+                quant=cell.quant,
+                server=cell.server,
+                base_url=cell.base_url,
+                model_id=cell.model_id,
+                artifact_path=cell.artifact_path,
+                start_command=command,
+                stop_command=cell.stop_command,
+                health_path=cell.health_path,
+                notes=cell.notes,
+            ))
 
 
 if __name__ == "__main__":

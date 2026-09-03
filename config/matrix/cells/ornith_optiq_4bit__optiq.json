@@ -16,7 +16,9 @@
     "8080",
     "--no-anthropic",
     "--no-responses",
-    "--no-auth"
+    "--no-auth",
+    "--max-context",
+    "8192"
   ],
   "stop_command": [],
   "health_path": "/health",
