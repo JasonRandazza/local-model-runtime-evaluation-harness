@@ -48,6 +48,49 @@ inference. An offline `lmre doctor` command reports static local readiness
 every runtime, provider, credential, memory, and inference fact
 `NOT_CHECKED_LIVE`; it grants no live authority.
 
+## Runtime Pins and Provenance (Non-Live Verified, 2026-09-03)
+
+Four slices landed. 757 tests pass with no skips; all six `dry-config`
+commands exit 0. Package version is still `0.4.0` and the work sits in
+`Unreleased`.
+
+**Volatile upstream defaults are pinned (ADR-0007).** Osaurus, oMLX and
+mlx-optiq all shipped updates. No adapter rewrite was needed -- every
+hardcoded flag still exists -- but three upstream *defaults* had begun to
+decide what the harness measures. OptiQ's `--max-context auto` engages a
+memory-safe KV cap only when the model's native context would not fit RAM,
+making the same cell machine-dependent; oMLX's tiered `--memory-guard`,
+concurrency default of 8, and on-by-default paged SSD cache each move TTFT
+and throughput. They are pinned to `--max-context 8192`,
+`--max-concurrent-requests 1`, `--memory-guard off` and `--no-cache`.
+
+This changed the cell configs, so plans built before the pins read
+`INCOMPARABLE` against plans built after. That is correct: the measurement
+genuinely changed. Sealed evidence is untouched.
+
+**Runtime versions are captured as provenance.** `runtime_versions.py` records
+which build a result was produced against -- previously impossible, because
+`osaurus version` prints `dev` and older `omlx --version` crashed. Osaurus is
+read from `doctor --json --redact`, preferring the running bundle and recording
+how many were installed, so a duplicate install cannot make the provenance
+confidently wrong. The value is **written, never read** by ruling, rubric,
+comparison or discovery code, and never enters `input_hashes` or the plan. It
+is provenance, not the rejected runtime-version regression axis.
+
+**Rulings render in the browser.** `lmre browse` now writes `rulings/index.html`
+and one page per ruling, showing the named cell, rubric identity and hash, the
+floors and which cells cleared them, and -- for `UNAVAILABLE` or
+no-cell-qualifies outcomes -- the code and reason stated plainly. Superseded
+rulings are marked, never hidden. `list_rulings` now shares `save_ruling`'s
+bare-file-name guard, so a ruling whose file contents claim an id like
+`../../evil` can no longer drive a write outside the output tree.
+
+**A pinned linter exists.** `ruff==0.16.5`, rule set E/F/W/I/UP/B, line-length
+79. The CI step is deliberately **advisory**: the tree carries 1444 existing
+violations (87% `E501`, 186 auto-fixable), so a blocking gate would have red-lit
+the build on day one. Clearing that backlog and making the gate blocking is
+tracked as the next mechanical slice.
+
 ## Rulings (Non-Live Verified, 2026-08-22)
 
 Closed issue #36 via PR #38; documentation in PR #39.

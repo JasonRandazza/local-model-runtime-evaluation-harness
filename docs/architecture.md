@@ -84,9 +84,9 @@ ownership of the local active-run lock.
 | `rubric.py` | Strict rubric loading: closed metric vocabulary, ordered floors, exactly one ordering metric |
 | `cell_metrics.py` | Per-cell matrix, preference, and RAG metric extraction from a sealed bundle |
 | `ruling.py` | `build_ruling`: fail-closed interpretation of one sealed run under one rubric; never raises |
-| `ruling_store.py` | One ruling per file, written once and never overwritten; superseding derived at read time |
+| `ruling_store.py` | One ruling per file, written once and never overwritten; superseding derived at read time; ids validated as bare file names on both write and read |
 | `ruling_cli.py` | `ruling make` and `ruling list` on the managed CLI; grants no authority |
-| `results_browser.py` / `results_browser_html.py` | Read-only sealed-evidence interpretation and static HTML presentation |
+| `results_browser.py` / `results_browser_html.py` | Read-only sealed-evidence interpretation and static HTML presentation, including rulings and their supersession |
 | `run_console.py` / `run_console_html.py` / `run_console_server.py` | Fixed-loopback presentation, exact-plan authority form, and one fixed managed-CLI child |
 | `doctor.py` | Offline static-readiness diagnostics over existing validators; no live contact |
 
