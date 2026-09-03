@@ -23,6 +23,17 @@ but never the meaning of already-sealed evidence.
   in a `dev` dependency group, and added a non-blocking lint step to CI so the
   existing violation count can be cleared before the gate goes live.
 
+- **Runtime version provenance.** `runtime_versions.py` captures the build of
+  each runtime CLI (Osaurus, oMLX, OptiQ) so a sealed artifact can say what it
+  ran on. `lmre-managed runtime-versions` emits the same on stdout as JSON.
+  Versions come from `osaurus doctor --json --redact` (the running bundle is
+  preferred and the number of installed bundles recorded), `omlx --version`,
+  and `optiq --version`. A runtime that is missing, times out, exits non-zero,
+  or prints unparseable output yields an explicit unavailable record with a
+  reason -- it never raises and never silently omits a runtime. The captured
+  version is **written**, never **read** by ruling, rubric, comparison, or
+  discovery code, and never enters `input_hashes` or the plan.
+
 - **Rulings.** The harness now draws the conclusion its evidence supports
   instead of stopping one step short. A **rubric** is a checked-in declaration
   of criteria -- the quality floors a cell must clear, and the single metric
