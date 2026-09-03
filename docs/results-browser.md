@@ -112,6 +112,33 @@ The `browse` JSON output adds `comparison_index` and `comparisons`
 alongside the existing keys, plus `unattributed_exclusions` (the count of
 entries listed in the "Unattributed exclusions" section above).
 
+## Rulings
+
+The browser also writes `rulings/index.html` and one
+`rulings/<ruling-id>.html` page per ruling, linked from the main index.
+Rulings live under `results/rulings/` as one JSON file per ruling; they are
+not in version control. The browser reads them via `ruling_store.list_rulings`
+and never edits, deletes, or re-derives their supersession state.
+
+Each ruling page shows:
+
+- The ruling identity: ruling ID, created timestamp, run ID, plan hash,
+  comparison ID, and family.
+- The rubric it was decided under: rubric ID, revision, and hash.
+- The outcome state (`CELL_NAMED`, `NO_CELL_QUALIFIES`, or `UNAVAILABLE`),
+  the cell it names (when it does), and the reason. `UNAVAILABLE` outcomes
+  also carry their code.
+- The floors and which cells cleared them, with each cell's measured value,
+  comparator, floor value, pass/fail status, and the ordering metric value.
+
+Superseded rulings are marked visibly as superseded, with a link to the
+current ruling. They are never hidden or removed. A results root with no
+`rulings/` directory at all renders the rulings index as an empty state,
+not an error.
+
+The `browse` JSON output adds `rulings_index` and `rulings` alongside the
+existing keys.
+
 ## Boundaries
 
 The browser is read-only presentation. It does not run, resume, or plan

@@ -27,6 +27,7 @@ from .results_browser import (
     VERDICT_INCOMPARABLE,
     build_comparisons,
     build_index,
+    build_rulings_index,
     build_run_view,
 )
 
@@ -157,6 +158,10 @@ def render_index(index: dict) -> str:
     body.append(
         '<p><a href="comparisons/index.html">Cross-run comparisons</a> '
         "(sealed verified evidence only)</p>"
+    )
+    body.append(
+        '<p><a href="rulings/index.html">Rulings</a> '
+        "(conclusions drawn under stated rubrics)</p>"
     )
 
     entries = index["entries"]
@@ -672,6 +677,173 @@ def render_comparison_group(group: dict) -> str:
     return _page(title, "\n".join(parts))
 
 
+_RULING_OUTCOME_LABELS = {
+    "CELL_NAMED": "Cell named",
+    "NO_CELL_QUALIFIES": "No cell qualifies",
+    "UNAVAILABLE": "Unavailable",
+}
+
+
+def _floors_table(cells: list) -> str:
+    header = "".join(
+        f'<th scope="col">{label}</th>'
+        for label in ("Cell", "Family", "Qualified", "Floors", "Order by")
+    )
+    rows = []
+    for cell in cells:
+        floor_parts = []
+        for floor in cell["floors"]:
+            status = "PASS" if floor["passed"] else "FAIL"
+            measured_text = _cell(floor["measured"])
+            floor_parts.append(
+                f'{html.escape(floor["metric"])} {html.escape(floor["comparator"])} '
+                f'{html.escape(_text(floor["value"]))} = {measured_text} ({status})'
+            )
+        floors_text = "; ".join(floor_parts) if floor_parts else _EM_DASH
+        order_metric = cell["order_by"]["metric"]
+        order_measured = _cell(cell["order_by"]["measured"])
+        order_text = f"{html.escape(order_metric)} = {order_measured}"
+        rows.append(
+            "<tr>"
+            f"<td>{_cell(cell['cell_id'])}</td>"
+            f"<td>{_cell(cell.get('family_id'))}</td>"
+            f"<td>{_cell(cell['qualified'])}</td>"
+            # Already escaped piece-by-piece above; escaping again would
+            # render a legitimate "&" as "&amp;amp;".
+            f"<td>{floors_text}</td>"
+            f"<td>{order_text}</td>"
+            "</tr>"
+        )
+    return f"<table><tr>{header}</tr>" + "".join(rows) + "</table>"
+
+
+def render_rulings_index(rulings_index: dict) -> str:
+    root_text = html.escape(str(rulings_index["results_root"]))
+    body = [
+        "<h1>Rulings</h1>",
+        '<p><a href="../index.html">Back to index</a></p>',
+    ]
+    if rulings_index["missing_root"]:
+        body.append(f"<p>Results root does not exist: {root_text}.</p>")
+        return _page("Rulings", "\n".join(body))
+    rulings = rulings_index["rulings"]
+    if not rulings:
+        body.append(
+            f"<p>Results root: {root_text}. "
+            "No rulings were found beneath this results root.</p>"
+        )
+        return _page("Rulings", "\n".join(body))
+    header = "".join(
+        f'<th scope="col">{label}</th>'
+        for label in (
+            "Ruling ID",
+            "Run ID",
+            "Comparison ID",
+            "Family",
+            "Rubric",
+            "Outcome",
+            "Created",
+            "Status",
+        )
+    )
+    rows = []
+    for entry in rulings:
+        ruling = entry["ruling"]
+        link = f"{html.escape(entry['ruling_id'])}.html"
+        outcome = ruling["outcome"]
+        outcome_text = _RULING_OUTCOME_LABELS.get(outcome["state"], outcome["state"])
+        if outcome["cell_id"]:
+            outcome_text += f": {_cell(outcome['cell_id'])}"
+        status = "superseded" if entry["superseded_by"] else "current"
+        rows.append(
+            "<tr>"
+            f'<td><a href="{link}">{_cell(entry["ruling_id"])}</a></td>'
+            f"<td>{_cell(ruling['run_id'])}</td>"
+            f"<td>{_cell(ruling.get('comparison_id'))}</td>"
+            f"<td>{_cell(ruling.get('family_id'))}</td>"
+            f"<td>{_cell(ruling['rubric']['rubric_id'])}</td>"
+            f"<td>{html.escape(outcome_text)}</td>"
+            f"<td>{_cell(ruling['created_at'])}</td>"
+            f"<td>{html.escape(status)}</td>"
+            "</tr>"
+        )
+    caption = f"Results root: {root_text} — {len(rulings)} ruling(s)."
+    body.append(
+        f"<table><caption>{caption}</caption><tr>{header}</tr>"
+        + "".join(rows)
+        + "</table>"
+    )
+    return _page("Rulings", "\n".join(body))
+
+
+def render_ruling(entry: dict) -> str:
+    ruling = entry["ruling"]
+    title = f"Ruling: {ruling['ruling_id']}"
+    parts = [
+        f"<h1>{html.escape(title)}</h1>",
+        '<p><a href="index.html">Back to rulings</a></p>',
+    ]
+    if entry["superseded_by"]:
+        parts.append(
+            '<p><strong class="health-SEALED_CORRUPT">SUPERSEDED</strong> — '
+            f"this ruling has been superseded by "
+            f'<a href="{html.escape(entry["superseded_by"])}.html">'
+            f"{html.escape(entry['superseded_by'])}</a>.</p>"
+        )
+    else:
+        parts.append("<p><strong>Current</strong> — this is the latest ruling for its run.</p>")
+    identity = {
+        "Ruling ID": ruling["ruling_id"],
+        "Created": ruling["created_at"],
+        "Run ID": ruling["run_id"],
+        "Plan hash": ruling.get("plan_hash"),
+        "Comparison ID": ruling.get("comparison_id"),
+        "Family": ruling.get("family_id"),
+    }
+    parts.append("<h2>Ruling identity</h2>")
+    parts.append(_kv_table(identity))
+    rubric = ruling.get("rubric")
+    parts.append("<h2>Rubric</h2>")
+    if rubric is None:
+        parts.append("<p>No rubric is recorded for this ruling.</p>")
+    else:
+        parts.append(
+            _kv_table(
+                {
+                    "Rubric ID": rubric["rubric_id"],
+                    "Revision": rubric["revision"],
+                    "Hash": rubric["hash"],
+                }
+            )
+        )
+    outcome = ruling["outcome"]
+    parts.append("<h2>Outcome</h2>")
+    outcome_kv = {
+        "State": outcome["state"],
+        "Cell": outcome.get("cell_id"),
+        "Reason": outcome["reason"],
+    }
+    if "code" in ruling:
+        outcome_kv["Code"] = ruling["code"]
+    parts.append(_kv_table(outcome_kv))
+    if outcome["state"] == "UNAVAILABLE":
+        parts.append(
+            "<p>This ruling is UNAVAILABLE: the evidence did not support a "
+            "conclusion under the stated rubric. The code and reason above "
+            "describe why.</p>"
+        )
+    elif outcome["state"] == "NO_CELL_QUALIFIES":
+        parts.append(
+            "<p>No cell cleared every floor under the stated rubric.</p>"
+        )
+    parts.append("<h2>Cells</h2>")
+    if ruling.get("cells"):
+        parts.append(_floors_table(ruling["cells"]))
+    else:
+        parts.append("<p>No cell judgments are recorded for this ruling.</p>")
+    return _page(title, "\n".join(parts))
+
+
 def write_browser(results_root: Path, output_root: Path) -> dict:
     """Render the full browser to output_root. Never raises for bad bundles."""
     resolved_output = output_root.resolve()
@@ -713,6 +885,19 @@ def write_browser(results_root: Path, output_root: Path) -> dict:
         group_path = comparisons_dir / f"{group['comparison_id']}.html"
         group_path.write_text(render_comparison_group(group), encoding="utf-8")
 
+    rulings_index = build_rulings_index(results_root)
+    rulings_dir = output_root / "rulings"
+    rulings_dir.mkdir(parents=True, exist_ok=True)
+    rulings_index_path = rulings_dir / "index.html"
+    rulings_index_path.write_text(
+        render_rulings_index(rulings_index), encoding="utf-8"
+    )
+    for entry in rulings_index["rulings"]:
+        # ruling_id is validated by save_ruling to be a bare file name with
+        # no path separators, so it is always a safe flat filename.
+        ruling_path = rulings_dir / f"{entry['ruling_id']}.html"
+        ruling_path.write_text(render_ruling(entry), encoding="utf-8")
+
     return {
         "index": str(index_path),
         "runs": len(index["entries"]),
@@ -720,4 +905,6 @@ def write_browser(results_root: Path, output_root: Path) -> dict:
         "comparison_index": str(comparison_index_path),
         "comparisons": len(comparisons["groups"]),
         "unattributed_exclusions": len(comparisons["unattributed_exclusions"]),
+        "rulings_index": str(rulings_index_path),
+        "rulings": len(rulings_index["rulings"]),
     }
