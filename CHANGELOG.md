@@ -12,8 +12,6 @@ but never the meaning of already-sealed evidence.
   in a `dev` dependency group, and added a non-blocking lint step to CI so the
   existing violation count can be cleared before the gate goes live.
 
-### Added
-
 - **Rulings.** The harness now draws the conclusion its evidence supports
   instead of stopping one step short. A **rubric** is a checked-in declaration
   of criteria -- the quality floors a cell must clear, and the single metric

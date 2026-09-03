@@ -44,7 +44,7 @@ jobs:
         # existing violations are resolved.
         continue-on-error: true
         run: |
-          python -m pip install --quiet ruff
+          python -m pip install --quiet ruff==0.16.5
           python -m ruff check .
 
       - name: Byte-compile
