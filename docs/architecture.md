@@ -62,6 +62,7 @@ ownership of the local active-run lock.
 | `artifact_profile.py` | Strict logical-root resolution from the fixed ignored machine profile |
 | `operator_policy.py` | Standing local authority, exact limits, adoption record |
 | `run_identity.py` / `managed_run_types.py` | Immutable plan, bound input hashes, name, ID, and state contracts |
+| `runtime_versions.py` | Runtime CLI version capture for provenance; shells out to each runtime, never raises |
 | `comparison_class.py` | Checked-in same-family expansion declarations that preserve the native baseline |
 | `comparison_class_inspect.py` | Read-only class, candidate-cell, and approved-artifact readiness inspection |
 | `free_bind.py` | Immutable offline proposals, validation, and non-authorizing local adoption for ordered same-family cells |

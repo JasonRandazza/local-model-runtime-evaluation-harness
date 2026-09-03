@@ -41,6 +41,7 @@ from .results_browser_html import write_browser
 from .run_console_server import serve_console
 from .ruling_cli import add_ruling_parser, command_ruling
 from .run_identity import build_plan
+from .runtime_versions import capture_runtime_versions
 from .runtime_adapters import (
     OmlxAdapter,
     OptiqAdapter,
@@ -338,6 +339,11 @@ def _command_browse(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
+def _command_runtime_versions(args: argparse.Namespace) -> dict[str, object]:
+    result = capture_runtime_versions()
+    return {"ok": True, "runtimes": result}
+
+
 def _command_ui(args: argparse.Namespace) -> None:
     serve_console(
         results_root=args.results_dir,
@@ -549,6 +555,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     commands.add_parser(
+        "runtime-versions",
+        help="Capture runtime CLI versions for provenance; shells out to each runtime",
+    )
+
+    commands.add_parser(
         "ui",
         help=(
             "Start the fixed-loopback run console over existing immutable plans; "
@@ -647,6 +658,8 @@ def main(
             body = _command_status(args)
         elif args.command == "browse":
             body = _command_browse(args)
+        elif args.command == "runtime-versions":
+            body = _command_runtime_versions(args)
         elif args.command == "init":
             body = initialize_workspace(args.target, force=args.force)
         elif args.command == "ui":

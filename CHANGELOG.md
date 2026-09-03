@@ -7,6 +7,8 @@ but never the meaning of already-sealed evidence.
 
 ### Added
 
+- **Runtime version provenance.** `runtime_versions.py` captures the build of each runtime CLI (Osaurus, oMLX, OptiQ) so a sealed artifact can say what it ran on. `lmre-managed runtime-versions` emits the same on stdout as JSON. Each version is obtained by shelling out to the runtime's CLI: `osaurus doctor --json --redact` (version taken from the `apps` array, with `--redact` to avoid credential exposure), `omlx --version`, and `optiq --version`. A runtime that is not installed, times out, exits non-zero, or prints unparseable output yields an explicit unavailable record with a reason -- it never raises and never silently omits the runtime. The captured version is **written**, never **read** by ruling, rubric, comparison, or discovery code, and it never enters `input_hashes` or the plan.
+
 - **Rulings.** The harness now draws the conclusion its evidence supports
   instead of stopping one step short. A **rubric** is a checked-in declaration
   of criteria -- the quality floors a cell must clear, and the single metric
