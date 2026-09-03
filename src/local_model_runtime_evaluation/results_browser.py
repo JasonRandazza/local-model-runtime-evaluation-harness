@@ -23,6 +23,7 @@ from .managed_run_types import (
     ManagedRunState,
     ManagedStep,
 )
+from .ruling_store import list_rulings
 from .run_identity import SAFE_RUN_ID
 
 SUPPORTED_PLAN_SCHEMA_VERSIONS = SUPPORTED_MANAGED_PLAN_SCHEMA_VERSIONS
@@ -737,6 +738,29 @@ def _comparison_scan(run_dir: Path) -> tuple:
         member,
         _plan_dimensions(plan) if accepted else None,
     )
+
+
+def build_rulings_index(results_root: Path) -> dict:
+    """{"results_root", "missing_root", "rulings"}. Never raises.
+
+    Rulings live under ``results_root / "rulings"`` as one JSON file per
+    ruling. Superseding is derived by ``list_rulings`` at read time; this
+    function never re-derives it. A missing rulings directory yields an
+    empty list, not a crash.
+    """
+    if not results_root.is_dir():
+        return {
+            "results_root": str(results_root),
+            "missing_root": True,
+            "rulings": [],
+        }
+    rulings_root = results_root / "rulings"
+    rulings = list_rulings(rulings_root)
+    return {
+        "results_root": str(results_root),
+        "missing_root": False,
+        "rulings": rulings,
+    }
 
 
 def build_comparisons(results_root: Path) -> dict:

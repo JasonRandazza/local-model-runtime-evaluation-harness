@@ -7,6 +7,17 @@ but never the meaning of already-sealed evidence.
 
 ### Added
 
+- **Rulings in the results browser.** `lmre browse` now writes a
+  `rulings/index.html` and one `rulings/<ruling-id>.html` page per ruling,
+  linked from the main index. Each ruling page shows the cell it names, the
+  rubric identity and hash, the floors and which cells cleared them, the
+  ordering metric, and -- when the outcome is `UNAVAILABLE` or no cell
+  cleared every floor -- the code and reason stated plainly. Superseded
+  rulings are marked visibly; they are never hidden, deleted, or rewritten.
+  A results root with no rulings directory renders cleanly. Rulings are read
+  via `ruling_store.list_rulings`; supersession is derived at read time and
+  never re-derived here.
+
 - **Rulings.** The harness now draws the conclusion its evidence supports
   instead of stopping one step short. A **rubric** is a checked-in declaration
   of criteria -- the quality floors a cell must clear, and the single metric

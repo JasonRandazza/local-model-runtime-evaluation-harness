@@ -27,6 +27,21 @@ class RulingStoreError(RuntimeError):
     pass
 
 
+def _is_safe_ruling_id(ruling_id: str) -> bool:
+    """True when `ruling_id` is a bare file name safe to build a path from.
+
+    `save_ruling` enforces this on write, but a ruling read back off disk
+    carries whatever id its file *contents* claim -- a file named `ok.json`
+    can hold `"ruling_id": "../../evil"`. Anything deriving a path from a
+    listed id (the results browser writes `<ruling_id>.html`) would then
+    write outside its output tree, so the check belongs here, where every
+    reader passes through.
+    """
+    if "/" in ruling_id or "\\" in ruling_id or ".." in ruling_id:
+        return False
+    return Path(ruling_id).name == ruling_id
+
+
 def _is_valid_ruling(ruling: object) -> bool:
     if not isinstance(ruling, dict):
         return False
@@ -34,7 +49,7 @@ def _is_valid_ruling(ruling: object) -> bool:
         value = ruling.get(key)
         if not isinstance(value, str) or value == "":
             return False
-    return True
+    return _is_safe_ruling_id(ruling["ruling_id"])
 
 
 def save_ruling(rulings_root: Path, ruling: dict) -> Path:
@@ -55,10 +70,8 @@ def save_ruling(rulings_root: Path, ruling: dict) -> Path:
             raise RulingStoreError(f"ruling is missing a non-empty {key!r}")
 
     ruling_id = ruling["ruling_id"]
-    if "/" in ruling_id or "\\" in ruling_id or ".." in ruling_id:
+    if not _is_safe_ruling_id(ruling_id):
         raise RulingStoreError("ruling_id escapes its directory")
-    if Path(ruling_id).name != ruling_id:
-        raise RulingStoreError("ruling_id is not a bare file name")
 
     target = rulings_root / f"{ruling_id}.json"
     if target.exists():

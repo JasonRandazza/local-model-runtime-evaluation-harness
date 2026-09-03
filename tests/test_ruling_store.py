@@ -209,3 +209,26 @@ class RulingStoreTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RulingIdTraversalTests(unittest.TestCase):
+    """A ruling id read off disk must never build a path outside its tree."""
+
+    def test_list_rulings_skips_ids_that_escape_their_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            root.mkdir(parents=True, exist_ok=True)
+            # The FILE NAME is benign; the id inside the file is hostile.
+            (root / "innocent.json").write_text(json.dumps({
+                "ruling_id": "../../escaped",
+                "created_at": "2026-09-03T00:00:00Z",
+                "run_id": "run-1",
+            }), encoding="utf-8")
+            (root / "fine.json").write_text(json.dumps({
+                "ruling_id": "fine",
+                "created_at": "2026-09-03T00:00:00Z",
+                "run_id": "run-2",
+            }), encoding="utf-8")
+            listed = list_rulings(root)
+        ids = [entry["ruling_id"] for entry in listed]
+        self.assertEqual(ids, ["fine"])
